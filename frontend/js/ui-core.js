@@ -8,7 +8,7 @@ function animRing(){rx+=(mx-rx)*0.12;ry+=(my-ry)*0.12;ring.style.left=rx+'px';ri
 animRing();
 
 /* ============================================================
-   Background Hex Canvas Animation
+   Background Hex Canvas Animation (decorative; deterministic phases)
    ============================================================ */
 (function(){
   const c=document.getElementById('bg-canvas');
@@ -18,9 +18,11 @@ animRing();
   function init(){
     W=c.width=window.innerWidth; H=c.height=window.innerHeight; hexes=[];
     const colW=S*1.5+2, rowH=R*2;
+    let k=0;
     for(let r=0;r<Math.ceil(H/rowH)+2;r++){
       for(let cc=0;cc<Math.ceil(W/colW)+2;cc++){
-        hexes.push({x:cc*(S*1.5+2)+(r%2?S*0.75:0), y:r*R, phase:Math.random()*Math.PI*2, speed:0.2+Math.random()*0.3});
+        hexes.push({x:cc*(S*1.5+2)+(r%2?S*0.75:0), y:r*R, phase:lsHash01(k)*Math.PI*2, speed:0.2+lsHash01(k+7919)*0.3});
+        k++;
       }
     }
   }
@@ -51,12 +53,10 @@ function switchTab(id, btn){
   document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));
   btn.classList.add('active');
   document.getElementById(id).classList.add('active');
-  // Lazy-init Anomalies scatter the first time that tab is opened
   if(id === 'tab-an' && !window._scatterBuilt){
     window._scatterBuilt = true;
-    setTimeout(buildScatter, 50); // tiny delay so element is painted
+    setTimeout(buildScatter, 50);
   }
-  // Animate Explainability bars the first time that tab is opened
   if(id === 'tab-ex' && !window._barsAnimated){
     window._barsAnimated = true;
     setTimeout(()=>{
@@ -65,71 +65,54 @@ function switchTab(id, btn){
   }
 }
 
+/* ============================================================
+   Scatter: heuristic score (x) vs amount (y, log scale).
+   Deterministic: no random jitter or sampling.
+   ============================================================ */
 function buildScatter(){
   const SW = 760, SH = 310, PAD = 40;
   const svg = document.getElementById('scatter-svg');
   if(!svg) return;
-
   svg.querySelectorAll('.scatter-dot').forEach(d => d.remove());
   const results = window._mlResults;
   if(!results || results.length === 0) return;
 
-  // Use actual amount field (r.amount is the direct CSV value, r.features.amount is computed)
-  let maxAmt = 1, maxFreq = 1;
-  results.forEach(r => {
-    const amt = r.amount || r.features.amount || 0;
-    if(amt > maxAmt) maxAmt = amt;
-    if(r.features.transaction_count > maxFreq) maxFreq = r.features.transaction_count;
-  });
+  const logA = a => Math.log10(Math.max(1, Math.abs(a || 0)));
+  let maxLog = 1;
+  results.forEach(r => { const l = logA(r.amount); if(l > maxLog) maxLog = l; });
 
-  // For large datasets, sample safe transactions to avoid browser lag
-  const MAX_DOTS = 800;
-  const fraudCount = results.filter(r => r.mlResult.decision === 'Fraud').length;
-  const suspCount  = results.filter(r => r.mlResult.decision === 'Suspicious').length;
-  const safeQuota = Math.max(0, MAX_DOTS - fraudCount - suspCount);
+  // Large files: keep every high/suspicious row; thin "below threshold" rows by a fixed stride.
+  const MAX_DOTS = 1500;
+  const flaggedCount = results.filter(r => r.mlResult.tier !== 'safe').length;
+  const safeTotal = results.length - flaggedCount;
+  const safeQuota = Math.max(0, MAX_DOTS - flaggedCount);
+  const stride = safeTotal > safeQuota && safeQuota > 0 ? Math.ceil(safeTotal / safeQuota) : 1;
+  let safeSeen = 0;
 
-  let safeDrawn = 0;
+  const ns = 'http://www.w3.org/2000/svg';
   results.forEach((d, idx) => {
-    const isFraud = d.mlResult.decision === 'Fraud';
-    const isSusp  = d.mlResult.decision === 'Suspicious';
-    const isSafe  = !isFraud && !isSusp;
-
-    // Downsample safe dots
-    if(isSafe){
-      if(safeDrawn >= safeQuota) return;
-      if(results.length > MAX_DOTS && Math.random() > (safeQuota / (results.length - fraudCount - suspCount))) return;
-      safeDrawn++;
+    const tier = d.mlResult.tier;
+    if(tier === 'safe'){
+      const keep = (safeSeen % stride) === 0;
+      safeSeen++;
+      if(!keep || safeQuota === 0) return;
     }
+    const jx = (lsHash01(idx) - 0.5) * 6;          // small deterministic jitter to separate ties
+    const cx = Math.max(PAD, Math.min(SW, PAD + 10 + (d.mlResult.riskScore / 100) * (SW - PAD - 20) + jx));
+    const cy = Math.max(10, Math.min(SH, SH - 10 - (logA(d.amount) / maxLog) * (SH - 30)));
 
-    const amt  = d.amount || d.features.amount || 0;
-    const freq = d.features.transaction_count || 1;
-
-    let cx = PAD + 20 + Math.min((freq / maxFreq) * (SW - PAD - 40), SW - PAD - 40);
-    let cy = SH - 20 - Math.min((amt / maxAmt) * (SH - 40), SH - 40);
-
-    cx += (Math.random() - 0.5) * 18;
-    cy += (Math.random() - 0.5) * 18;
-    cx = Math.max(PAD, Math.min(SW, cx));
-    cy = Math.max(10, Math.min(SH, cy));
-
-    const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-    c.setAttribute('cx', cx);
-    c.setAttribute('cy', cy);
-    c.setAttribute('r', isFraud ? 6 : (isSusp ? 5 : 3));
-    c.setAttribute('fill', isFraud ? 'var(--red)' : (isSusp ? 'var(--amber)' : 'var(--cyan)'));
-    c.setAttribute('opacity', (isFraud || isSusp) ? '0.92' : '0.35');
+    const c = document.createElementNS(ns, 'circle');
+    c.setAttribute('cx', cx.toFixed(1));
+    c.setAttribute('cy', cy.toFixed(1));
+    c.setAttribute('r', tier === 'high' ? 5 : tier === 'suspicious' ? 4 : 3);
+    c.setAttribute('fill', tier === 'high' ? 'var(--red)' : tier === 'suspicious' ? 'var(--amber)' : 'var(--cyan)');
+    c.setAttribute('opacity', tier === 'safe' ? '0.35' : '0.85');
     c.setAttribute('class', 'scatter-dot');
-    if(isFraud) c.setAttribute('filter', 'drop-shadow(0 0 5px rgba(248,113,113,0.8))');
-    else if(isSusp) c.setAttribute('filter', 'drop-shadow(0 0 3px rgba(245,158,11,0.6))');
 
     c.addEventListener('mouseover', e => {
       const tt  = document.getElementById('ano-tt');
       const box = document.getElementById('scatter-box').getBoundingClientRect();
-      tt.textContent = isFraud
-        ? `⚠ FRAUD — Risk ${d.mlResult.riskScore}%`
-        : isSusp
-          ? `⚠ Suspicious — Risk ${d.mlResult.riskScore}%`
-          : `✓ Safe — Risk ${d.mlResult.riskScore}%`;
+      tt.textContent = (d._displayId || '') + ' — ' + d.mlResult.decision + ' — score ' + d.mlResult.riskScore + '/100';
       tt.style.opacity = '1';
       tt.style.left = (e.clientX - box.left + 14) + 'px';
       tt.style.top  = (e.clientY - box.top  - 36) + 'px';
@@ -141,34 +124,12 @@ function buildScatter(){
     c.addEventListener('click', () => {
       const panel = document.getElementById('ano-panel');
       if(panel) panel.style.display = 'block';
-      const apId  = document.getElementById('ap-id');
-      const apV   = document.getElementById('ap-v');
-      const apAmt = document.getElementById('ap-amt');
-      const apRsn = document.getElementById('ap-rsn');
-      const txId  = (tableData[idx] && tableData[idx].id) ? tableData[idx].id : ('TX-' + (idx + 1));
-      if(apId){
-        apId.textContent = txId;
-        apId.style.color = isFraud ? 'var(--red)' : (isSusp ? 'var(--amber)' : 'var(--cyan)');
-        if(apId.previousSibling)
-          apId.previousSibling.textContent = isFraud ? 'CRITICAL ALERT: ' : (isSusp ? 'WARNING: ' : 'RECORD: ');
-      }
-      if(apV)   apV.textContent   = d.nameDest || 'Unknown Vendor';
-      if(apAmt) apAmt.textContent = '₹' + Math.floor(amt).toLocaleString() + ' (Risk: ' + d.mlResult.riskScore + '%)';
-      if(apRsn) apRsn.textContent = d.mlResult.reasons[0] || 'Within normal variance bounds.';
+      setText('ap-label', tier === 'high' ? 'HIGH RISK (HEURISTIC): ' : tier === 'suspicious' ? 'SUSPICIOUS (HEURISTIC): ' : 'BELOW THRESHOLDS: ');
+      setText('ap-id', d._displayId || '');
+      setText('ap-v', d.nameDest || 'Unknown payee');
+      setText('ap-amt', '₹' + Math.floor(d.amount || 0).toLocaleString() + ' (score ' + d.mlResult.riskScore + '/100)');
+      setText('ap-rsn', d.mlResult.reasons.join(' | '));
     });
     svg.appendChild(c);
   });
-}
-
-
-// Tooltips for Trends
-window.showTT = function(e, t){
-  let tt = document.getElementById('tt-line');
-  tt.textContent = "Data Segment Overlap";
-  tt.style.opacity = '1';
-  tt.style.left = (e.offsetX+10)+'px';
-  tt.style.top = (e.offsetY+10)+'px';
-}
-window.hideTT = function(){
-  document.getElementById('tt-line') && (document.getElementById('tt-line').style.opacity='0');
 }

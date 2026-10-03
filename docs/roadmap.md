@@ -32,7 +32,7 @@ P0 Cleanup ✔
 ### P0 — Repository cleanup ✔ (done in Phase 2)
 See [`cleanup-log.md`](cleanup-log.md).
 
-### P1 — Truthful baseline (existing UI)
+### P1 — Truthful baseline (existing UI) ✔ (done; see [`p1-acceptance.md`](p1-acceptance.md))
 - **Objective.** The current app stops displaying fabricated results and becomes safe enough to show, with no new analytics.
 - **Why now.** "Never display fabricated results" is a project principle. The fix is cheap and has no dependencies. Every later phase builds on a UI with honest empty states.
 - **Files.** `frontend/index.html`, `frontend/js/*.js`, `frontend/css/*.css`, new `tests/frontend/` harness.

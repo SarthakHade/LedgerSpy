@@ -17,8 +17,9 @@
   --txt2:#94a3b8;
   --txt3:#475569;
   --border:rgba(255,255,255,0.08);
-  --mono:'DM Mono',monospace;
-  --sans:'Sora',sans-serif;
+  /* Offline: no web-font download. Uses DM Mono / Sora only if installed locally, else system fonts. */
+  --mono:'DM Mono',ui-monospace,'Cascadia Mono',Consolas,'SFMono-Regular',Menlo,monospace;
+  --sans:'Sora',system-ui,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;
   --r:16px;
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -312,3 +313,12 @@ tr.expanded .exp-icon{transform:rotate(90deg)}
 #import-toast.show{transform:translateY(0);opacity:1}
 /* filter icon in filter bar */
 .filter-label{display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:0.7rem;color:var(--txt3);text-transform:uppercase;letter-spacing:0.08em;}
+
+/* ---- P1 Truthful Baseline: honest states ---- */
+.bg-neutral{background:rgba(148,163,184,0.12);color:var(--txt2);border:1px solid rgba(148,163,184,0.35)}
+.na-card{background:var(--bg2);border:1px dashed rgba(148,163,184,0.35);border-radius:10px;padding:14px 16px;font-size:0.82rem;color:var(--txt2);line-height:1.6}
+.na-card strong{color:var(--txt)}
+.na-inline{color:var(--txt3);font-size:0.82rem;text-align:center;padding:12px}
+.heuristic-notice{margin:0 24px 0;padding:10px 14px;border-radius:8px;font-size:0.75rem;line-height:1.5;color:var(--txt2);background:var(--cyan-dim);border:1px solid rgba(34,211,238,0.3)}
+.heuristic-notice.warn{background:var(--amber-dim);border-color:rgba(245,158,11,0.45)}
+.heuristic-notice strong{color:var(--amber)}
