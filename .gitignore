@@ -1,0 +1,46 @@
+# --- Client / case data: must never be committed ---
+/workspace/
+/data/private/
+*.ledgerspy.db
+
+# --- Model binaries (model cards *.json stay versioned) ---
+models/**/*.joblib
+models/**/*.pkl
+models/**/*.onnx
+
+# --- Generated outputs ---
+# (anchored to repo root so the future ledgerspy/reports/ package is NOT ignored)
+/reports/
+/wheelhouse/
+dist/
+build/
+*.egg-info/
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# --- Notebooks ---
+.ipynb_checkpoints/
+
+# --- Node (test harness only) ---
+node_modules/
+
+# --- OS / editor ---
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+
+# --- Secrets ---
+.env
+*.key
