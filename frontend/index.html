@@ -215,8 +215,13 @@
            <div style="display:flex;flex-direction:column;gap:12px;margin-top:10px;flex:1" id="di-issue-list">
              <div style="padding:16px;background:var(--bg2);border-radius:8px;border:1px solid var(--border);color:var(--txt3);font-size:0.85rem;text-align:center">Waiting for upload...</div>
            </div>
-           <button class="btn btn-secondary" style="margin-top:20px;width:100%" id="di-clean-btn" disabled title="Not yet implemented — explicit, logged cleaning arrives in roadmap P4">✨ Auto-Fix — not yet available</button>
+           <button class="btn btn-secondary" style="margin-top:20px;width:100%" id="di-clean-btn" disabled title="Fixes for this in-browser preview are not applied here. Logged, reversible fixes run in the backend report below (P4).">✨ Auto-Fix — see backend report below</button>
          </div>
+       </div>
+       <!-- P4: integrity report computed by the ledgerspy backend. Filled by js/integrity-panel.js from API data only. -->
+       <div class="t-card" id="di-backend" style="margin-top:24px">
+         <h3>Backend Integrity Report <span>P4 · computed by ledgerspy</span></h3>
+         <div id="di-backend-body"><div class="na-inline">Loading backend report…</div></div>
        </div>
     </div>
 
@@ -655,6 +660,7 @@
 <script src="js/ui-core.js"></script>
 <script src="js/ml-engine.js"></script>
 <script src="js/chatbot-ui.js"></script>
+<script src="js/integrity-panel.js"></script>
 </body>
 </html>
 

@@ -117,3 +117,54 @@ def ingest(tmp_path: Path) -> Ingest:
     harness = make_ingest(tmp_path)
     yield harness
     harness.conn.close()
+
+
+# ---------------------------------------------------------------------------------------------- P4 quality
+
+QUALITY = Path(__file__).parent / "fixtures" / "quality"
+STANDARD_COLUMNS = {
+    "Date": "posted_at",
+    "Invoice Date": "document_date",
+    "Account": "account",
+    "Vendor": "payee_raw",
+    "Description": "description",
+    "Invoice No": "reference",
+    "Type": "txn_type",
+    "Amount": "amount",
+    "Dr/Cr": "direction",
+    "Currency": "currency",
+}
+
+
+def explicit_mapping(ds: dict) -> dict:
+    """The mapping an analyst confirms for the quality fixtures (independent of what was proposed)."""
+    header = [c["name"] for c in ds["profile"]["columns"]]
+    fields = {STANDARD_COLUMNS[h]: h for h in header if h in STANDARD_COLUMNS}
+    options = {"decimal_separator": ".", "date_format": "%Y-%m-%d"}
+    if "document_date" in fields:
+        options["document_date_format"] = "%Y-%m-%d"
+    return {
+        "adapter": "generic_ledger",
+        "fields": fields,
+        "options": options,
+        "label_columns": ds["mapping_suggestion"]["label_columns"],
+    }
+
+
+def load_quality_fixture(harness: "Ingest", name: str, period: tuple[str, str] | None = None) -> dict:
+    """Upload + confirm a quality fixture into a (new) case, optionally with an audit period."""
+    from datetime import date
+
+    from ledgerspy.cases import store
+
+    if period:
+        harness.case_id = store.create_case(
+            harness.conn,
+            name=f"Case {name}",
+            actor="tester",
+            period_start=date.fromisoformat(period[0]),
+            period_end=date.fromisoformat(period[1]),
+        )["case_id"]
+    ds = harness.upload(QUALITY / name)
+    harness.confirm(ds, explicit_mapping(ds))
+    return ds

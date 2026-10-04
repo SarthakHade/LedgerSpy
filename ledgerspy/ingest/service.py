@@ -202,7 +202,11 @@ def get_dataset(conn: sqlite3.Connection, dataset_id: str) -> dict[str, Any]:
     }
 
 
-def get_transactions(conn: sqlite3.Connection, dataset_id: str, page: int, size: int) -> dict[str, Any]:
+def get_transactions(
+    conn: sqlite3.Connection, dataset_id: str, page: int, size: int, view: str = "normalized"
+) -> dict[str, Any]:
+    """Page canonical rows. view="normalized" (default) applies logged P4 transformations and lists the
+    fields they changed in `normalized_fields`; view="canonical" returns the P3 rows untouched."""
     row = _dataset_row(conn, dataset_id)
     if row["status"] != "canonicalised":
         raise IngestError(
@@ -216,7 +220,24 @@ def get_transactions(conn: sqlite3.Connection, dataset_id: str, page: int, size:
         (dataset_id, size, (page - 1) * size),
     ).fetchall()
     items = [{k: (json.loads(r[k]) if k == "extra" else r[k]) for k in r.keys()} for r in rows]  # noqa: SIM118
-    return {"dataset_id": dataset_id, "page": page, "size": size, "total": total, "items": items}
+    if view == "normalized":
+        overlay: dict[str, dict[str, Any]] = {}
+        for t, f, v in conn.execute(
+            "SELECT txn_id, field, value FROM normalized_values WHERE dataset_id = ?", (dataset_id,)
+        ):
+            overlay.setdefault(t, {})[f] = json.loads(v)
+        for item in items:
+            changed = overlay.get(item["txn_id"], {})
+            item.update(changed)
+            item["normalized_fields"] = sorted(changed)
+    return {
+        "dataset_id": dataset_id,
+        "view": view,
+        "page": page,
+        "size": size,
+        "total": total,
+        "items": items,
+    }
 
 
 # ----------------------------------------------------------------------------------------------- confirm

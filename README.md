@@ -33,6 +33,14 @@ This repository is being rebuilt from a hackathon prototype into a working syste
   - Label columns go to a separate table.
 
   See [`docs/p3-acceptance.md`](docs/p3-acceptance.md).
+- **P4 data quality** runs on the canonical data:
+  - 17 integrity checks; a check that can't run says `not_available` and why.
+  - Config-driven severities and a decomposed readiness score.
+  - Every issue links to its transaction and source row.
+  - Fixes are applied only after an analyst accepts them, as logged and reversible transformations; the evidence never changes.
+  - The Data Integrity tab shows the backend report when the page is opened through `ledgerspy serve`.
+
+  See [`docs/p4-acceptance.md`](docs/p4-acceptance.md).
 - The original notebooks are in `archive/` for reference. Their evaluation had data leakage and must not be quoted.
 
 See [`docs/requirements.md`](docs/requirements.md) for the requirement-by-requirement status.
@@ -40,7 +48,8 @@ See [`docs/requirements.md`](docs/requirements.md) for the requirement-by-requir
 ## Repository layout
 
 ```
-ledgerspy/     Python package: config/, canonical/, cases/ (SQLite, audit log, evidence), ingest/, api/, cli.py
+ledgerspy/     Python package: config/, canonical/, cases/ (SQLite, audit log, evidence), ingest/, quality/,
+               normalize/, api/, cli.py
 config/        default.yaml — every configurable value (validated, SHA-256 hashed)
 frontend/      prototype UI (index.html, css/, js/) — served by `ledgerspy serve`
 tests/         backend/ (pytest, P2) · frontend/harness.js (Node) + browser_check.py (optional, Playwright)
@@ -72,6 +81,7 @@ The workspace (`workspace/ledgerspy.db`) holds client data and is git-ignored.
 .venv/Scripts/ruff check . && .venv/Scripts/ruff format --check .
 node tests/frontend/harness.js                  # engine-level P1 checks, no dependencies
 python tests/frontend/browser_check.py          # optional in-browser checks (needs playwright + Chromium)
+python tests/frontend/integrity_panel_check.py  # optional: P4 dashboard against a live `ledgerspy serve`
 ```
 
 ## Documentation
@@ -86,6 +96,7 @@ python tests/frontend/browser_check.py          # optional in-browser checks (ne
 | [`docs/p1-acceptance.md`](docs/p1-acceptance.md) | P1 Truthful Baseline: acceptance results A1–A9 |
 | [`docs/p2-acceptance.md`](docs/p2-acceptance.md) | P2 Architecture Foundation: acceptance results and design decisions |
 | [`docs/p3-acceptance.md`](docs/p3-acceptance.md) | P3 Data Ingestion and Evidence: acceptance results, PaySim run, deviations |
+| [`docs/p4-acceptance.md`](docs/p4-acceptance.md) | P4 Validation, Cleaning and Integrity Dashboard: results, PaySim report, deviations |
 | [`docs/cleanup-log.md`](docs/cleanup-log.md) | What was moved, archived or deleted in the cleanup, and why |
 | [`docs/audits/phase-1-current-state-audit.md`](docs/audits/phase-1-current-state-audit.md) | Detailed audit of the prototype |
 

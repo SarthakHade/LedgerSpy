@@ -1,0 +1,6 @@
+Date,Account,Description,Amount,Dr/Cr,Balance
+2024-04-01,1000-Cash,Opening funds,1000.00,Dr,1000.00
+2024-04-02,1000-Cash,Supplier payment,200.00,Cr,800.00
+2024-04-03,1000-Cash,Cash sale,50.00,Dr,850.00
+2024-04-04,1000-Cash,Rent,100.00,Cr,740.00
+2024-04-05,1000-Cash,Cash sale,10.00,Dr,750.00

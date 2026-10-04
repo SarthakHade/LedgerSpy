@@ -12,12 +12,14 @@ from ledgerspy.config import load_config
 from ledgerspy.config.schema import LedgerSpyConfig
 from tests.backend.conftest import free_loopback_port
 
+TOKEN = secrets.token_urlsafe(32)
+
 
 @pytest.fixture
 def running_server(tmp_path, db_path):
     port = free_loopback_port()
     cfg = load_config(overrides={"server": {"port": port}, "workspace": {"path": str(tmp_path / "ws")}})
-    server = build_server(create_app(cfg, db_path, secrets.token_urlsafe(32)), cfg)
+    server = build_server(create_app(cfg, db_path, TOKEN), cfg)
     thread = threading.Thread(target=server.run, daemon=True)
     thread.start()
     for _ in range(100):
@@ -57,3 +59,24 @@ def test_build_server_refuses_non_loopback_even_if_validation_is_bypassed(db_pat
     app = create_app(cfg, db_path, secrets.token_urlsafe(32))
     with pytest.raises(ValueError, match="non-loopback"):
         build_server(app, type(cfg)(settings=forged, sha256=cfg.sha256, source=cfg.source))
+
+
+def test_concurrent_requests_on_a_real_server(running_server):
+    """Regression: parallel API requests (as the integrity dashboard makes) must not hit SQLite's
+    same-thread check when FastAPI runs a dependency's setup and teardown on different threads."""
+    from concurrent.futures import ThreadPoolExecutor
+
+    _, port = running_server
+
+    def call(_):
+        conn = http.client.HTTPConnection("127.0.0.1", port, timeout=10)
+        conn.request(
+            "GET", "/api/cases/C-01J00000000000000000000000", headers={"Authorization": f"Bearer {TOKEN}"}
+        )
+        status = conn.getresponse().status
+        conn.close()
+        return status
+
+    with ThreadPoolExecutor(max_workers=12) as pool:
+        statuses = list(pool.map(call, range(60)))
+    assert statuses == [404] * 60  # every request reached the DB and closed cleanly

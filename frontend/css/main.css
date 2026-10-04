@@ -322,3 +322,21 @@ tr.expanded .exp-icon{transform:rotate(90deg)}
 .heuristic-notice{margin:0 24px 0;padding:10px 14px;border-radius:8px;font-size:0.75rem;line-height:1.5;color:var(--txt2);background:var(--cyan-dim);border:1px solid rgba(34,211,238,0.3)}
 .heuristic-notice.warn{background:var(--amber-dim);border-color:rgba(245,158,11,0.45)}
 .heuristic-notice strong{color:var(--amber)}
+
+/* P4 backend integrity report (js/integrity-panel.js) */
+.di-section{margin-top:22px}
+.di-section h4{font-family:var(--mono);font-size:0.75rem;color:var(--txt3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:10px}
+.di-readiness{display:flex;gap:24px;align-items:center;margin:8px 0 18px}
+.di-score{font-family:var(--mono);font-size:2.4rem;font-weight:700;color:var(--txt)}
+.di-status{font-size:0.95rem;color:var(--txt);margin-bottom:4px}
+.di-muted{font-size:0.78rem;color:var(--txt3);line-height:1.5}
+.di-tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.di-tile{background:var(--bg1);border:1px solid var(--border);border-radius:8px;padding:12px 14px}
+.di-tile-v{font-family:var(--mono);font-size:1.25rem;color:var(--txt)}
+.di-tile-l{font-size:0.72rem;color:var(--txt3);margin-top:4px}
+.di-table .tx-table th,.di-table .tx-table td{padding:8px 12px;white-space:normal;font-size:0.78rem;vertical-align:top}
+.di-toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
+.di-controls{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.di-btn{padding:6px 12px;font-size:0.68rem}
+.di-reason{min-width:140px;padding:6px 8px}
+.di-list{margin:0 0 0 18px;color:var(--txt2);font-size:0.8rem;line-height:1.6}

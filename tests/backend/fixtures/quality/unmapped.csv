@@ -1,0 +1,6 @@
+Date,Invoice Date,Account,Vendor,Description,Invoice No,Amount,Dr/Cr,Currency,Cost Centre,Project,Approver
+2024-04-02,2024-03-30,5010,Acme Supplies Ltd,Office chairs,INV-1001,12500.00,Dr,INR,ADMIN,P-1,asha
+2024-04-05,2024-04-01,5020,Blue Dart Express,Courier charges,INV-1002,1240.50,Dr,INR,ADMIN,P-1,asha
+2024-04-09,2024-04-08,4000,Customer A,Receipt against invoice,RCPT-0077,50000.00,Cr,INR,ADMIN,P-1,asha
+2024-04-15,2024-04-12,5010,Acme Supplies Ltd,Desk,INV-1003,8000.00,Dr,INR,ADMIN,P-1,asha
+2024-04-22,2024-04-20,5030,City Power Co,Electricity April,INV-1004,15675.25,Dr,INR,ADMIN,P-1,asha

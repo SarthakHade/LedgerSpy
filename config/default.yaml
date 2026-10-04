@@ -100,3 +100,93 @@ adapters:
     # Direction relative to the nameOrig account, verified on data/raw/paysim_sample_10k.csv:
     # CASH_IN raises the origin balance by `amount`; every other type lowers it or leaves it unchanged.
     direction_by_type: {CASH_IN: in, CASH_OUT: out, DEBIT: out, PAYMENT: out, TRANSFER: out}
+    # Running-balance columns of the origin account (kept in `extra`). They are simulator output, checked by the
+    # P4 balance_continuity check only as a data-integrity signal: expected after = before -/+ amount.
+    balance_columns: {before: oldbalanceOrg, after: newbalanceOrig}
+
+# ---------------------------------------------------------------------------------------------
+# P4 — data quality. Checks run on the normalised view of a canonical dataset (P3 rows + applied
+# transformations). Every issue has a severity assigned by the rules below, nothing else.
+quality:
+  # Fields every transaction must have. A blank one is a `missing_required` issue.
+  required_fields: [posted_at, amount_minor, direction]
+  # Fields reported with completeness percentages when they are mapped (`missing_optional`).
+  optional_fields: [document_date, currency, account, payer_raw, payee_raw, reference, description, txn_type]
+  # A corporate ledger normally has these. When a generic ledger has no column for one, `field_coverage` records
+  # it as a limitation (INFO). Adapters can declare a field not applicable (PaySim: no references, narration...).
+  expected_ledger_fields: [document_date, currency, account, payee_raw, reference, description]
+  # `implausible_date`: posting dates outside this range (not applied to simulated clocks).
+  date_bounds: {earliest: "1900-01-01", latest: "2100-12-31"}
+  # `near_duplicate`: same payee, amount and direction within this many days (not an exact duplicate).
+  near_duplicate_window_days: 3
+  # `malformed_identifier`: control/format characters (e.g. zero-width) or longer than identifier_max_length.
+  identifier_fields: [account, reference]
+  identifier_max_length: 64
+  balance:
+    # Generic ledgers: an unmapped column with one of these headers is a running balance. Its sign convention
+    # (does a debit raise or lower it?) is inferred from the data and must explain at least this share of the
+    # debit/credit transitions, otherwise the check reports `not_available` instead of guessing.
+    running_balance_aliases: [balance, running balance, closing balance, balance amount]
+    min_convention_share: 0.5
+  severity:
+    # Severity of an issue = the check's base severity, raised by the highest escalation rule that matches
+    # (the share of ALL rows affected by that check reaches min_share); escalation never lowers it.
+    # For synthetic datasets (e.g. PaySim) a synthetic_overrides entry replaces all of this and is final:
+    # those checks measure simulator behaviour, so their prevalence says nothing about ledger quality.
+    # Levels: info < warning < error < critical.
+    base:
+      missing_required: error          # analysis cannot use the row as is
+      missing_optional: info
+      invalid_value: error             # value present in the source but not convertible
+      unparseable_date: error
+      implausible_date: error
+      malformed_identifier: warning
+      exact_duplicate: warning         # may be a double posting; never removed automatically
+      near_duplicate: info
+      negative_amount: info            # reversals/credits are legitimate
+      zero_amount: warning
+      out_of_period: warning
+      balance_continuity: warning
+      duplicate_source_id: warning
+      unmapped_columns: info
+      field_coverage: info
+      needs_normalization: info
+      ingestion_issues: info
+    synthetic_overrides:
+      balance_continuity: info         # PaySim balances are known simulator artefacts, not ledger errors
+    escalation:
+      - {check: missing_required, min_share: 0.05, severity: critical}
+      - {check: invalid_value, min_share: 0.05, severity: critical}
+      - {check: unparseable_date, min_share: 0.05, severity: critical}
+      - {check: implausible_date, min_share: 0.05, severity: critical}
+      - {check: missing_optional, min_share: 0.20, severity: warning}
+      - {check: exact_duplicate, min_share: 0.01, severity: error}
+      - {check: near_duplicate, min_share: 0.05, severity: warning}
+      - {check: zero_amount, min_share: 0.05, severity: error}
+      - {check: out_of_period, min_share: 0.05, severity: error}
+      - {check: balance_continuity, min_share: 0.05, severity: error}
+  readiness:
+    # readiness = floor_1dp(100 x sum(w_c x clean_c) / sum(w_c)) over ASSESSED components, where
+    # clean_c = 1 - (rows with at least one issue of severity >= min_severity from the component's checks) / rows.
+    # A component is assessed when at least one of its checks could run (not `not_available`).
+    # If any issue has severity >= blocking_severity, the score is capped at max_score_when_blocking and the
+    # status is `not_ready`; it can therefore never read 100 while blocking issues remain.
+    min_severity: warning
+    blocking_severity: error
+    max_score_when_blocking: 99.9
+    components:
+      completeness: {weight: 0.35, checks: [missing_required]}
+      validity: {weight: 0.30, checks: [invalid_value, unparseable_date, implausible_date, malformed_identifier]}
+      uniqueness: {weight: 0.20, checks: [exact_duplicate, duplicate_source_id]}
+      consistency: {weight: 0.15, checks: [balance_continuity, out_of_period, zero_amount, negative_amount,
+                                           near_duplicate]}
+
+# ---------------------------------------------------------------------------------------------
+# P4 — normalisation. Only PROPOSED here; nothing changes until an analyst accepts a fix and applies it.
+normalize:
+  # collapse runs of whitespace (incl. non-breaking spaces) to one space
+  whitespace_fields: [payer_raw, payee_raw, description, txn_type]
+  # identifiers: Unicode NFKC, drop control/zero-width characters, collapse whitespace
+  identifier_fields: [account, reference]
+  # explicit case normalisation, per field
+  case: {txn_type: upper}

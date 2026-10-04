@@ -5,6 +5,9 @@ Status: **design**. Implemented so far:
   local security (see [`p2-acceptance.md`](p2-acceptance.md)).
 - **P3 (ingestion and evidence):** CSV/XLSX ingestion, evidence store, explicit mapping, PaySim and generic-ledger
   adapters, labels split off (see [`p3-acceptance.md`](p3-acceptance.md)).
+- **P4 (validation, cleaning, integrity dashboard):** 17 integrity checks, config-driven severity, a decomposed readiness
+  score, row-traceable issues, analyst-decided fixes applied as logged and reversible transformations, and the
+  backend panel in the Data Integrity tab (see [`p4-acceptance.md`](p4-acceptance.md)).
 
 Everything else is not implemented yet unless stated.
 Requirement IDs (R1…R20) refer to [`requirements.md`](requirements.md).
@@ -73,8 +76,8 @@ Requirement IDs (R1…R20) refer to [`requirements.md`](requirements.md).
 |---|---|---|---|
 | Ingest | `ledgerspy.ingest` | Uploaded file + declared kind (ledger / bank / vendor master / employee master / cash-flow) | Evidence record (sha256), raw table, suggested column mapping |
 | Map | `ledgerspy.ingest.mapping` | Raw headers, user confirmation | Mapping to the canonical schema (stored per dataset) |
-| Quality | `ledgerspy.quality` | Mapped raw table | Integrity report: categorised issues, readiness score |
-| Normalize | `ledgerspy.normalize` | Mapped table + accepted fixes | Canonical tables (transactions, parties); transformation log |
+| Quality | `ledgerspy.quality` | Normalised view of the canonical dataset (P4) | Integrity report: categorised issues, readiness score |
+| Normalize | `ledgerspy.normalize` | Canonical rows + accepted fixes | Normalised view (canonical rows + `normalized_values` overlay); transformation log |
 | Features | `ledgerspy.features` | Canonical tables | Feature matrix (point-in-time) from one feature registry |
 | Detect | `ledgerspy.detectors`, `ledgerspy.forensics` | Features, canonical tables, entity map, bank data | **Signals** (uniform objects, see §6) |
 | Risk | `ledgerspy.risk` | Signals | Transaction and entity risk scores, tiers, exact contributions |
@@ -90,7 +93,7 @@ immutable. Re-analysing creates a new run.
 | Concern | Frontend (`frontend/`) | Backend (`ledgerspy.api`, `ledgerspy.cases`) | ML / Analytics (`ledgerspy.*` core) | Storage (`workspace/`, `models/`) |
 |---|---|---|---|---|
 | File upload | File picker, progress, mapping confirmation UI | Size/type/magic checks, hashing, evidence copy, parser dispatch | Parsing (CSV/XLSX/PDF/OCR), mapping suggestions | Evidence files (read-only), `evidence_files` table |
-| Validation | Integrity dashboard rendering | Orchestrates checks, persists report | Check implementations, readiness formula | `datasets.integrity_json` |
+| Validation | Integrity dashboard rendering | Orchestrates checks, persists report | Check implementations, readiness formula | `integrity_runs`, `integrity_issues` (P4) |
 | Cleaning | Shows proposed fixes; user accepts or rejects | Records decisions in the audit log | Transformation functions | Transformation log per dataset |
 | Features / models | — (never) | Triggers runs, tracks status | Feature registry, model inference, anomaly detection | `models/` artefacts + cards |
 | Forensics | Charts, matrix, graph, side-by-side recon | Exposes results via API | Benford, ER, graph, reconciliation, cash-flow sim | `signals`, `recon_matches`, `entities`, `entity_aliases` |
@@ -110,8 +113,15 @@ POST  /api/cases/{case_id}/files                  raw-body upload (P3: ?filename
 GET   /api/datasets/{dataset_id}                  profile + suggested mapping
 PUT   /api/datasets/{dataset_id}/mapping          confirm mapping → canonical rows (once; immutable afterwards)
 GET   /api/datasets/{dataset_id}/transactions     P3: paged canonical rows (labels never included)
-GET   /api/datasets/{dataset_id}/integrity        integrity report (R3)
-POST  /api/datasets/{dataset_id}/normalize        apply accepted fixes (R4)
+GET   /api/datasets/{dataset_id}/integrity        integrity report (R3) — latest run (P4: 404 not_run before the first)
+POST  /api/datasets/{dataset_id}/integrity        P4: run the checks → new immutable report
+GET   /api/datasets/{dataset_id}/integrity/issues P4: paged issues (filter check/severity), each with txn_id + source_row
+GET   /api/datasets/{dataset_id}/fixes            P4: fix proposals and their status
+POST  /api/datasets/{dataset_id}/fixes/decisions  P4: accept (value for ambiguous) / reject (reason) — all-or-nothing
+POST  /api/datasets/{dataset_id}/normalize        apply accepted fixes (R4) → logged transformations, then re-run checks
+GET   /api/datasets/{dataset_id}/transformations  P4: transformation log
+POST  /api/datasets/{dataset_id}/transformations/{id}/revert   P4: restore the logged original value (reason)
+GET   /api/datasets                               P4: dataset list with latest readiness (dashboard picker)
 POST  /api/cases/{case_id}/runs                   start analysis → run_id
 GET   /api/runs/{run_id}                          status, manifest (hashes, versions), module availability
 GET   /api/runs/{run_id}/summary                  tier counts, exposure, flagged-volume check
@@ -192,12 +202,45 @@ Label columns (`isFraud`, `isFlaggedFraud`, `label`, …) are detected at mappin
 `cases`, `evidence_files`, `datasets`, `transactions`, `labels`, `ingest_issues`, `runs` (manifest), `signals`, `scores`,
 `findings`, `notes`, `recon_matches`, `reports`, `audit_log`, `schema_version`. (P3 added `transactions`, `labels` and
 `ingest_issues`; `evidence_files` rows are immutable and canonicalised `datasets` rows are frozen by triggers.)
+P4 added `integrity_runs`, `integrity_issues`, `fix_proposals`, `fix_decisions`, `transformations` and `normalized_values`.
+
+### Data quality and normalisation (P4)
+- **Where checks run.** Checks run on the *normalised view*: the canonical P3 row, overridden field by field by
+  `normalized_values`.
+  - P3 rows are never edited. A trigger blocks updates to their canonical columns and blocks deletes;
+    the entity-ID columns stay writable for P12.
+  - `normalized_values` is written only by a logged transformation.
+  - This replaces "normalize writes canonical tables" (§2): the canonical rows stay the typed mapping of the evidence,
+    and every difference from them is explained by the log.
+- **Checks** (`ledgerspy/quality/checks.py`):
+  - **Fields:** missing_required, missing_optional, field_coverage.
+  - **Validity:** invalid_value, unparseable_date, implausible_date, malformed_identifier.
+  - **Duplicates:** exact_duplicate, near_duplicate, duplicate_source_id.
+  - **Amounts, period, balances:** negative_amount, zero_amount, out_of_period, balance_continuity.
+  - **Source and housekeeping:** unmapped_columns, needs_normalization, ingestion_issues.
+  - A check that lacks its inputs reports `not_available` with the reason (no payee column, no case period,
+    simulated clock, no balance column, …), never a silent pass.
+- **Severity** (config `quality.severity`) is assigned per check: the base severity, raised by prevalence escalation rules.
+  For synthetic datasets an override replaces it and is final.
+- **Readiness** (config `quality.readiness`):
+  - Formula: `floor1dp(100 × Σ w·clean / Σ w)` over the assessed components (completeness, validity, uniqueness,
+    consistency). Here `clean` = 1 − the share of rows with an issue of at least `min_severity`.
+  - The score is capped at 99.9, and the status is `not_ready`, while any issue of at least `blocking_severity` remains.
+  - Every component's points are reported.
+- **Fixes.** Safe fixes (whitespace, identifier NFKC/zero-width removal, configured case) and reinterpretations (another
+  configured date format or decimal convention) are only *proposed*.
+  - Applying any fix needs an explicit accept; an ambiguous one also needs the chosen value. A rejection needs a reason.
+  - Missing values, rounding and duplicate removal are never proposed.
+  - Each application is a `transformations` row: txn, field, original, normalised, transform, reason, run, actor, time.
+  - A revert restores the logged original exactly and appends its own row.
+- **IDs.** Issue and fix IDs are deterministic hashes, so re-runs on the same data and config give identical IDs and an
+  identical `report_sha256`.
 
 - Large per-run tables (`signals`, `scores`) are keyed by `(run_id, subject_type, subject_id)`.
 - SQLite comfortably handles ~10⁶ rows on a laptop. Parquet or DuckDB can be added later **only** if profiling shows a need.
 
 ### Configuration
-- `config/default.yaml` (repository root) is the only place values are set; the schema (`ledgerspy/config/schema.py`) has no defaults, rejects unknown keys and is strict about types. `ledgerspy.config.load_config()` is the single interface. P2 defined `config_version`, `server` and `workspace`; P3 added `ingest` (size/row/column/cell limits, CSV encodings and delimiters, XLSX zip limits, minor units), `mapping` (aliases, label columns, date formats, thresholds) and `adapters`; each later phase adds its own section.
+- `config/default.yaml` (repository root) is the only place values are set; the schema (`ledgerspy/config/schema.py`) has no defaults, rejects unknown keys and is strict about types. `ledgerspy.config.load_config()` is the single interface. P2 defined `config_version`, `server` and `workspace`; P3 added `ingest` (size/row/column/cell limits, CSV encodings and delimiters, XLSX zip limits, minor units), `mapping` (aliases, label columns, date formats, thresholds) and `adapters`; P4 added `quality` (required/optional/expected fields, date bounds, near-duplicate window, identifier rules, balance, severity, readiness) and `normalize`; each later phase adds its own section.
 - Sections planned: `ingest` (limits), `quality`, `features`, `rules` (one entry per rule: code, family, parameters, weight, severity, explanation template), `risk` (fusion and tier thresholds), `benford`, `entity_resolution`, `graph`, `reconciliation`, `cashflow_sim`.
 - A case may override values. The effective config is hashed and stored in the run manifest.
 

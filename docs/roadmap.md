@@ -10,7 +10,7 @@ and docs, and phases 22–23 only consolidate them. The design for each module i
 P0 Cleanup ✔
  └─ P1 Truthful baseline (existing UI)
      └─ P2 Foundation (package, config, schema, IDs, SQLite, audit log, API skeleton) ✔
-         └─ P3 Ingestion + evidence ✔ ┬─ P4 Validation / cleaning / integrity dashboard
+         └─ P3 Ingestion + evidence ✔ ┬─ P4 Validation / cleaning / integrity dashboard ✔
                                       └─ P5 Synthetic scenario data ◄─ (needs canonical schema from P2/P3)
                                           └─ P6 Feature registry
                                               ├─ P7 Forensic rules + Benford
@@ -81,7 +81,7 @@ See [`cleanup-log.md`](cleanup-log.md).
   - The evidence hash in the DB equals `sha256` of the original.
   - No row shows a placeholder ID.
 
-### P4 — Validation, cleaning and the Data Integrity Dashboard (R3, R4)
+### P4 — Validation, cleaning and the Data Integrity Dashboard (R3, R4) ✔ (done; see [`p4-acceptance.md`](p4-acceptance.md))
 - **Objective.** A real integrity check suite with a documented readiness formula.
   - Checks cover nulls per required field, type/format mismatches, unparseable dates, exact/near duplicate rows, negative or zero amounts, out-of-period dates, balance continuity and unmapped columns.
   - Issues are categorised by severity.

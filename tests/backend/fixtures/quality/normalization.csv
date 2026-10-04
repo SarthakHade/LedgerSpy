@@ -1,0 +1,5 @@
+Date,Account,Vendor,Description,Invoice No,Type,Amount,Dr/Cr,Currency
+2024-04-02,5010,Acme  Supplies Ltd,Office chairs,INV-1001,PAYMENT,12500.00,Dr,INR
+2024-04-05,５０２０,Blue Dart Express,Courier   charges,INV-1002,payment,1240.50,Dr,INR
+2024-04-09,4000,Customer A,Receipt,RCPT​-0077,receipt,50000.00,Cr,INR
+2024-04-15,5010,Acme Supplies Ltd,Desk,INV-1003,PAYMENT,8000.00,Dr,INR

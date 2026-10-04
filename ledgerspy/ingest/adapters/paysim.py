@@ -22,6 +22,14 @@ class PaySimConverter(GenericLedgerConverter):
     name = "paysim"
     version = "1"
     synthetic = True
+    # Corporate-ledger fields that do not exist in the simulation. Quality reports list them as
+    # "not applicable" (a property of the source), never as missing data.
+    NOT_APPLICABLE = {
+        "document_date": "PaySim simulates transfers, not invoices: there are no document dates",
+        "reference": "PaySim has no invoice, cheque or voucher numbers",
+        "description": "PaySim has no narration",
+        "currency": "PaySim amounts are in an unspecified simulated currency",
+    }
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)

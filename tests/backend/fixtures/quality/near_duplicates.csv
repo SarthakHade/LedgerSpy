@@ -1,0 +1,6 @@
+Date,Invoice Date,Account,Vendor,Description,Invoice No,Amount,Dr/Cr,Currency
+2024-04-02,2024-03-30,5010,Acme Supplies Ltd,Office chairs,INV-1001,12500.00,Dr,INR
+2024-04-03,2024-03-31,5010,Acme Supplies Ltd,Office chairs,INV-1009,12500.00,Dr,INR
+2024-04-13,2024-04-10,5010,Acme Supplies Ltd,Office chairs,INV-1010,12500.00,Dr,INR
+2024-04-15,2024-04-12,5030,City Power Co,Electricity April,INV-1004,15675.25,Dr,INR
+2024-04-17,2024-04-12,5030,CITY  POWER CO,Electricity April (copy),INV-1004A,15675.25,Dr,INR

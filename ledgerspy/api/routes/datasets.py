@@ -5,7 +5,7 @@ with the size limit enforced chunk by chunk; the original filename travels as a 
 metadata only (never a path).
 """
 
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Query, Request
 from fastapi import Path as PathParam
@@ -15,6 +15,7 @@ from fastapi.responses import JSONResponse
 from ledgerspy.api.routes.cases import Db
 from ledgerspy.cases import evidence
 from ledgerspy.cases.db import connect
+from ledgerspy.errors import LedgerSpyError
 from ledgerspy.ingest import service
 from ledgerspy.ingest.errors import IngestError
 from ledgerspy.ingest.mapping import Mapping
@@ -25,7 +26,7 @@ CaseId = Annotated[str, PathParam(pattern=r"^C-[0-9A-HJKMNP-TV-Z]{26}$")]
 DatasetId = Annotated[str, PathParam(pattern=r"^D-[0-9A-HJKMNP-TV-Z]{26}$")]
 
 
-def _rejected(exc: IngestError) -> JSONResponse:
+def _rejected(exc: LedgerSpyError) -> JSONResponse:
     return JSONResponse({"status": "rejected", "error": exc.to_dict()}, status_code=exc.http_status)
 
 
@@ -52,7 +53,7 @@ async def upload_file(
         )
     try:
         staged = await evidence.stage_stream(request.stream(), state.workspace, limit)
-    except IngestError as exc:
+    except LedgerSpyError as exc:
         return _rejected(exc)
 
     def work() -> dict[str, Any]:
@@ -75,7 +76,7 @@ async def upload_file(
 
     try:
         return await run_in_threadpool(work)
-    except IngestError as exc:
+    except LedgerSpyError as exc:
         return _rejected(exc)
 
 
@@ -83,7 +84,7 @@ async def upload_file(
 def get_dataset(dataset_id: DatasetId, db: Db) -> Any:
     try:
         return service.get_dataset(db, dataset_id)
-    except IngestError as exc:
+    except LedgerSpyError as exc:
         return _rejected(exc)
 
 
@@ -92,7 +93,7 @@ def confirm_mapping(dataset_id: DatasetId, mapping: Mapping, request: Request, d
     state = request.app.state
     try:
         return service.confirm_mapping(db, state.config, state.workspace, dataset_id, mapping, state.actor)
-    except IngestError as exc:
+    except LedgerSpyError as exc:
         return _rejected(exc)
 
 
@@ -102,8 +103,9 @@ def list_transactions(
     db: Db,
     page: Annotated[int, Query(ge=1)] = 1,
     size: Annotated[int, Query(ge=1, le=500)] = 100,
+    view: Annotated[Literal["normalized", "canonical"], Query()] = "normalized",
 ) -> Any:
     try:
-        return service.get_transactions(db, dataset_id, page, size)
-    except IngestError as exc:
+        return service.get_transactions(db, dataset_id, page, size, view)
+    except LedgerSpyError as exc:
         return _rejected(exc)

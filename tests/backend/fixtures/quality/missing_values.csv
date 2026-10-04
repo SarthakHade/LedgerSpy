@@ -1,0 +1,6 @@
+Date,Invoice Date,Account,Vendor,Description,Invoice No,Amount,Dr/Cr,Currency
+2024-04-02,2024-03-30,5010,Acme Supplies Ltd,Office chairs,INV-1001,12500.00,Dr,INR
+,2024-04-01,5020,Blue Dart Express,Courier charges,INV-1002,1240.50,Dr,INR
+2024-04-09,2024-04-08,4000,Customer A,,RCPT-0077,,Cr,INR
+2024-04-15,2024-04-12,5010,,Desk,INV-1003,8000.00,,INR
+2024-04-22,2024-04-20,5030,City Power Co,,INV-1004,,Dr,INR
