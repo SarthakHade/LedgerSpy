@@ -1,0 +1,5 @@
+﻿Txn ID,Posting Date,Vendor,Narration,Amount,Dr/Cr,Currency,Invoice No,Cost Centre,isFraud
+JV-0001,2024-04-01,Acme Supplies Ltd,Office chairs,12500.00,Dr,INR,INV-1001,ADMIN,0
+JV-0002,2024-04-02,Blue Dart,Courier charges,"1,240.50",Dr,INR,INV-1002,OPS,0
+JV-0003,2024-04-02,Customer A,Receipt,50000,Cr,INR,RCPT-77,SALES,1
+JV-0004,2024-04-03,Acme Supplies Ltd,Desk,8000.00,Dr,INR,INV-1003,ADMIN,0

@@ -5,7 +5,7 @@ import pytest
 from ledgerspy.api.app import TOKEN_META
 from ledgerspy.api.security import SESSION_COOKIE, inline_handler_hashes
 from ledgerspy.cases import audit
-from ledgerspy.cases.db import connect
+from ledgerspy.cases.db import SCHEMA_VERSION, connect
 from ledgerspy.paths import FRONTEND_DIR
 from tests.backend.conftest import BASE_URL
 
@@ -32,7 +32,7 @@ def test_health_is_public(client, config):
     r = client.get("/api/health")
     assert r.status_code == 200
     body = r.json()
-    assert body["status"] == "ok" and body["schema_version"] == 1
+    assert body["status"] == "ok" and body["schema_version"] == SCHEMA_VERSION
     assert body["config_sha256"] == config.sha256
 
 
@@ -100,7 +100,7 @@ def test_create_and_get_case_with_token(client, auth, db_path):
     result = audit.verify(conn)
     last = conn.execute("SELECT action, object FROM audit_log ORDER BY seq DESC LIMIT 1").fetchone()
     conn.close()
-    assert result.ok and result.entries == 2
+    assert result.ok and result.entries == SCHEMA_VERSION + 1
     assert tuple(last) == ("case.created", f"case:{case['case_id']}")
 
 

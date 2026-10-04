@@ -1,0 +1,7 @@
+Date,Vendor,Amount,Dr/Cr
+2024-04-01,Acme,10.00,Dr
+
+,,,
+2024-04-05,,,Dr
+not-a-date,Beta,abc,Sideways
+2024-04-07,Gamma,1.005,Cr

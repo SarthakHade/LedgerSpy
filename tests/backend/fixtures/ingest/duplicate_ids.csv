@@ -1,0 +1,5 @@
+Txn ID,Date,Vendor,Amount,Dr/Cr
+T1,2024-04-01,Acme,10.00,Dr
+T2,2024-04-02,Beta,5.00,Cr
+T1,2024-04-03,Gamma,7.00,Dr
+,2024-04-04,Delta,1.00,Dr

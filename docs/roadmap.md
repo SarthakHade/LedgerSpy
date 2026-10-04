@@ -10,7 +10,7 @@ and docs, and phases 22–23 only consolidate them. The design for each module i
 P0 Cleanup ✔
  └─ P1 Truthful baseline (existing UI)
      └─ P2 Foundation (package, config, schema, IDs, SQLite, audit log, API skeleton) ✔
-         └─ P3 Ingestion + evidence ──┬─ P4 Validation / cleaning / integrity dashboard
+         └─ P3 Ingestion + evidence ✔ ┬─ P4 Validation / cleaning / integrity dashboard
                                       └─ P5 Synthetic scenario data ◄─ (needs canonical schema from P2/P3)
                                           └─ P6 Feature registry
                                               ├─ P7 Forensic rules + Benford
@@ -58,7 +58,7 @@ See [`cleanup-log.md`](cleanup-log.md).
   - `ledgerspy audit verify` passes, and fails after a manual DB edit.
   - `ruff` and `pytest` pass.
 
-### P3 — Data ingestion and evidence
+### P3 — Data ingestion and evidence ✔ (done; see [`p3-acceptance.md`](p3-acceptance.md))
 - **Objective.** Import CSV and XLSX safely through a single, explicit mapping step.
   - Detect encoding and delimiter; enforce size and row limits.
   - Hash the file and keep a read-only evidence copy.

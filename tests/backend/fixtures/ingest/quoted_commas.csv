@@ -1,0 +1,4 @@
+Date,Vendor,Amount,Dr/Cr
+2024-04-01,"Acme, Inc.","1,250.00",Dr
+2024-04-02,"Smith, Jones & Co",300.00,Dr
+2024-04-03,"Plain Vendor",75.25,Cr

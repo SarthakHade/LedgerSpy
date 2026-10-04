@@ -1,0 +1,2 @@
+# Ingestion fixtures are byte-exact (BOMs, CRLF, cp1252): never normalise them.
+tests/backend/fixtures/** -text

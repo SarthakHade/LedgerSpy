@@ -68,16 +68,21 @@ class FindingStatus(StrEnum):
 
 
 class Transaction(_Model):
-    """A canonical ledger or bank line. Label columns (isFraud, …) are never part of it."""
+    """A canonical ledger or bank line. Label columns (isFraud, …) are never part of it.
+
+    `None` in posted_at / amount_minor / currency / direction means the source did not provide a usable
+    value. Ingestion never invents one; every such gap in a mapped field is recorded as an ingestion issue
+    (P4 integrity checks report them).
+    """
 
     txn_id: str = Field(min_length=1)
     dataset_id: str = Field(min_length=1)
     source_row: int = Field(ge=1, description="1-based data row in the evidence file")
-    posted_at: datetime
+    posted_at: datetime | None
     document_date: date | None = None
-    amount_minor: int = Field(description="Amount in minor units (e.g. paise)")
-    currency: str = Field(pattern=r"^[A-Z]{3}$")
-    direction: Direction
+    amount_minor: int | None = Field(description="Amount in minor units (e.g. paise)")
+    currency: str | None = Field(default=None, pattern=r"^[A-Z]{3}$")
+    direction: Direction | None
     account: str | None = None
     payer_raw: str | None = None
     payee_raw: str | None = None

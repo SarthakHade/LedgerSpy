@@ -1,8 +1,12 @@
 # LedgerSpy — Target Architecture
 
-Status: **design**. P2 (foundation) is implemented: package skeleton, config, canonical models, IDs, SQLite
-schema, audit log, API skeleton and local security (see [`p2-acceptance.md`](p2-acceptance.md)). Everything else is not
-implemented yet unless stated.
+Status: **design**. Implemented so far:
+- **P2 (foundation):** package skeleton, config, canonical models, IDs, SQLite schema, audit log, API skeleton and
+  local security (see [`p2-acceptance.md`](p2-acceptance.md)).
+- **P3 (ingestion and evidence):** CSV/XLSX ingestion, evidence store, explicit mapping, PaySim and generic-ledger
+  adapters, labels split off (see [`p3-acceptance.md`](p3-acceptance.md)).
+
+Everything else is not implemented yet unless stated.
 Requirement IDs (R1…R20) refer to [`requirements.md`](requirements.md).
 
 ---
@@ -102,9 +106,10 @@ All JSON. IDs are strings. List endpoints are paginated (`?page=&size=`).
 ```
 POST  /api/cases                                  create case
 GET   /api/cases/{case_id}
-POST  /api/cases/{case_id}/files                  multipart upload; kind=ledger|bank|vendor_master|employee_master|cashflow
+POST  /api/cases/{case_id}/files                  raw-body upload (P3: ?filename=&kind=ledger[&sheet=][&delimiter=]); other kinds later
 GET   /api/datasets/{dataset_id}                  profile + suggested mapping
-PUT   /api/datasets/{dataset_id}/mapping          confirm mapping
+PUT   /api/datasets/{dataset_id}/mapping          confirm mapping → canonical rows (once; immutable afterwards)
+GET   /api/datasets/{dataset_id}/transactions     P3: paged canonical rows (labels never included)
 GET   /api/datasets/{dataset_id}/integrity        integrity report (R3)
 POST  /api/datasets/{dataset_id}/normalize        apply accepted fixes (R4)
 POST  /api/cases/{case_id}/runs                   start analysis → run_id
@@ -137,10 +142,10 @@ Every analytic endpoint returns `{"status": "ok" | "not_available" | "insufficie
 |---|---|---|
 | `txn_id` | str | Source ID if present, unique and stable; otherwise `T-` + first **16** hex of `sha256(evidence_sha256 + ":" + source_row)` (P2: widened from 12 hex; 48 bits gives a ~0.2% chance of some collision in 10⁶ rows of one file, 64 bits ~3·10⁻⁸). Depends only on the file and its 1-based row, never on processing order |
 | `dataset_id`, `source_row` | str, int | Exact provenance (1-based data row) |
-| `posted_at` | datetime | Posting date (and time if available) |
+| `posted_at` | datetime? | Posting date (and time if available) |
 | `document_date` | date? | Invoice/document date (enables back-dating checks) |
-| `amount_minor` | int | Amount in minor units (paise) to avoid float errors; `currency` alongside |
-| `direction` | enum | `debit` / `credit` (or `out` / `in` for bank) |
+| `amount_minor` | int? | Amount in minor units (paise) to avoid float errors; `currency` (optional) alongside |
+| `direction` | enum? | `debit` / `credit` (or `out` / `in` for bank) |
 | `account` | str? | GL account / bank account |
 | `payer_raw`, `payee_raw` | str? | Names as written in the source |
 | `payer_entity_id`, `payee_entity_id` | str? | After entity resolution |
@@ -152,6 +157,30 @@ Every analytic endpoint returns `{"status": "ok" | "not_available" | "insufficie
 Label columns (`isFraud`, `isFlaggedFraud`, `label`, …) are detected at mapping. They go to a separate
 `labels` table and are **never** part of the canonical transaction.
 
+**P3 decisions.**
+- `posted_at`, `amount_minor`, `currency` and `direction` are nullable. Real files have gaps (the PaySim sample has
+  blank `amount` and `type` cells), and ingestion never invents a value.
+  - A blank or unconvertible mapped cell becomes `NULL` plus an `ingest_issues` row (row, field, column, code, raw value).
+  - P4's integrity checks start from those rows.
+  - A confirmed mapping that leaves more than `mapping.max_unconvertible_share` of rows unconvertible in a field is refused
+    as a wrong mapping.
+- **Canonical rows exist from P3.** Each row is the *typed mapping* of its source row: nothing is cleaned or corrected.
+  P4 adds integrity checks and logged corrections on top; it never rewrites P3 rows silently.
+- **`source_row`** is the record ordinal after the header, counting blank records (spreadsheet row = header row + `source_row`).
+  Blank records produce no transaction.
+- **Source IDs** become `txn_id` only if every value is present, printable, ≤ 128 characters and unique in the file.
+  Otherwise the mapping is refused (map the column as `reference`, or use derived IDs). Rows are keyed by `(dataset_id, txn_id)`.
+- **Adapters:** `generic_ledger` (alias-driven, user-confirmed) and `paysim` (fixed mapping) both emit the same `Transaction`.
+  - PaySim: `posted_at = adapters.paysim.step_epoch (1970-01-01) + (step − 1) h`, a deliberately artificial clock.
+    The dataset is recorded with `time_basis = simulation_step` and `synthetic = 1`.
+  - PaySim `direction` comes from `type`, relative to the `nameOrig` account (`CASH_IN` → in, all other types → out),
+    as verified on the sample's balance columns. There is no currency.
+- **Mapping is explicit.**
+  - The upload returns a proposal with each field's status (proposed / ambiguous / low_confidence / unmapped) and its basis,
+    plus label columns, unmapped columns and the items that need confirmation.
+  - Only exact alias matches whose values fit are proposed. Ambiguous date formats or decimal separators are never guessed.
+  - Alias and label tables are in `config/default.yaml` (hashed).
+
 ### Entities
 - `entity_id` = `E-` + ULID. Assigned at resolution and stable within a case.
 - `kind` ∈ {vendor, employee, customer, bank_account, company_account, unknown}.
@@ -160,14 +189,15 @@ Label columns (`isFraud`, `isFlaggedFraud`, `label`, …) are detected at mappin
   entity. Analyst decisions override automatic ones.
 
 ### Other tables (SQLite)
-`cases`, `evidence_files`, `datasets`, `runs` (manifest), `signals`, `scores`, `findings`, `notes`,
-`recon_matches`, `reports`, `audit_log`, `schema_version`.
+`cases`, `evidence_files`, `datasets`, `transactions`, `labels`, `ingest_issues`, `runs` (manifest), `signals`, `scores`,
+`findings`, `notes`, `recon_matches`, `reports`, `audit_log`, `schema_version`. (P3 added `transactions`, `labels` and
+`ingest_issues`; `evidence_files` rows are immutable and canonicalised `datasets` rows are frozen by triggers.)
 
 - Large per-run tables (`signals`, `scores`) are keyed by `(run_id, subject_type, subject_id)`.
 - SQLite comfortably handles ~10⁶ rows on a laptop. Parquet or DuckDB can be added later **only** if profiling shows a need.
 
 ### Configuration
-- `config/default.yaml` (repository root) is the only place values are set; the schema (`ledgerspy/config/schema.py`) has no defaults, rejects unknown keys and is strict about types. `ledgerspy.config.load_config()` is the single interface. P2 defines only `config_version`, `server` and `workspace`; each later phase adds its own section.
+- `config/default.yaml` (repository root) is the only place values are set; the schema (`ledgerspy/config/schema.py`) has no defaults, rejects unknown keys and is strict about types. `ledgerspy.config.load_config()` is the single interface. P2 defined `config_version`, `server` and `workspace`; P3 added `ingest` (size/row/column/cell limits, CSV encodings and delimiters, XLSX zip limits, minor units), `mapping` (aliases, label columns, date formats, thresholds) and `adapters`; each later phase adds its own section.
 - Sections planned: `ingest` (limits), `quality`, `features`, `rules` (one entry per rule: code, family, parameters, weight, severity, explanation template), `risk` (fusion and tier thresholds), `benford`, `entity_resolution`, `graph`, `reconciliation`, `cashflow_sim`.
 - A case may override values. The effective config is hashed and stored in the run manifest.
 
@@ -411,6 +441,11 @@ raw names (+ attributes) → normalise → tokenise → aliases → block → sc
 - **Evidence:**
   - Every imported file is copied to `workspace/evidence/<sha256>.<ext>`, marked read-only, recorded with original name, size, kind, import time, parser and version.
   - Analyses always read the stored copy.
+  - P3: the SHA-256 is computed over the bytes as they stream in, with the size limit enforced per chunk.
+    - Identical files are stored once.
+    - The stored copy is re-hashed before every canonicalisation.
+    - `ledgerspy evidence verify` re-hashes all evidence and checks it is read-only.
+    - Rejected uploads are deleted; an `upload.rejected` audit entry is kept.
 - **Findings.**
   - Generated per run; deduplicated across runs by a stable key (type + subject).
   - Status: New → Under review → Confirmed exception | Dismissed (reason required) | Escalated.
@@ -431,7 +466,7 @@ raw names (+ attributes) → normalise → tokenise → aliases → block → sc
 | HTML rendering | Never insert data with `innerHTML`. Use `textContent` / DOM APIs; a single `escapeHtml` helper for the rare template. Strict CSP: `default-src 'self'; script-src 'self'; object-src 'none'; frame-ancestors 'none'`. That requires removing inline `onclick` handlers (planned) |
 | Uploaded files | Allow-list of extensions **and** magic-byte checks. Size limit (config). Row/column limits. Encoding detection with UTF-8 fallback rules. Filenames never used as paths (stored by hash). Processing in a temp dir |
 | CSV | Python `csv` module (RFC 4180 quoting). No evaluation of content. **Formula-injection protection on export:** prefix cells starting with `= + - @ \t \r` with `'` |
-| XLSX | `openpyxl` read-only, `data_only=True` (cached values, no formula evaluation). Reject `.xlsm`/macros. Zip-bomb protection: check uncompressed size and ratio before parsing. Reject external links |
+| XLSX | `openpyxl` read-only, `data_only=True` (cached values, no formula evaluation). Reject `.xlsm`/macros. Zip-bomb protection: check uncompressed size and ratio before parsing. Reject external links. P3 also refuses `vbaProject.bin`/macro content types, ActiveX, embedded OLE objects and any DTD/ENTITY in workbook XML; the row width is bounded so a bogus sheet dimension cannot inflate rows |
 | PDF / OCR | Parse with `pdfplumber` (no JavaScript execution). Page and size limits. OCR runs locally |
 | Model artefacts | Loaded only from `models/`. SHA-256 must match the model card and the registry. Pickle/joblib files are never loaded from user uploads |
 | Evidence integrity | Hash on import. Read-only copies. Hashes printed in reports. Hash-chained audit log |

@@ -3,20 +3,15 @@ import re
 from pathlib import Path
 
 import pytest
+import yaml
 from pydantic import ValidationError
 
 from ledgerspy.config import ConfigError, load_config
 from ledgerspy.paths import DEFAULT_CONFIG_PATH
 
-VALID = """\
-config_version: 1
-server:
-  host: 127.0.0.1
-  port: 8765
-workspace:
-  path: workspace
-  db_filename: ledgerspy.db
-"""
+# The shipped default's effective values as plain block YAML (no comments), for text-level mutations.
+DEFAULT_DATA = load_config().settings.model_dump(mode="json")
+VALID = yaml.safe_dump(DEFAULT_DATA, sort_keys=False, allow_unicode=True)
 
 
 def write(tmp_path: Path, text: str) -> Path:
@@ -51,14 +46,11 @@ def test_hash_is_deterministic_across_loads():
 
 
 def test_hash_ignores_formatting_comments_and_key_order(tmp_path):
-    reordered = """\
-# comment
-workspace: {db_filename: ledgerspy.db, path: workspace}
-server:
-    port: 8765      # trailing comment
-    host: "127.0.0.1"
-config_version: 1
-"""
+    # different key order, flow style, a comment
+    reordered = "# comment\n" + yaml.safe_dump(
+        DEFAULT_DATA, sort_keys=True, default_flow_style=True, width=60
+    )
+    assert reordered.splitlines()[1].startswith("{adapters")
     assert load_config(write(tmp_path, VALID)).sha256 == load_config(write(tmp_path, reordered)).sha256
 
 

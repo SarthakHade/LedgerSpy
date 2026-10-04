@@ -4,7 +4,7 @@
 # The SHA-256 of the effective configuration (this file + any case overrides) is computed by
 # ledgerspy.config.load_config() and recorded wherever results must be reproducible.
 #
-# Later phases add their own sections here (ingest limits in P3, quality in P4, rules and benford in P7,
+# Later phases add their own sections here (quality in P4, rules and benford in P7,
 # risk tiers and review budget in P9, ...). Do not hard-code such values in code.
 
 config_version: 1
@@ -19,3 +19,84 @@ workspace:
   # and is git-ignored.
   path: workspace
   db_filename: ledgerspy.db
+
+# ---------------------------------------------------------------------------------------------
+# P3 — ingestion limits. A file breaking any limit is rejected with an explicit error.
+ingest:
+  max_file_bytes: 104857600        # 100 MiB, enforced while the upload streams in
+  max_rows: 1000000                # data records after the header
+  max_columns: 512
+  max_cell_chars: 32767            # Excel's own per-cell limit
+  csv:
+    encodings: [utf-8, cp1252]     # tried in order when there is no BOM; anything else is rejected
+    delimiters: [",", ";", "\t", "|"]
+    sniff_bytes: 65536             # text sample used to detect the delimiter
+  xlsx:
+    max_uncompressed_bytes: 524288000   # 500 MiB summed over all zip entries
+    max_compression_ratio: 100          # per entry; same default as Apache POI (min inflate ratio 0.01)
+    ratio_check_min_bytes: 1048576      # tiny entries legitimately compress well; check entries above 1 MiB
+    max_zip_entries: 10000
+  minor_units:
+    # Amounts are stored as integers in minor units. A value with more decimals than this is never
+    # rounded: it is recorded as an ingestion issue instead.
+    default_digits: 2
+    by_currency: {JPY: 0, KRW: 0, BHD: 3, JOD: 3, KWD: 3, OMR: 3, TND: 3}
+
+# ---------------------------------------------------------------------------------------------
+# P3 — column mapping. Headers are compared after case-folding and keeping only letters/digits,
+# so "Posting_Date", "posting date" and "POSTING-DATE" are the same key. Only exact alias matches are
+# ever suggested; anything else needs the user to confirm the mapping.
+mapping:
+  min_parse_rate: 0.98             # share of distinct values that must parse before a suggestion is made
+  # A *confirmed* mapping is refused when more than this share of rows cannot be converted in some field
+  # (a wrong column, date format or decimal separator). Smaller gaps are kept as ingestion issues for P4.
+  max_unconvertible_share: 0.5
+  profile_distinct_cap: 1000       # distinct values kept per column for profiling
+  sample_values: 3                 # example values shown per column
+  # Ground-truth columns. Never mappable, never in canonical transactions; stored in `labels` only.
+  # Kept in sync with frontend/js/shared.js LS_CONFIG.labelColumns (checked by a test).
+  label_columns: [isFraud, fraud, isFlaggedFraud, flaggedFraud, flagged, label, target, groundTruth]
+  aliases:
+    txn_id: [txn id, transaction id, tx id, trans id, entry id, line id, journal line id, id]
+    posted_at: [date, posting date, posted at, posted on, transaction date, txn date, tx date, trans date,
+                date of transaction, entry date, voucher date, book date, value date]
+    document_date: [document date, doc date, invoice date, bill date]
+    amount: [amount, amt, amount inr, transaction amount, txn amount, net amount]
+    debit_amount: [debit, dr, debit amount, dr amount, withdrawal, withdrawals, withdrawal amount]
+    credit_amount: [credit, cr, credit amount, cr amount, deposit, deposits, deposit amount]
+    direction: [direction, dr cr, debit credit, drcr indicator, debit credit indicator]
+    currency: [currency, ccy, curr, currency code]
+    account: [account, account code, account no, account number, gl account, gl code, ledger account,
+              ledger code]
+    payer_raw: [payer, sender, from, remitter, originator, name orig, source]
+    payee_raw: [payee, vendor, vendor name, supplier, supplier name, beneficiary, receiver, to, party,
+                party name, name dest, destination]
+    reference: [reference, ref, ref no, reference no, reference number, invoice no, invoice number,
+                bill no, cheque no, check no, utr, voucher no, voucher number, document no, doc no]
+    description: [description, narration, memo, particulars, details, remarks]
+    txn_type: [type, txn type, transaction type, entry type, voucher type]
+  direction_values:
+    debit: [debit, dr, d]
+    credit: [credit, cr, c]
+    out: [out, outflow]
+    in: [in, inflow]
+  # strptime formats tried on text dates. When more than one fits and they disagree (e.g. 06/01/2024),
+  # the user must choose.
+  date_formats: ["%Y-%m-%d", "%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M", "%Y/%m/%d",
+                 "%d/%m/%Y", "%m/%d/%Y", "%d-%m-%Y", "%m-%d-%Y", "%d.%m.%Y", "%d/%m/%Y %H:%M",
+                 "%m/%d/%Y %H:%M", "%d/%m/%Y %H:%M:%S", "%m/%d/%Y %H:%M:%S", "%d-%b-%Y", "%d %b %Y",
+                 "%d-%b-%y", "%b %d, %Y"]
+
+# ---------------------------------------------------------------------------------------------
+# P3 — source adapters.
+adapters:
+  paysim:
+    # PaySim is a SIMULATION. Its only time field is `step` (1 step = 1 simulated hour, starting at 1).
+    # posted_at = step_epoch + (step - 1) * step_hours. The epoch is deliberately artificial so a PaySim
+    # timestamp can never be mistaken for a real accounting date; datasets record time_basis
+    # "simulation_step".
+    step_epoch: "1970-01-01T00:00:00"
+    step_hours: 1
+    # Direction relative to the nameOrig account, verified on data/raw/paysim_sample_10k.csv:
+    # CASH_IN raises the origin balance by `amount`; every other type lowers it or leaves it unchanged.
+    direction_by_type: {CASH_IN: in, CASH_OUT: out, DEBIT: out, PAYMENT: out, TRANSFER: out}

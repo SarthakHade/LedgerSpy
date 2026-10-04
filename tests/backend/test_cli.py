@@ -29,7 +29,9 @@ def test_audit_verify_fails_after_manual_edit(db_path, capsys):
 
     edit = sqlite3.connect(db_path, isolation_level=None)
     edit.execute("DROP TRIGGER audit_log_no_update")
-    edit.execute("UPDATE audit_log SET details = replace(details, 'Acme', 'Acme2') WHERE seq = 2")
+    edit.execute(
+        "UPDATE audit_log SET details = replace(details, 'Acme', 'Acme2') WHERE action = 'case.created'"
+    )
     edit.close()
     capsys.readouterr()
     assert main(["audit", "verify", "--db", str(db_path)]) == 1

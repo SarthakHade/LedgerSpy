@@ -6,6 +6,9 @@ from ledgerspy.cases import audit, store
 from ledgerspy.cases.db import SCHEMA_VERSION, DatabaseError, connect, current_version, init_db, transaction
 from ledgerspy.hashing import canonical_json, sha256_hex
 
+# Each migration writes one audit entry, so case-related entries start after these.
+M = SCHEMA_VERSION
+
 
 def fresh(tmp_path, name="a.db"):
     path = tmp_path / name
@@ -42,10 +45,11 @@ def test_init_creates_versioned_schema_and_first_audit_entry(tmp_path):
     path = fresh(tmp_path)
     conn = connect(path)
     tables = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
-    assert tables == {"schema_version", "audit_log", "cases"}
-    assert current_version(conn) == SCHEMA_VERSION == 1
+    assert {"schema_version", "audit_log", "cases"} <= tables
+    assert current_version(conn) == SCHEMA_VERSION
     first = conn.execute("SELECT seq, action, prev_hash FROM audit_log").fetchall()
-    assert [tuple(r) for r in first] == [(1, "schema.migrated", audit.GENESIS_HASH)]
+    assert [tuple(r)[:2] for r in first] == [(i, "schema.migrated") for i in range(1, M + 1)]
+    assert first[0]["prev_hash"] == audit.GENESIS_HASH
     conn.close()
 
 
@@ -67,7 +71,7 @@ def test_init_is_deterministic(tmp_path):
 def test_init_is_idempotent(tmp_path):
     path = fresh(tmp_path)
     assert init_db(path, "tester") == SCHEMA_VERSION
-    assert verify(path).entries == 1  # no second migration entry
+    assert verify(path).entries == M  # no repeated migration entries
 
 
 def test_newer_schema_is_refused(tmp_path):
@@ -94,8 +98,8 @@ def test_chain_links_each_entry_to_the_previous_one(tmp_path):
     conn = connect(path)
     rows = conn.execute("SELECT * FROM audit_log ORDER BY seq").fetchall()
     conn.close()
-    assert [r["seq"] for r in rows] == [1, 2, 3, 4]
-    assert [r["action"] for r in rows[1:]] == ["case.created"] * 3
+    assert [r["seq"] for r in rows] == list(range(1, M + 4))
+    assert [r["action"] for r in rows[M:]] == ["case.created"] * 3
     prev = audit.GENESIS_HASH
     for r in rows:
         entry = {k: r[k] for k in ("seq", "ts", "actor", "action", "object", "details")}
@@ -108,7 +112,7 @@ def test_verify_passes_on_untouched_database(tmp_path):
     path = fresh(tmp_path)
     add_cases(path, 5)
     result = verify(path)
-    assert result.ok and result.entries == 6
+    assert result.ok and result.entries == M + 5
     assert result.head_hash is not None and len(result.head_hash) == 64
 
 
@@ -129,7 +133,7 @@ def test_failed_change_rolls_back_its_audit_entry(tmp_path):
             "VALUES ('c', 'n', 'bogus', 't', 'now')"
         )
     conn.close()
-    assert verify(path).entries == 1
+    assert verify(path).entries == M
 
 
 def test_update_and_delete_are_blocked_by_triggers(tmp_path):
@@ -161,12 +165,12 @@ def tamper(path, *statements):
 @pytest.mark.parametrize(
     ("statement", "failed_seq"),
     [
-        ("UPDATE audit_log SET details = replace(details, 'Case 1', 'Case X') WHERE seq = 3", 3),
-        ("UPDATE audit_log SET actor = 'mallory' WHERE seq = 2", 2),
-        ("UPDATE audit_log SET ts = '2020-01-01T00:00:00.000000Z' WHERE seq = 4", 4),
+        (f"UPDATE audit_log SET details = replace(details, 'Case 1', 'Case X') WHERE seq = {M + 2}", M + 2),
+        (f"UPDATE audit_log SET actor = 'mallory' WHERE seq = {M + 1}", M + 1),
+        (f"UPDATE audit_log SET ts = '2020-01-01T00:00:00.000000Z' WHERE seq = {M + 3}", M + 3),
         ("UPDATE audit_log SET action = 'case.deleted' WHERE seq = 1", 1),
-        ("DELETE FROM audit_log WHERE seq = 2", 3),  # gap
-        ("UPDATE audit_log SET prev_hash = hash WHERE seq = 3", 3),
+        (f"DELETE FROM audit_log WHERE seq = {M + 1}", M + 2),  # gap
+        (f"UPDATE audit_log SET prev_hash = hash WHERE seq = {M + 2}", M + 2),
     ],
 )
 def test_manual_edit_is_detected(tmp_path, statement, failed_seq):
@@ -183,21 +187,25 @@ def test_rehashing_an_edited_entry_breaks_the_next_link(tmp_path):
     add_cases(path, 3)
     conn = raw(path)
     row = conn.execute(
-        "SELECT seq, ts, actor, action, object, details, prev_hash FROM audit_log WHERE seq=2"
+        "SELECT seq, ts, actor, action, object, details, prev_hash FROM audit_log WHERE seq=?", (M + 1,)
     ).fetchone()
     seq, ts, actor, action, obj, details, prev = row
     forged_details = details.replace("Case 0", "Forged")
     forged_hash = audit.entry_hash(prev, seq, ts, actor, action, obj, forged_details)
     conn.close()
-    tamper(path, f"UPDATE audit_log SET details = '{forged_details}', hash = '{forged_hash}' WHERE seq = 2")
+    tamper(
+        path, f"UPDATE audit_log SET details = '{forged_details}', hash = '{forged_hash}' WHERE seq = {M + 1}"
+    )
     result = verify(path)
-    assert not result.ok and result.failed_seq == 3
+    assert not result.ok and result.failed_seq == M + 2
 
 
 def test_appended_forged_entry_is_detected(tmp_path):
     path = fresh(tmp_path)
     conn = raw(path)
-    conn.execute("INSERT INTO audit_log VALUES (2, 'ts', 'm', 'case.created', 'case:x', '{}', 'bad', 'bad')")
+    conn.execute(
+        "INSERT INTO audit_log VALUES (?, 'ts', 'm', 'case.created', 'case:x', '{}', 'bad', 'bad')", (M + 1,)
+    )
     conn.close()
     assert not verify(path).ok
 

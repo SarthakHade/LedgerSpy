@@ -60,3 +60,7 @@ def new_entity_id() -> str:
 
 def new_case_id() -> str:
     return "C-" + new_ulid()
+
+
+def new_dataset_id() -> str:
+    return "D-" + new_ulid()

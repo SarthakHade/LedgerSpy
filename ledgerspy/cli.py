@@ -75,6 +75,32 @@ def cmd_audit_verify(args: argparse.Namespace) -> int:
     return 1
 
 
+def cmd_evidence_verify(args: argparse.Namespace) -> int:
+    from ledgerspy.cases import evidence
+    from ledgerspy.cases.db import DatabaseError, connect, db_path_for
+
+    db_path = Path(args.db) if args.db else db_path_for(_load(args, {}).settings)
+    try:
+        conn = connect(db_path, read_only=True)
+    except (DatabaseError, sqlite3.Error) as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return 2
+    try:
+        count = conn.execute("SELECT COUNT(*) FROM evidence_files").fetchone()[0]
+        problems = evidence.verify_all(conn, db_path.parent)
+    except sqlite3.Error as exc:
+        print(f"FAIL: {db_path}: cannot read evidence records: {exc}")
+        return 1
+    finally:
+        conn.close()
+    if problems:
+        for p in problems:
+            print(f"FAIL: {p['file']}: {p['problem']} (recorded sha256 {p['sha256']})")
+        return 1
+    print(f"OK: {db_path}: {count} evidence files match their recorded SHA-256 and are read-only")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="ledgerspy", description="LedgerSpy offline forensic audit tool")
     parser.add_argument("--version", action="version", version=f"ledgerspy {__version__}")
@@ -96,6 +122,13 @@ def build_parser() -> argparse.ArgumentParser:
     common(verify)
     verify.add_argument("--db", help="database file (default: from config workspace)")
     verify.set_defaults(func=cmd_audit_verify)
+
+    evidence_cmd = commands.add_parser("evidence", help="evidence tools")
+    evidence_sub = evidence_cmd.add_subparsers(dest="evidence_command", required=True)
+    ev_verify = evidence_sub.add_parser("verify", help="re-hash every evidence file against the database")
+    common(ev_verify)
+    ev_verify.add_argument("--db", help="database file (default: from config workspace)")
+    ev_verify.set_defaults(func=cmd_evidence_verify)
     return parser
 
 

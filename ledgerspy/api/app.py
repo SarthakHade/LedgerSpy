@@ -8,7 +8,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from ledgerspy import __version__
-from ledgerspy.api.routes import cases, health
+from ledgerspy.api.routes import cases, datasets, health
 from ledgerspy.api.security import SESSION_COOKIE, LocalSecurityMiddleware, build_csp, token_matches
 from ledgerspy.cases.audit import local_actor
 from ledgerspy.config import EffectiveConfig
@@ -47,10 +47,12 @@ def create_app(
     )
     app.state.config = config
     app.state.db_path = Path(db_path)
+    app.state.workspace = Path(db_path).parent  # evidence/ and tmp/ live next to the database
     app.state.actor = local_actor()
 
     app.include_router(health.router)
     app.include_router(cases.router)
+    app.include_router(datasets.router)
 
     @app.get("/", include_in_schema=False)
     def index(request: Request) -> Response:

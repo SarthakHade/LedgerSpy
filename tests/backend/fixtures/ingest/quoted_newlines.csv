@@ -1,0 +1,7 @@
+Date,Vendor,Narration,Amount,Dr/Cr
+2024-04-01,Acme,"Line one
+line two",100.00,Dr
+2024-04-02,Beta,"First
+Second
+Third",200.00,Dr
+2024-04-03,Gamma,single line,300.00,Cr
