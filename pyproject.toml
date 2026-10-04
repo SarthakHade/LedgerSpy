@@ -1,0 +1,50 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ledgerspy"
+version = "0.2.0"
+description = "Offline forensic audit tool for company ledgers"
+readme = "README.md"
+requires-python = ">=3.11"
+# Runtime dependencies are pinned exactly so an offline wheelhouse (P21) is reproducible.
+dependencies = [
+    "fastapi==0.142.2",
+    "starlette==1.7.0",
+    "uvicorn==0.54.0",
+    "pydantic==2.13.5",
+    "PyYAML==6.0.3",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest==9.1.1",
+    "pytest-socket==0.8.1",
+    "httpx2==2.13.1",  # TestClient transport (starlette deprecates httpx)
+    "ruff==0.16.10",
+]
+
+[project.scripts]
+ledgerspy = "ledgerspy.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["ledgerspy*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests/backend"]
+# Network guard: every test may only connect to loopback. Any other connect() raises.
+addopts = "--allow-hosts=127.0.0.1"
+
+[tool.ruff]
+line-length = 110
+target-version = "py311"
+# tests/frontend is the P1 browser tool, kept as committed in P1.
+extend-exclude = ["archive", "tests/frontend"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "S", "SIM"]
+ignore = ["S101"]  # assert is fine in tests and for internal invariants
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S104", "S105", "S106", "S108", "S311", "S603", "S607", "S608"]

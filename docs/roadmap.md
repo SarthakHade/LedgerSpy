@@ -9,7 +9,7 @@ and docs, and phases 22–23 only consolidate them. The design for each module i
 ```
 P0 Cleanup ✔
  └─ P1 Truthful baseline (existing UI)
-     └─ P2 Foundation (package, config, schema, IDs, SQLite, audit log, API skeleton)
+     └─ P2 Foundation (package, config, schema, IDs, SQLite, audit log, API skeleton) ✔
          └─ P3 Ingestion + evidence ──┬─ P4 Validation / cleaning / integrity dashboard
                                       └─ P5 Synthetic scenario data ◄─ (needs canonical schema from P2/P3)
                                           └─ P6 Feature registry
@@ -39,7 +39,7 @@ See [`cleanup-log.md`](cleanup-log.md).
 - **Input / output.** Existing UI → the same UI with every number computed or explicitly "not available".
 - Full scope and acceptance criteria are in §"First implementation phase" below.
 
-### P2 — Architecture foundation
+### P2 — Architecture foundation ✔ (done; see [`p2-acceptance.md`](p2-acceptance.md))
 - **Objective.** Create the `ledgerspy` package skeleton and its supporting infrastructure, so that all later logic lands in one place.
   - Config loader and schema validation, with config hashing.
   - Canonical pydantic models (Transaction, Entity, Signal, Score, Finding, Explanation).

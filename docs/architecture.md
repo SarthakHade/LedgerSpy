@@ -1,6 +1,8 @@
 # LedgerSpy — Target Architecture
 
-Status: **design** (Phase 2). Nothing in this document is implemented yet unless stated.
+Status: **design**. P2 (foundation) is implemented: package skeleton, config, canonical models, IDs, SQLite
+schema, audit log, API skeleton and local security (see [`p2-acceptance.md`](p2-acceptance.md)). Everything else is not
+implemented yet unless stated.
 Requirement IDs (R1…R20) refer to [`requirements.md`](requirements.md).
 
 ---
@@ -133,7 +135,7 @@ Every analytic endpoint returns `{"status": "ok" | "not_available" | "insufficie
 
 | Field | Type | Notes |
 |---|---|---|
-| `txn_id` | str | Source ID if present, unique and stable; otherwise `T-` + first 12 hex of `sha256(evidence_sha256 + ":" + source_row)` |
+| `txn_id` | str | Source ID if present, unique and stable; otherwise `T-` + first **16** hex of `sha256(evidence_sha256 + ":" + source_row)` (P2: widened from 12 hex; 48 bits gives a ~0.2% chance of some collision in 10⁶ rows of one file, 64 bits ~3·10⁻⁸). Depends only on the file and its 1-based row, never on processing order |
 | `dataset_id`, `source_row` | str, int | Exact provenance (1-based data row) |
 | `posted_at` | datetime | Posting date (and time if available) |
 | `document_date` | date? | Invoice/document date (enables back-dating checks) |
@@ -165,7 +167,8 @@ Label columns (`isFraud`, `isFlaggedFraud`, `label`, …) are detected at mappin
 - SQLite comfortably handles ~10⁶ rows on a laptop. Parquet or DuckDB can be added later **only** if profiling shows a need.
 
 ### Configuration
-- `config/default.yaml` holds sections: `ingest` (limits), `quality`, `features`, `rules` (one entry per rule: code, family, parameters, weight, severity, explanation template), `risk` (fusion and tier thresholds), `benford`, `entity_resolution`, `graph`, `reconciliation`, `cashflow_sim`.
+- `config/default.yaml` (repository root) is the only place values are set; the schema (`ledgerspy/config/schema.py`) has no defaults, rejects unknown keys and is strict about types. `ledgerspy.config.load_config()` is the single interface. P2 defines only `config_version`, `server` and `workspace`; each later phase adds its own section.
+- Sections planned: `ingest` (limits), `quality`, `features`, `rules` (one entry per rule: code, family, parameters, weight, severity, explanation template), `risk` (fusion and tier thresholds), `benford`, `entity_resolution`, `graph`, `reconciliation`, `cashflow_sim`.
 - A case may override values. The effective config is hashed and stored in the run manifest.
 
 ## 5. ML strategy
@@ -413,6 +416,8 @@ raw names (+ attributes) → normalise → tokenise → aliases → block → sc
   - Status: New → Under review → Confirmed exception | Dismissed (reason required) | Escalated.
   - Analyst notes and attachments (hashed).
 - **Audit log.** Append-only table; each entry has `seq, ts, actor, action, object, details, prev_hash, hash = sha256(prev_hash || canonical_json(entry))`.
+  - P2: `entry = {seq, ts, actor, action, object, details}` with `details` as its stored canonical-JSON text; genesis `prev_hash` is 64 zeros. SQLite triggers refuse UPDATE/DELETE, and `verify` also fails if those triggers are missing or altered.
+  - Limitation: deleting entries from the *end* of the chain is undetectable from the database alone. `verify` prints the head hash and count so they can be anchored outside the DB (e.g. in reports, P16).
   - Verifiable by a CLI command (`ledgerspy audit verify`).
   - Logged actions: imports, mapping changes, cleaning decisions, runs, status changes, report generation.
 - **Reproducibility.** The run manifest holds input file hashes, mapping hash, config hash, model artefact hashes, the code version (package version + git commit) and library versions.
@@ -433,6 +438,14 @@ raw names (+ attributes) → normalise → tokenise → aliases → block → sc
 | Local storage | Workspace in the user profile with OS permissions. Recommend OS full-disk encryption (BitLocker/FileVault) rather than custom crypto. No browser `localStorage` for case data |
 | Dependencies | Pinned versions. Offline wheelhouse with hashes (`pip install --require-hashes`). Periodic `pip-audit` on a connected build machine |
 | Authentication | Single local user: OS login + session token. Multi-user auth is out of scope unless the deployment model changes |
+
+**As implemented in P2** (`ledgerspy/api/security.py`, `ledgerspy/api/app.py`):
+- `ledgerspy serve` creates a random token per launch and prints `http://127.0.0.1:<port>/?token=…`. Opening it sets an `HttpOnly; SameSite=Strict` cookie and redirects to `/`, so the token leaves the address bar. Without that cookie, `/` shows a "locked" page.
+- The served page carries the token in `<meta name="ledgerspy-session-token">` (injected at serve time; `frontend/` files are unchanged) for the UI's later API calls.
+- Every `/api/*` path except `/api/health` requires `Authorization: Bearer <token>`. The cookie and query string never authorise API calls (CSRF). Deny-by-default: new routes are protected automatically. `/docs` and `/redoc` are disabled (they load a CDN); `/api/openapi.json` needs the token.
+- `Host` must be `127.0.0.1:<port>` or `localhost:<port>`. `Origin`, when present, must be that origin. `Sec-Fetch-Site` must be `same-origin` or `none`.
+- Headers on every response: CSP, `nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, COOP/CORP `same-origin`, `Permissions-Policy`, `Cache-Control: no-store`. uvicorn runs with `proxy_headers=False`, no `Server` banner and no access log (the entry URL carries the token).
+- **CSP interim (until P20).** `script-src 'self' 'unsafe-hashes' <sha256 of each inline handler in index.html>`, computed at startup. There is no `'unsafe-inline'` for scripts, so injected markup cannot run script while the existing `onclick=` handlers keep working. `style-src` still allows `'unsafe-inline'` for the 161 inline `style=` attributes. P20 removes both.
 
 ## 14. Offline / air-gapped strategy (R1)
 
@@ -482,7 +495,8 @@ cloud services, LLM APIs.
 ```
 LedgerSpy/
 ├── ledgerspy/                 # the single source of truth (Python package)
-│   ├── config/                # default.yaml + loader/validation + hashing
+│   ├── config/                # loader, schema validation, hashing (values live in /config/default.yaml)
+│   ├── canonical/             # pydantic models (Transaction, Entity, Signal, Score, Finding, Explanation) + ID scheme
 │   ├── ingest/                # csv, xlsx, (pdf, ocr), mapping, adapters (paysim, generic_ledger, bank)
 │   ├── quality/               # integrity checks + readiness score
 │   ├── normalize/             # explicit, logged transformations
@@ -494,7 +508,9 @@ LedgerSpy/
 │   ├── cases/                 # sqlite store, evidence, audit log, findings
 │   ├── reports/               # report model, memo NLG, PDF renderer
 │   ├── api/                   # FastAPI app, routes, schemas
+│   ├── hashing.py, paths.py   # canonical JSON + SHA-256; repository paths
 │   └── cli.py                 # ledgerspy serve | train | evaluate | audit verify | synth
+├── config/default.yaml        # all configurable values (hashed)
 ├── frontend/                  # existing UI (served by the API)
 ├── models/                    # artefacts + model cards (binaries git-ignored; cards committed)
 ├── data/

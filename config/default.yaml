@@ -1,0 +1,21 @@
+# LedgerSpy configuration — the single source of configurable values.
+#
+# Every key is required and validated (ledgerspy/config/schema.py); unknown keys are rejected.
+# The SHA-256 of the effective configuration (this file + any case overrides) is computed by
+# ledgerspy.config.load_config() and recorded wherever results must be reproducible.
+#
+# Later phases add their own sections here (ingest limits in P3, quality in P4, rules and benford in P7,
+# risk tiers and review budget in P9, ...). Do not hard-code such values in code.
+
+config_version: 1
+
+server:
+  # Loopback only. The schema rejects any other address.
+  host: 127.0.0.1
+  port: 8765
+
+workspace:
+  # Relative paths resolve against the current working directory. The workspace holds client data
+  # and is git-ignored.
+  path: workspace
+  db_filename: ledgerspy.db
