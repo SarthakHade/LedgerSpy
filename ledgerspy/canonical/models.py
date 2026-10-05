@@ -37,6 +37,7 @@ class SubjectType(StrEnum):
     TXN = "txn"
     ENTITY = "entity"
     PAIR = "pair"
+    GROUP = "group"  # P7: a set of rows (a Benford subgroup, a period-end cluster), identified by its key
 
 
 class SignalFamily(StrEnum):

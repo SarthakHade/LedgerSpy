@@ -9,9 +9,9 @@ this registry and never compute a feature of their own:
 - P10 models.
 
 **Status:**
-- 59 features are implemented: 40 transaction-level and 19 entity-level.
+- 62 features are implemented: 43 transaction-level and 19 entity-level. P7 added three (`is_off_hours`, `cp_prior_offhours_months`, `dq_balance_discontinuity`) through the same registry.
 - 10 more are registered as `not_available_yet`, each with the reason, and are never computed.
-- On the P5 synthetic company, 58 are computed; on the PaySim sample, 28.
+- On the P5 synthetic company, 60 are computed; on the PaySim sample, 29.
 
 ## The rules
 
@@ -85,6 +85,7 @@ Each feature declares the capabilities it needs (`ledgerspy/features/data.py: CA
 | document_date, reference | ✔ | ✘ |
 | holidays, approval_thresholds | ✔ with the case overrides | ✘ (not a corporate ledger) |
 | p4_current | ✔ after a P4 run | ✔ after a P4 run |
+| running_balance (P4 checked a balance) | ✘ (no balance column) | ✔ (origin balance columns) |
 
 PaySim's `step` orders transactions, so count-based point-in-time features work on it. It is **never** treated as a calendar: every feature measured in days or hours, or by weekday, holiday or period end, is `not_available` for PaySim.
 
@@ -195,9 +196,9 @@ Consumers must:
 
 | | Synthetic ledger (P5 reference, with its case calendar and limits) | PaySim sample |
 |---|---|---|
-| Transaction features computed | 39 of 40 (`txn_type` not mapped) | 19 of 40 |
+| Transaction features computed | 41 of 43 (`txn_type` not mapped; no running balance) | 20 of 43 |
 | Entity features computed | 19 of 19 (159 counterparty streams) | 9 of 19 (6,967 streams) |
-| Not available | 1 | 31 (simulation clock, account is the sender, no references or document dates, no approval policy) |
+| Not available | 2 | 33 (simulation clock, account is the sender, no references or document dates, no approval policy) |
 | Not available yet (deferred) | 10 | 10 |
 
 The synthetic company is the validation environment for corporate features. `test_injected_scenarios_are_visible_in_the_features` and `test_entity_profiles_reflect_scenarios` check that P5 scenarios show up in the features. Ground truth is used there only to choose which rows to look at. Some of the checks:
@@ -410,6 +411,16 @@ Generated from the registry. Support marks come from real runs on both datasets:
 - **Synthetic ledger:** ✔ · **PaySim:** ✘ (time basis is 'simulation_step': steps of a simulation are not calendar time)
 - **Test:** `tests/backend/test_features_units.py::test_is_non_working_weekday`
 
+**`is_off_hours`** · v1 · row · bool, flag
+
+- **Definition:** True when the posting falls outside the configured working time: after hours, on a non-working weekday, or on a configured holiday (holidays count only when a calendar is configured).
+- **Inputs:** posted_at, config: features.calendar.business_hours, config: features.calendar.non_working_weekdays, config: features.calendar.holidays · **config:** features.calendar.business_hours, features.calendar.non_working_weekdays, features.calendar.holidays
+- **Scope:** transaction
+- **Missing:** `null_if_input_missing` — null when the posting timestamp is null
+- **Unusual when:** true · **requires:** time_of_day
+- **Synthetic ledger:** ✔ · **PaySim:** ✘ (posting timestamps have no real time of day (time basis 'simulation_step'))
+- **Test:** `tests/backend/test_features_units.py::test_is_off_hours`
+
 **`posting_lag_days`** · v1 · row · int, days
 
 - **Definition:** Posting date − document (invoice) date in days. Negative = posted before the document date.
@@ -558,6 +569,16 @@ Generated from the registry. Support marks come from real runs on both datasets:
 - **Synthetic ledger:** ✔ · **PaySim:** ✘ (time basis is 'simulation_step': steps of a simulation are not calendar time)
 - **Test:** `tests/backend/test_features_units.py::test_cp_log_amount_trend`
 
+**`cp_prior_offhours_months`** · v1 · point_in_time · int, months
+
+- **Definition:** Number of distinct calendar months in which the counterparty stream had earlier off-hours postings (see is_off_hours). ≥ 2 means off-hours work with this counterparty is a recurring routine, not a one-off.
+- **Inputs:** posted_at, direction, payer_raw/payee_raw, config: features.calendar · **config:** features.calendar.business_hours, features.calendar.non_working_weekdays, features.calendar.holidays
+- **Scope:** counterparty stream: same counterparty key and flow (see `party_key` and config features.adapters)
+- **Missing:** `null_if_input_missing` — null when the row has no timestamp, counterparty or direction
+- **Unusual when:** lower · **requires:** time_of_day, direction, counterparty
+- **Synthetic ledger:** ✔ · **PaySim:** ✘ (posting timestamps have no real time of day (time basis 'simulation_step'))
+- **Test:** `tests/backend/test_features_units.py::test_cp_prior_offhours_months`
+
 **`hour_deviation`** · v1 · point_in_time · float, hours
 
 - **Definition:** |hour_of_day − median prior posting hour| of the first peer level with enough history (time-pattern deviation).
@@ -631,6 +652,16 @@ Generated from the registry. Support marks come from real runs on both datasets:
 - **Test:** `tests/backend/test_features_units.py::test_payer_new_payees_7d`
 
 #### Data quality
+
+**`dq_balance_discontinuity`** · v1 · dataset · bool, flag
+
+- **Definition:** True when the current P4 run reported a balance_continuity issue on this transaction: its running balance does not follow from the previous balance and the amount (P4 does the arithmetic and records the kind of mismatch).
+- **Inputs:** the latest P4 integrity run of the current data version (integrity_issues), P4 balance_continuity check
+- **Scope:** transaction
+- **Missing:** `null_if_not_applicable` — never null when available; unavailable without a current P4 run or without a checked running balance (P4 says why)
+- **Unusual when:** true · **requires:** p4_current, running_balance
+- **Synthetic ledger:** ✘ (P4 balance_continuity: no running-balance column in the source) · **PaySim:** ✔
+- **Test:** `tests/backend/test_features_units.py::test_dq_balance_discontinuity`
 
 **`dq_has_duplicate_issue`** · v1 · dataset · bool, flag
 

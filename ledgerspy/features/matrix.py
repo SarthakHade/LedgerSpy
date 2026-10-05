@@ -32,8 +32,16 @@ class FeatureMatrix:
     status: dict[str, dict[str, str]] = field(default_factory=dict)  # every registered feature of the level
 
     def values_sha256(self) -> str:
+        """Identifies the values, independent of row order: rows are hashed sorted by subject."""
+        order = sorted(range(len(self.subjects)), key=lambda i: self.subjects[i])
         return sha256_hex(
-            canonical_json({"subjects": self.subjects, "columns": self.columns, "basis": self.basis})
+            canonical_json(
+                {
+                    "subjects": [self.subjects[i] for i in order],
+                    "columns": {n: [c[i] for i in order] for n, c in self.columns.items()},
+                    "basis": {n: [b[i] for i in order] for n, b in self.basis.items()},
+                }
+            )
         )
 
     def row(self, i: int) -> dict[str, Any]:

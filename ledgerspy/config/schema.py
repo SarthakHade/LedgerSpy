@@ -361,6 +361,122 @@ class FeaturesConfig(_Section):
     report: FeatureReportConfig
 
 
+# ------------------------------------------------------------------------------------- P7 rules and Benford
+
+Severity = Literal["low", "medium", "high"]
+
+
+class _Rule(_Section):
+    enabled: bool
+    severity: Severity
+    weight: float = Field(gt=0.0, le=1.0)
+
+
+class DuplicateExactRule(_Rule):
+    pass
+
+
+class DuplicateNearRule(_Rule):
+    window_days: int = Field(ge=1)
+    amount_relative_tolerance: float = Field(ge=0.0, lt=0.1)
+
+
+class RoundAmountRule(_Rule):
+    min_rows: int = Field(ge=2)
+    min_round_share: float = Field(gt=0.0, le=1.0)
+    min_distinct_round_amounts: int = Field(ge=1)
+    max_p_value: float = Field(gt=0.0, lt=1.0)
+
+
+class StructuringRule(_Rule):
+    window_days: int = Field(ge=1)
+    min_parts: int = Field(ge=2)
+    min_proximity: float = Field(gt=0.0, lt=1.0)
+
+
+class TemporalRule(_Rule):
+    routine_after_months: int = Field(ge=1)
+
+
+class NewVendorLargeRule(_Rule):
+    max_prior_count: int = Field(ge=0)
+    min_robust_z: float = Field(gt=0.0)
+    min_days_observed: int = Field(ge=0)
+    peer_bases: list[Literal["counterparty", "account", "txn_type", "global"]] = Field(min_length=1)
+
+
+class BalanceContinuityRule(_Rule):
+    ignore_kinds: list[str]
+
+
+class DormancyRule(_Rule):
+    min_dormant_days: int = Field(ge=1)
+    min_amount_ratio: float = Field(gt=0.0)
+
+
+class PeriodEndRule(_Rule):
+    period: Literal["fiscal_year", "month"]
+    window_days: int = Field(ge=1, le=31)
+    min_stream_rows: int = Field(ge=2)
+    min_cluster: int = Field(ge=2)
+    min_concentration: float = Field(gt=0.0)
+    min_amount_ratio: float = Field(gt=0.0)
+
+
+class VelocityRule(_Rule):
+    min_velocity_ratio: float = Field(gt=1.0)
+    min_count_30d: int = Field(ge=1)
+    max_p_value: float = Field(gt=0.0, lt=1.0)
+
+
+class RulesConfig(_Section):
+    duplicate_exact: DuplicateExactRule
+    duplicate_near: DuplicateNearRule
+    round_amount: RoundAmountRule
+    structuring: StructuringRule
+    temporal: TemporalRule
+    new_vendor_large: NewVendorLargeRule
+    balance_continuity: BalanceContinuityRule
+    dormancy: DormancyRule
+    period_end: PeriodEndRule
+    velocity: VelocityRule
+
+
+BenfordTest = Literal["first", "first_two", "last_two"]
+
+
+class BenfordSubgroups(_Section):
+    dimensions: list[Literal["counterparty", "account", "txn_type", "fiscal_year"]]
+    tests: list[BenfordTest] = Field(min_length=1)
+    min_n: int = Field(ge=10)
+    signal_bands: list[Literal["acceptable", "marginal", "nonconformity"]]
+    max_example_rows: int = Field(ge=0)
+
+
+class BenfordConfig(_Section):
+    min_value_major: int = Field(ge=1)
+    last_two_min_major: int = Field(ge=100)
+    negative_amounts: Literal["exclude", "absolute"]
+    min_n: dict[BenfordTest, int]
+    warn_n: dict[BenfordTest, int]
+    min_distinct_values: int = Field(ge=2)
+    warn_range_ratio: float = Field(ge=1.0)
+    z_critical: float = Field(gt=0.0)
+    mad_bands: dict[Literal["first", "first_two"], list[float]]
+    subgroups: BenfordSubgroups
+    severity: Severity
+    weight: float = Field(gt=0.0, le=1.0)
+
+    @model_validator(mode="after")
+    def _complete(self) -> "BenfordConfig":
+        tests = {"first", "first_two", "last_two"}
+        if set(self.min_n) != tests or set(self.warn_n) != tests:
+            raise ValueError("min_n and warn_n need first, first_two and last_two")
+        if any(len(b) != 3 or b != sorted(b) for b in self.mad_bands.values()):
+            raise ValueError("mad_bands are three increasing upper bounds (close, acceptable, marginal)")
+        return self
+
+
 class LedgerSpyConfig(_Section):
     config_version: Literal[1]
     server: ServerConfig
@@ -372,3 +488,5 @@ class LedgerSpyConfig(_Section):
     normalize: NormalizeConfig
     synth: SynthConfig
     features: FeaturesConfig
+    rules: RulesConfig
+    benford: BenfordConfig

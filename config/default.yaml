@@ -243,3 +243,99 @@ features:
   report:
     max_missing_share: 0.5      # "excessive missingness" above this share of rows
     min_distinct_values: 2      # fewer distinct non-null values → "constant"
+
+# ---------------------------------------------------------------------------------------------
+# P7 — forensic rules. Each rule reads P6 registry features (never raw files, labels or ground truth) and emits
+# explainable signals. `severity` and `weight` are placeholders that P9 (risk fusion) will calibrate; strength is
+# binary (1.0 when a rule fires). A rule whose inputs are missing reports not_available with the reason.
+rules:
+  duplicate_exact:      # same payer, payee, amount, direction, posting date and reference (if mapped)
+    enabled: true
+    severity: high
+    weight: 0.6
+  duplicate_near:       # same payee and direction within window_days; amount and reference nearly equal
+    enabled: true
+    severity: medium
+    weight: 0.5
+    window_days: 14
+    amount_relative_tolerance: 0.0      # 0 = the amount must be equal or have two adjacent digits transposed
+  round_amount:         # a counterparty whose amounts are round far more often than the population's
+    enabled: true
+    severity: medium
+    weight: 0.3
+    min_rows: 6                       # population gate per counterparty stream
+    min_round_share: 0.5
+    min_distinct_round_amounts: 4     # one fixed contractual amount repeated is not fabrication
+    max_p_value: 0.001                # one-sided binomial test vs the flow's round rate
+  structuring:          # ≥ min_parts payments to one counterparty just below the same approval threshold
+    enabled: true
+    severity: high
+    weight: 0.6
+    window_days: 7
+    min_parts: 2
+    min_proximity: 0.95               # "just below": each part within 5% under the threshold; together above it
+  temporal:             # off-hours posting that is not an established routine for the counterparty
+    enabled: true
+    severity: medium
+    weight: 0.4
+    routine_after_months: 2           # off-hours in ≥ this many earlier months = routine, not flagged
+  new_vendor_large:     # little or no history with the counterparty and an amount far above its peers
+    enabled: true
+    severity: high
+    weight: 0.5
+    max_prior_count: 3
+    min_robust_z: 3.0                 # 3 robust standard deviations above the peer baseline
+    min_days_observed: 90             # in the first 90 days of data every long-standing vendor looks "new"
+    peer_bases: [account, txn_type]   # the robust z must come from a peer group, not the global baseline
+  balance_continuity:   # P4 found a running balance that does not follow from the previous balance ± amount
+    enabled: true
+    severity: medium
+    weight: 0.4
+    ignore_kinds: [balance_unchanged, balance_zeroed]  # documented PaySim simulator artefacts (P4 counts them)
+  dormancy:             # first posting after a long silence, at an unusual amount for the counterparty
+    enabled: true
+    severity: medium
+    weight: 0.4
+    min_dormant_days: 180
+    min_amount_ratio: 2.0
+  period_end:           # a cluster of unusually large postings to one counterparty at a period end
+    enabled: true
+    severity: medium
+    weight: 0.4
+    period: fiscal_year               # fiscal_year | month
+    window_days: 3                    # the last 3 days of the period
+    min_stream_rows: 10               # counterparty history needed to know its normal rate
+    min_cluster: 3
+    min_concentration: 5.0            # rows in the window ≥ 5 × the stream's normal rate for such a window
+    min_amount_ratio: 1.5             # median amount in the window ≥ 1.5 × the stream's median
+  velocity:             # far more postings in 30 days than the counterparty's historical pace
+    enabled: true
+    severity: medium
+    weight: 0.4
+    min_velocity_ratio: 4.0
+    min_count_30d: 4
+    max_p_value: 0.0001               # Poisson tail at the counterparty's own past rate; ~10⁴ rows are tested, so
+                                      # n × p < 1 keeps chance alarms rare (multiple-testing correction)
+
+# P7 — Benford analysis (architecture §7). A deviation is an investigative signal, never proof of fraud.
+benford:
+  min_value_major: 10           # first-digit tests use |amount| ≥ 10 currency units
+  last_two_min_major: 100       # last-two-digit test uses whole amounts ≥ 100 units (so the digits are not leading)
+  negative_amounts: exclude     # exclude | absolute
+  min_n: {first: 300, first_two: 1000, last_two: 1000}
+  warn_n: {first: 1000, first_two: 3000, last_two: 3000}
+  min_distinct_values: 10       # fewer distinct amounts: invalid_population (a degenerate population)
+  warn_range_ratio: 100         # max/min below this: analysed, with a warning (narrow ranges rarely follow Benford)
+  z_critical: 1.96
+  # Nigrini's MAD conformity bands: close / acceptable / marginal upper bounds; above = nonconformity.
+  mad_bands:
+    first: [0.006, 0.012, 0.015]
+    first_two: [0.0012, 0.0018, 0.0022]
+  subgroups:
+    dimensions: [counterparty, account, txn_type, fiscal_year]
+    tests: [first]
+    min_n: 300
+    signal_bands: [nonconformity]
+    max_example_rows: 20
+  severity: low
+  weight: 0.2

@@ -68,6 +68,7 @@ CAPABILITIES = {
     "holidays": "a holiday calendar is configured for the case",
     "approval_thresholds": "approval thresholds are configured and apply (corporate ledger)",
     "p4_current": "a P4 integrity run exists for the current data version",
+    "running_balance": "the current P4 run checked a running-balance column (balance_continuity ran)",
 }
 
 
@@ -83,6 +84,8 @@ class FeatureInput:
     # P4 issues of the current data version: txn_id → list of check codes (one entry per issue).
     p4_issues: dict[str, list[str]] = field(default_factory=dict)
     p4_run_id: str | None = None
+    # Status of each check in that run: check → {"status": ok|issues|not_available, "reason": …}.
+    p4_checks: dict[str, dict[str, str]] = field(default_factory=dict)
     cache: dict[str, Any] = field(default_factory=dict)
 
     def available(self, requires: tuple[str, ...]) -> str | None:
@@ -167,6 +170,7 @@ def capabilities(
     rows: list[FeatureRow],
     cfg: FeaturesConfig,
     p4_current: bool,
+    p4_checks: dict[str, dict[str, str]] | None = None,
 ) -> dict[str, str | None]:
     profile = cfg.adapters.get(adapter)
     caps: dict[str, str | None] = {}
@@ -212,6 +216,16 @@ def capabilities(
         else "no approval thresholds are configured for this case",
     )
     need("p4_current", p4_current, "no P4 integrity run exists for the current data version")
+    balance = (p4_checks or {}).get("balance_continuity")
+    need(
+        "running_balance",
+        p4_current and balance is not None and balance["status"] in ("ok", "issues"),
+        "no P4 integrity run exists for the current data version"
+        if not p4_current
+        else f"P4 balance_continuity: {balance['reason']}"
+        if balance
+        else "the P4 run did not check balances",
+    )
     if profile is None:
         need("counterparty", False, f"no feature profile for adapter '{adapter}' in config features.adapters")
     return caps

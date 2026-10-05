@@ -459,3 +459,54 @@ def test_ent_median_to_peer_ratio():
     rows = [rec(i, at=i, payee=f"V{i}", amount=100_00 * i) for i in range(1, 5)]
     r = values(make(rows, min_peers=3), "ent_median_to_peer_ratio")
     assert r[3] == pytest.approx(400 / 200)  # V4: 400 vs median(100, 200, 300) of the other three
+
+
+# ---------------------------------------------------------------------------------------------- P7 additions
+
+
+def test_is_off_hours():
+    rows = [
+        rec(1, at=datetime(2024, 1, 2, 10)),  # Tuesday, office hours
+        rec(2, at=datetime(2024, 1, 2, 20)),  # after hours
+        rec(3, at=datetime(2024, 1, 7, 10)),  # Sunday
+        rec(4, at=datetime(2024, 1, 26, 10)),  # configured holiday (Friday)
+        rec(5, at=None),
+    ]
+    assert values(make(rows, calendar={"holidays": ["2024-01-26"]}), "is_off_hours") == [
+        False,
+        True,
+        True,
+        True,
+        None,
+    ]
+    assert values(make(rows), "is_off_hours")[3] is False  # without a calendar, 26 Jan is a working day
+
+
+def test_cp_prior_offhours_months():
+    rows = [
+        rec(1, at=datetime(2024, 1, 2, 20)),
+        rec(2, at=datetime(2024, 1, 3, 21)),
+        rec(3, at=datetime(2024, 2, 5, 22)),
+        rec(4, at=datetime(2024, 3, 1, 10)),
+        rec(5, at=datetime(2024, 3, 2, 23)),
+        rec(6, at=datetime(2024, 3, 4, 23), payee="Other"),
+    ]
+    assert values(make(rows), "cp_prior_offhours_months") == [0, 1, 1, 2, 2, 0]
+
+
+def test_dq_balance_discontinuity():
+    ok = {"balance_continuity": {"status": "issues", "reason": ""}}
+    inp = make([rec(1), rec(2)], p4={"T00001": ["balance_continuity"]}, p4_checks=ok)
+    assert values(inp, "dq_balance_discontinuity") == [True, False]
+    na = {
+        "balance_continuity": {"status": "not_available", "reason": "no running-balance column in the source"}
+    }
+    missing = make([rec(1)], p4={}, p4_checks=na)
+    assert (
+        missing.available(("running_balance",))
+        == "P4 balance_continuity: no running-balance column in the source"
+    )
+    assert (
+        make([rec(1)]).available(("running_balance",))
+        == "no P4 integrity run exists for the current data version"
+    )

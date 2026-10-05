@@ -111,6 +111,7 @@ PAYSIM_SUPPORTED = {
     "dq_has_duplicate_issue",
     "dq_has_missing_field",
     "dq_is_normalized",
+    "dq_balance_discontinuity",  # P4 checked the PaySim balance columns
 }
 PAYSIM_ENTITY = {
     "ent_txn_count",
@@ -161,11 +162,16 @@ def test_paysim_robust_z_falls_back_to_the_type_peer_group(paysim):
 def test_synthetic_company_gets_the_corporate_feature_matrix(synthetic):
     _, _, run, plain, _ = synthetic
     tx = {s.name for s in implemented(Level.TRANSACTION)}
-    assert computed(run.transactions) == tx - {"txn_type"}  # the ledger has no type column
+    assert computed(run.transactions) == tx - {"txn_type", "dq_balance_discontinuity"}  # no type, no balance
     assert run.transactions.status["txn_type"]["reason"] == "no transaction type is mapped"
     assert computed(run.entities) == {s.name for s in implemented(Level.ENTITY)}
     # without the case calendar and limits, those two features are honestly unavailable
-    assert computed(plain.transactions) == tx - {"txn_type", "is_holiday", "threshold_proximity"}
+    assert computed(plain.transactions) == tx - {
+        "txn_type",
+        "dq_balance_discontinuity",
+        "is_holiday",
+        "threshold_proximity",
+    }
     assert len(run.transactions.subjects) == 7271 and len(run.entities.subjects) == 159
 
 
@@ -363,7 +369,7 @@ def test_quality_report_flags_constant_and_sparse_features(synthetic, paysim):
     pay = feature_report.quality_report(paysim[2], paysim[0].cfg.settings.features)
     for rep in (syn, pay):
         s = rep["summary"]
-        assert s["registered"] == 69 == s["computed"] + s["not_available"] + s["not_available_yet"]
+        assert s["registered"] == 72 == s["computed"] + s["not_available"] + s["not_available_yet"]
         assert s["not_available_yet"] == 10
         canonical_json(rep)  # computed values only: serialisable, no NaN/Infinity
         for e in rep["transaction_features"] + rep["entity_features"]:
@@ -371,8 +377,8 @@ def test_quality_report_flags_constant_and_sparse_features(synthetic, paysim):
                 assert e["rows"] >= e["nulls"] >= 0 and "flags" in e
             else:
                 assert e["reason"] and "rows" not in e  # no statistics for what was not computed
-    assert syn["summary"]["computed"] == 58 and "dq_is_normalized" in syn["summary"]["constant"]
-    assert pay["summary"]["computed"] == 28
+    assert syn["summary"]["computed"] == 60 and "dq_is_normalized" in syn["summary"]["constant"]
+    assert pay["summary"]["computed"] == 29
     assert {"pair_prior_count", "payer_distinct_payees_prior", "is_reciprocal_pair"} <= set(
         pay["summary"]["constant"]
     )

@@ -434,6 +434,68 @@ def is_after_hours(inp: FeatureInput) -> list[Any]:
     return [None if r.ts is None else not start <= r.ts.time() <= end for r in inp.rows]
 
 
+def _off_hours(inp: FeatureInput):
+    """True/False/None per row: after hours, on a non-working weekday, or on a configured holiday."""
+    start, end = (_hhmm(t) for t in inp.cfg.calendar.business_hours)
+    off = set(inp.cfg.calendar.non_working_weekdays)
+    holidays = {date.fromisoformat(d) for d in inp.cfg.calendar.holidays}
+    return lambda r: (
+        None
+        if r.ts is None
+        else not start <= r.ts.time() <= end or r.ts.weekday() in off or r.ts.date() in holidays
+    )
+
+
+@tx(
+    name="is_off_hours",
+    version=1,
+    family="timing",
+    description="True when the posting falls outside the configured working time: after hours, on a "
+    "non-working weekday, or on a configured holiday (holidays count only when a calendar is configured).",
+    inputs=(
+        "posted_at",
+        "config: features.calendar.business_hours",
+        "config: features.calendar.non_working_weekdays",
+        "config: features.calendar.holidays",
+    ),
+    kind=Kind.BOOL,
+    units="flag",
+    semantics=Semantics.ROW,
+    scope="transaction",
+    missing=Missing.NULL_IF_INPUT_MISSING,
+    missing_detail="null when the posting timestamp is null",
+    unusual=Unusual.TRUE,
+    requires=("time_of_day",),
+    params=("calendar.business_hours", "calendar.non_working_weekdays", "calendar.holidays"),
+)
+def is_off_hours(inp: FeatureInput) -> list[Any]:
+    off = _off_hours(inp)
+    return [off(r) for r in inp.rows]
+
+
+@tx(
+    name="cp_prior_offhours_months",
+    version=1,
+    family="behaviour",
+    description="Number of distinct calendar months in which the counterparty stream had earlier off-hours "
+    "postings (see is_off_hours). ≥ 2 means off-hours work with this counterparty is a recurring routine, "
+    "not a one-off.",
+    inputs=("posted_at", "direction", "payer_raw/payee_raw", "config: features.calendar"),
+    kind=Kind.INT,
+    units="months",
+    semantics=Semantics.POINT_IN_TIME,
+    scope=CP,
+    missing=Missing.NULL_IF_INPUT_MISSING,
+    missing_detail=NO_KEY,
+    unusual=Unusual.LOWER,
+    requires=("time_of_day", "direction", "counterparty"),
+    params=("calendar.business_hours", "calendar.non_working_weekdays", "calendar.holidays"),
+)
+def cp_prior_offhours_months(inp: FeatureInput) -> list[Any]:
+    off = _off_hours(inp)
+    return scan(inp, _cp_key, lambda r, h: len({(p.ts.year, p.ts.month) for p in h.rows if off(p)}))  # type: ignore[union-attr]
+
+
 @tx(
     name="days_to_month_end",
     version=1,
@@ -1067,3 +1129,25 @@ def dq_has_missing_field(inp: FeatureInput) -> list[Any]:
 )
 def dq_is_normalized(inp: FeatureInput) -> list[Any]:
     return [r.normalized for r in inp.rows]
+
+
+@tx(
+    name="dq_balance_discontinuity",
+    version=1,
+    family="data_quality",
+    description="True when the current P4 run reported a balance_continuity issue on this transaction: its "
+    "running balance does not follow from the previous balance and the amount (P4 does the arithmetic and "
+    "records the kind of mismatch).",
+    inputs=(P4_DOC, "P4 balance_continuity check"),
+    kind=Kind.BOOL,
+    units="flag",
+    semantics=Semantics.DATASET,
+    scope="transaction",
+    missing=Missing.NULL_IF_NOT_APPLICABLE,
+    missing_detail="never null when available; unavailable without a current P4 run or without a checked "
+    "running balance (P4 says why)",
+    unusual=Unusual.TRUE,
+    requires=("p4_current", "running_balance"),
+)
+def dq_balance_discontinuity(inp: FeatureInput) -> list[Any]:
+    return ["balance_continuity" in inp.p4_issues.get(r.txn_id, []) for r in inp.rows]

@@ -50,13 +50,22 @@ This repository is being rebuilt from a hackathon prototype into a working syste
 
   See [`docs/p5-acceptance.md`](docs/p5-acceptance.md) and [`docs/synthetic-scenario-matrix.md`](docs/synthetic-scenario-matrix.md).
 - **P6 feature registry** (`ledgerspy/features/`):
-  - Every feature is defined once: 59 implemented, 10 registered as not available yet with the reason.
+  - Every feature is defined once: 62 implemented, 10 registered as not available yet with the reason.
   - Each has a version, documented meaning, point-in-time rule, missing-data policy, peer fallback and unit test.
-  - Feature matrices are built for PaySim (28 legitimately supported features) and the synthetic company (58).
+  - Feature matrices are built for PaySim (29 legitimately supported features) and the synthetic company (60).
   - Each build comes with a manifest and a feature-quality report.
-  - Features never read labels, unmapped columns or ground truth. No detector, risk score or model exists yet.
+  - Features never read labels, unmapped columns or ground truth.
 
   See [`docs/feature-registry.md`](docs/feature-registry.md) and [`docs/p6-acceptance.md`](docs/p6-acceptance.md).
+- **P7 forensic rules + Benford** (`ledgerspy/detectors/rules.py`, `ledgerspy/forensics/`):
+  - Ten deterministic, config-driven rules over P6 features: exact and near duplicates, round amounts, structuring, off-hours timing, new vendor + large amount, balance continuity (from P4), dormancy, period-end clusters and velocity.
+  - Benford first-digit, first-two and last-two tests with MAD/z/χ², min-n gating and subgroups.
+  - Every signal carries its evidence, the feature values used and an explanation.
+  - Rules that the data cannot support say why.
+  - `POST /api/datasets/{id}/forensics` returns the read-only report.
+  - Signals are review leads, not findings; risk fusion is P9.
+
+  See [`docs/forensics.md`](docs/forensics.md) and [`docs/p7-acceptance.md`](docs/p7-acceptance.md).
 - The original notebooks are in `archive/` for reference. Their evaluation had data leakage and must not be quoted.
 
 See [`docs/requirements.md`](docs/requirements.md) for the requirement-by-requirement status.
@@ -65,7 +74,7 @@ See [`docs/requirements.md`](docs/requirements.md) for the requirement-by-requir
 
 ```
 ledgerspy/     Python package: config/, canonical/, cases/ (SQLite, audit log, evidence), ingest/, quality/,
-               normalize/, synth/, features/, api/, cli.py
+               normalize/, synth/, features/, detectors/, forensics/, api/, cli.py
 config/        default.yaml — every configurable value (validated, SHA-256 hashed)
 frontend/      prototype UI (index.html, css/, js/) — served by `ledgerspy serve`
 tests/         backend/ (pytest, P2) · frontend/harness.js (Node) + browser_check.py (optional, Playwright)
@@ -118,6 +127,8 @@ python tests/frontend/integrity_panel_check.py  # optional: P4 dashboard against
 | [`docs/p5-acceptance.md`](docs/p5-acceptance.md) | P5 Synthetic Scenario Data: hashes, scenario inventory, P3→P4 demo, deviations |
 | [`docs/feature-registry.md`](docs/feature-registry.md) | P6 feature registry: rules, point-in-time semantics, peer groups, every feature |
 | [`docs/p6-acceptance.md`](docs/p6-acceptance.md) | P6 Feature Registry: inventory, dataset support, quality reports, leakage/determinism demos |
+| [`docs/forensics.md`](docs/forensics.md) | P7 forensic rules and Benford: inputs, thresholds, availability, evidence, limitations |
+| [`docs/p7-acceptance.md`](docs/p7-acceptance.md) | P7 acceptance: scenario diagnostics, PaySim validation, Benford results, deviations |
 | [`docs/synthetic-scenario-matrix.md`](docs/synthetic-scenario-matrix.md) | Feature → scenario → fields → records → detector phase |
 | [`docs/cleanup-log.md`](docs/cleanup-log.md) | What was moved, archived or deleted in the cleanup, and why |
 | [`docs/audits/phase-1-current-state-audit.md`](docs/audits/phase-1-current-state-audit.md) | Detailed audit of the prototype |

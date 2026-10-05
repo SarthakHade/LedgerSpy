@@ -55,6 +55,10 @@
   "definition_sha256": "629e2a59247da3f27d458ebe507f8cc51ad17a5b351831f188c378383154b27b",
   "version": 1
  },
+ "cp_prior_offhours_months": {
+  "definition_sha256": "996a9d95ceab6f739c0bbaffad2ecc75d3df13e6aa4c72fd2c4304328063264e",
+  "version": 1
+ },
  "cp_reference_gap": {
   "definition_sha256": "83ee499e2f6f32fda71d35b11697ac35c6a31ea7fd35fd638a0efd2350e98948",
   "version": 1
@@ -73,6 +77,10 @@
  },
  "days_to_month_end": {
   "definition_sha256": "f6e64ab22e20271daaedeb4bb07a033d8b1e088527f3c3813798d432cbccec38",
+  "version": 1
+ },
+ "dq_balance_discontinuity": {
+  "definition_sha256": "c853df7bc6f3fde467d73c9c83078943d6791687fc4bc3815ab669c8a1a73c7d",
   "version": 1
  },
  "dq_has_duplicate_issue": {
@@ -185,6 +193,10 @@
  },
  "is_non_working_weekday": {
   "definition_sha256": "15dc20586a7fd07d36e37d4c872b0fa4c30da9ae9aede49ded8a000618488f47",
+  "version": 1
+ },
+ "is_off_hours": {
+  "definition_sha256": "e8b8b0d675c51cd10a82e80510b7dafc771c45d69033a88bded5d4833c7b248c",
   "version": 1
  },
  "is_outflow": {

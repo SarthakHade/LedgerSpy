@@ -6,6 +6,7 @@ table, not `extra`, not any file. The effective configuration (with case overrid
 into the manifest.
 """
 
+import json
 import sqlite3
 
 from ledgerspy.config.loader import EffectiveConfig
@@ -26,15 +27,25 @@ def mapped_fields(view: DatasetView) -> set[str]:
 
 def p4_issues(
     conn: sqlite3.Connection, dataset_id: str, data_version: str
-) -> tuple[str | None, dict[str, list[str]]]:
-    """Row-level issues of the latest integrity run on this data version, or (None, {}) if there is none."""
+) -> tuple[str | None, dict[str, list[str]], dict[str, dict[str, str]]]:
+    """Row-level issue codes and check statuses of the latest integrity run on this data version.
+
+    (None, {}, {}) if there is none.
+    """
     run = conn.execute(
-        "SELECT run_id FROM integrity_runs WHERE dataset_id = ? AND data_version = ? ORDER BY created_at "
-        "DESC, run_id DESC LIMIT 1",
+        "SELECT run_id, report FROM integrity_runs WHERE dataset_id = ? AND data_version = ? ORDER BY "
+        "created_at DESC, run_id DESC LIMIT 1",
         (dataset_id, data_version),
     ).fetchone()
     if run is None:
-        return None, {}
+        return None, {}, {}
+    checks = {
+        c["check"]: {
+            "status": c["status"],
+            "reason": c.get("basis", "") if c["status"] == "not_available" else "",
+        }
+        for c in json.loads(run[1])["checks"]
+    }
     issues: dict[str, list[str]] = {}
     for txn_id, check in conn.execute(
         "SELECT txn_id, check_code FROM integrity_issues WHERE run_id = ? AND txn_id IS NOT NULL ORDER BY "
@@ -42,16 +53,18 @@ def p4_issues(
         (run[0],),
     ):
         issues.setdefault(txn_id, []).append(check)
-    return run[0], issues
+    return run[0], issues, checks
 
 
 def input_from_view(
-    view: DatasetView, cfg: EffectiveConfig, p4: tuple[str | None, dict[str, list[str]]]
+    view: DatasetView,
+    cfg: EffectiveConfig,
+    p4: tuple[str | None, dict[str, list[str]], dict[str, dict[str, str]]],
 ) -> FeatureInput:
     fcfg = cfg.settings.features
     profile = fcfg.adapters.get(view.adapter)
     rows = data.rows_from_records(view.rows, profile.counterparty if profile else "by_direction")
-    run_id, issues = p4
+    run_id, issues, checks = p4
     return FeatureInput(
         dataset_id=view.dataset_id,
         adapter=view.adapter,
@@ -65,10 +78,12 @@ def input_from_view(
             rows=rows,
             cfg=fcfg,
             p4_current=run_id is not None,
+            p4_checks=checks,
         ),
         cfg=fcfg,
         p4_issues=issues,
         p4_run_id=run_id,
+        p4_checks=checks,
     )
 
 

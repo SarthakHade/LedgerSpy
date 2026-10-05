@@ -197,7 +197,10 @@ def test_every_feature_follows_its_missing_data_policy():
         "extra": {},
     }
     m = tx_matrix(complete + [blank])
-    assert set(m.columns) == {s.name for s in implemented(Level.TRANSACTION)} - {"txn_type"}
+    assert set(m.columns) == {s.name for s in implemented(Level.TRANSACTION)} - {
+        "txn_type",
+        "dq_balance_discontinuity",
+    }
     for name, col in m.columns.items():
         spec = REGISTRY[name]
         if "never null" in spec.missing_detail:
@@ -235,3 +238,11 @@ def test_float_values_are_finite():
     m = tx_matrix(records)
     floats = [v for c in m.columns.values() for v in c if isinstance(v, float)]
     assert floats and all(v == v and abs(v) != float("inf") for v in floats)
+
+
+def test_matrix_identity_does_not_depend_on_row_order():
+    records = random_records(14)
+    shuffled = records[::-1]
+    a, b = matrix.build(make(records, p4=P4, **FULL)), matrix.build(make(shuffled, p4=P4, **FULL))
+    assert a.manifest["transaction_matrix_sha256"] == b.manifest["transaction_matrix_sha256"]
+    assert a.manifest == b.manifest

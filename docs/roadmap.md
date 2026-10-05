@@ -13,7 +13,7 @@ P0 Cleanup ✔
          └─ P3 Ingestion + evidence ✔ ┬─ P4 Validation / cleaning / integrity dashboard ✔
                                       └─ P5 Synthetic scenario data ✔ ◄─ (needs canonical schema from P2/P3)
                                           └─ P6 Feature registry ✔
-                                              ├─ P7 Forensic rules + Benford
+                                              ├─ P7 Forensic rules + Benford ✔
                                               ├─ P8 Anomaly detection
                                               └─ P9 Risk engine v1 + Explainability v1 + UI wired to API  ◄── first end-to-end slice
                                                   ├─ P10 Supervised training/evaluation ─ P11 Model registry/inference
@@ -116,7 +116,7 @@ See [`cleanup-log.md`](cleanup-log.md).
   - Every registry entry has a doc string and unit test.
 - **Acceptance.** Feature matrix produced for PaySim and synthetic data; no constant features (variance check reported).
 
-### P7 — Forensic rules and Benford (R5, R16)
+### P7 — Forensic rules and Benford (R5, R16) ✔ (done; see [`p7-acceptance.md`](p7-acceptance.md))
 - **Objective.** Rule signals (duplicates, roundness, structuring/splits, temporal, new-vendor-large-amount, balance continuity) and the Benford module (first digit, first two digits, last two digits, MAD/z/χ², subgroups, min-n gating).
 - **Why now.** These are label-free, explainable signals and a quick path to real value.
 - **Files.** `ledgerspy/detectors/rules.py`, `ledgerspy/forensics/benford.py`, `ledgerspy/forensics/duplicates.py`, `config/default.yaml` rules section.

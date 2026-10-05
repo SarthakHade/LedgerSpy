@@ -12,12 +12,19 @@ Status: **design**. Implemented so far:
   two-company group (masters, ledger, bank statement, cash flow) with 63 scenarios (45 injected, 18 normal controls).
   The ground truth is kept in a separate folder. A committed seed-42 reference set passes P3 and P4 with exactly the
   planned issues (see [`p5-acceptance.md`](p5-acceptance.md), [`synthetic-scenario-matrix.md`](synthetic-scenario-matrix.md)).
-- **P6 (feature registry):** `ledgerspy.features` holds one definition per feature: 59 implemented (40 transaction-level,
-  19 entity-level) and 10 registered as not available yet.
+- **P6 (feature registry):** `ledgerspy.features` holds one definition per feature: 62 implemented (43 transaction-level,
+  19 entity-level; P7 added three) and 10 registered as not available yet.
   - Each feature has a version, metadata, a point-in-time class, a missing-data policy and a unit test.
   - Point-in-time history means strictly earlier rows; one peer hierarchy with a reported basis serves every peer feature.
   - A feature manifest and a feature-quality report accompany each build. Features read only canonical fields of the normalised view.
   - See [`feature-registry.md`](feature-registry.md) and [`p6-acceptance.md`](p6-acceptance.md).
+- **P7 (forensic rules + Benford):** `ledgerspy.detectors.rules` holds ten config-driven rules over P6 features:
+  exact/near duplicates, round amounts, structuring, temporal, new vendor + large amount, balance continuity (from P4),
+  dormancy, period-end clusters and velocity.
+  - `ledgerspy.forensics.benford` runs first-digit, first-two and last-two tests with MAD/z/χ², min-n gating and subgroups.
+  - They emit explainable signals that convert to the canonical `Signal`. `POST /api/datasets/{id}/forensics` returns the
+    read-only dataset report.
+  - No fusion yet (P9). See [`forensics.md`](forensics.md) and [`p7-acceptance.md`](p7-acceptance.md).
 
 Everything else is not implemented yet unless stated.
 Requirement IDs (R1…R20) refer to [`requirements.md`](requirements.md).
@@ -590,8 +597,9 @@ LedgerSpy/
 │   ├── normalize/             # explicit, logged transformations
 │   ├── features/              # P6 feature registry: spec, data (canonical rows only), history (point in time, peers),
 │   │                          #   transaction/entity features, deferred, matrix + manifest, report, registry_lock.json
-│   ├── detectors/             # rules.py, anomaly.py, supervised.py
-│   ├── forensics/             # benford.py, duplicates.py, entity_resolution.py, graph.py, reconciliation.py, cashflow_sim.py
+│   ├── detectors/             # rules.py (P7), anomaly.py, supervised.py
+│   ├── forensics/             # models.py, duplicates.py, benford.py, service.py (P7); entity_resolution.py, graph.py,
+│   │                          #   reconciliation.py, cashflow_sim.py (later)
 │   ├── risk/                  # signal fusion, tiers, volume guard
 │   ├── explain/               # explanation objects, SHAP wrappers
 │   ├── cases/                 # sqlite store, evidence, audit log, findings
