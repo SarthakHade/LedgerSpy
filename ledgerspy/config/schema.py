@@ -303,6 +303,64 @@ class SynthConfig(_Section):
     business_hours: list[str] = Field(min_length=2, max_length=2)
 
 
+# ------------------------------------------------------------------------------------- P6 feature registry
+
+_HHMM = r"^([01]\d|2[0-3]):[0-5]\d$"
+
+
+class FeatureCalendar(_Section):
+    business_hours: list[str] = Field(min_length=2, max_length=2)
+    non_working_weekdays: list[int] = Field(max_length=7)
+    fiscal_year_start_month: int = Field(ge=1, le=12)
+    holidays: list[str]
+
+    @model_validator(mode="after")
+    def _valid(self) -> "FeatureCalendar":
+        if (
+            not all(re.match(_HHMM, t) for t in self.business_hours)
+            or self.business_hours[0] >= self.business_hours[1]
+        ):
+            raise ValueError("business_hours must be two HH:MM times, start before end")
+        if not all(0 <= d <= 6 for d in self.non_working_weekdays):
+            raise ValueError("non_working_weekdays are 0 (Monday) … 6 (Sunday)")
+        if not all(re.match(r"^\d{4}-\d{2}-\d{2}$", d) for d in self.holidays):
+            raise ValueError("holidays are YYYY-MM-DD dates")
+        return self
+
+
+class ApprovalThreshold(_Section):
+    name: str = Field(min_length=1, max_length=64)
+    amount_minor: int = Field(ge=1)
+
+
+class FeatureAdapterProfile(_Section):
+    counterparty: Literal["by_direction", "payee"]
+    account_is_category: bool
+    corporate: bool
+
+
+class FeatureReportConfig(_Section):
+    max_missing_share: float = Field(ge=0.0, le=1.0)
+    min_distinct_values: int = Field(ge=1)
+
+
+class FeaturesConfig(_Section):
+    baseline_window: int = Field(ge=5)
+    min_entity_history: int = Field(ge=1)
+    min_peer_history: int = Field(ge=1)
+    min_peers: int = Field(ge=1)
+    mad_scale_floor: float = Field(gt=0.0)
+    round_level_min: int = Field(ge=1, le=5)
+    velocity_min_history_days: int = Field(ge=1)
+    trend_window_days: int = Field(ge=7)
+    trend_min_points: int = Field(ge=3)
+    recent_days: int = Field(ge=1)
+    calendar: FeatureCalendar
+    approval_thresholds: list[ApprovalThreshold]
+    adapters: dict[str, FeatureAdapterProfile]
+    report: FeatureReportConfig
+
+
 class LedgerSpyConfig(_Section):
     config_version: Literal[1]
     server: ServerConfig
@@ -313,3 +371,4 @@ class LedgerSpyConfig(_Section):
     quality: QualityConfig
     normalize: NormalizeConfig
     synth: SynthConfig
+    features: FeaturesConfig

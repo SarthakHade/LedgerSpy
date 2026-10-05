@@ -49,6 +49,14 @@ This repository is being rebuilt from a hackathon prototype into a working syste
   - The reference set is in `data/synthetic/reference/` and passes P3 ingestion and P4 with exactly the planned issues.
 
   See [`docs/p5-acceptance.md`](docs/p5-acceptance.md) and [`docs/synthetic-scenario-matrix.md`](docs/synthetic-scenario-matrix.md).
+- **P6 feature registry** (`ledgerspy/features/`):
+  - Every feature is defined once: 59 implemented, 10 registered as not available yet with the reason.
+  - Each has a version, documented meaning, point-in-time rule, missing-data policy, peer fallback and unit test.
+  - Feature matrices are built for PaySim (28 legitimately supported features) and the synthetic company (58).
+  - Each build comes with a manifest and a feature-quality report.
+  - Features never read labels, unmapped columns or ground truth. No detector, risk score or model exists yet.
+
+  See [`docs/feature-registry.md`](docs/feature-registry.md) and [`docs/p6-acceptance.md`](docs/p6-acceptance.md).
 - The original notebooks are in `archive/` for reference. Their evaluation had data leakage and must not be quoted.
 
 See [`docs/requirements.md`](docs/requirements.md) for the requirement-by-requirement status.
@@ -57,7 +65,7 @@ See [`docs/requirements.md`](docs/requirements.md) for the requirement-by-requir
 
 ```
 ledgerspy/     Python package: config/, canonical/, cases/ (SQLite, audit log, evidence), ingest/, quality/,
-               normalize/, synth/, api/, cli.py
+               normalize/, synth/, features/, api/, cli.py
 config/        default.yaml — every configurable value (validated, SHA-256 hashed)
 frontend/      prototype UI (index.html, css/, js/) — served by `ledgerspy serve`
 tests/         backend/ (pytest, P2) · frontend/harness.js (Node) + browser_check.py (optional, Playwright)
@@ -108,6 +116,8 @@ python tests/frontend/integrity_panel_check.py  # optional: P4 dashboard against
 | [`docs/p3-acceptance.md`](docs/p3-acceptance.md) | P3 Data Ingestion and Evidence: acceptance results, PaySim run, deviations |
 | [`docs/p4-acceptance.md`](docs/p4-acceptance.md) | P4 Validation, Cleaning and Integrity Dashboard: results, PaySim report, deviations |
 | [`docs/p5-acceptance.md`](docs/p5-acceptance.md) | P5 Synthetic Scenario Data: hashes, scenario inventory, P3→P4 demo, deviations |
+| [`docs/feature-registry.md`](docs/feature-registry.md) | P6 feature registry: rules, point-in-time semantics, peer groups, every feature |
+| [`docs/p6-acceptance.md`](docs/p6-acceptance.md) | P6 Feature Registry: inventory, dataset support, quality reports, leakage/determinism demos |
 | [`docs/synthetic-scenario-matrix.md`](docs/synthetic-scenario-matrix.md) | Feature → scenario → fields → records → detector phase |
 | [`docs/cleanup-log.md`](docs/cleanup-log.md) | What was moved, archived or deleted in the cleanup, and why |
 | [`docs/audits/phase-1-current-state-audit.md`](docs/audits/phase-1-current-state-audit.md) | Detailed audit of the prototype |

@@ -12,6 +12,12 @@ Status: **design**. Implemented so far:
   two-company group (masters, ledger, bank statement, cash flow) with 63 scenarios (45 injected, 18 normal controls).
   The ground truth is kept in a separate folder. A committed seed-42 reference set passes P3 and P4 with exactly the
   planned issues (see [`p5-acceptance.md`](p5-acceptance.md), [`synthetic-scenario-matrix.md`](synthetic-scenario-matrix.md)).
+- **P6 (feature registry):** `ledgerspy.features` holds one definition per feature: 59 implemented (40 transaction-level,
+  19 entity-level) and 10 registered as not available yet.
+  - Each feature has a version, metadata, a point-in-time class, a missing-data policy and a unit test.
+  - Point-in-time history means strictly earlier rows; one peer hierarchy with a reported basis serves every peer feature.
+  - A feature manifest and a feature-quality report accompany each build. Features read only canonical fields of the normalised view.
+  - See [`feature-registry.md`](feature-registry.md) and [`p6-acceptance.md`](p6-acceptance.md).
 
 Everything else is not implemented yet unless stated.
 Requirement IDs (R1…R20) refer to [`requirements.md`](requirements.md).
@@ -244,7 +250,7 @@ P4 added `integrity_runs`, `integrity_issues`, `fix_proposals`, `fix_decisions`,
 - SQLite comfortably handles ~10⁶ rows on a laptop. Parquet or DuckDB can be added later **only** if profiling shows a need.
 
 ### Configuration
-- `config/default.yaml` (repository root) is the only place values are set; the schema (`ledgerspy/config/schema.py`) has no defaults, rejects unknown keys and is strict about types. `ledgerspy.config.load_config()` is the single interface. P2 defined `config_version`, `server` and `workspace`; P3 added `ingest` (size/row/column/cell limits, CSV encodings and delimiters, XLSX zip limits, minor units), `mapping` (aliases, label columns, date formats, thresholds) and `adapters`; P4 added `quality` (required/optional/expected fields, date bounds, near-duplicate window, identifier rules, balance, severity, readiness) and `normalize`; P5 added `synth` (seed, start date, years, scale, currency, approval limits, business hours); each later phase adds its own section.
+- `config/default.yaml` (repository root) is the only place values are set; the schema (`ledgerspy/config/schema.py`) has no defaults, rejects unknown keys and is strict about types. `ledgerspy.config.load_config()` is the single interface. P2 defined `config_version`, `server` and `workspace`; P3 added `ingest` (size/row/column/cell limits, CSV encodings and delimiters, XLSX zip limits, minor units), `mapping` (aliases, label columns, date formats, thresholds) and `adapters`; P4 added `quality` (required/optional/expected fields, date bounds, near-duplicate window, identifier rules, balance, severity, readiness) and `normalize`; P5 added `synth` (seed, start date, years, scale, currency, approval limits, business hours); P6 added `features` (history minimums, baseline window, MAD floor, calendar, case approval thresholds, adapter profiles, report flags); each later phase adds its own section.
 - Sections planned: `ingest` (limits), `quality`, `features`, `rules` (one entry per rule: code, family, parameters, weight, severity, explanation template), `risk` (fusion and tier thresholds), `benford`, `entity_resolution`, `graph`, `reconciliation`, `cashflow_sim`.
 - A case may override values. The effective config is hashed and stored in the run manifest.
 
@@ -582,7 +588,8 @@ LedgerSpy/
 │   ├── ingest/                # csv, xlsx, (pdf, ocr), mapping, adapters (paysim, generic_ledger, bank)
 │   ├── quality/               # integrity checks + readiness score
 │   ├── normalize/             # explicit, logged transformations
-│   ├── features/              # feature registry (one definition per feature)
+│   ├── features/              # P6 feature registry: spec, data (canonical rows only), history (point in time, peers),
+│   │                          #   transaction/entity features, deferred, matrix + manifest, report, registry_lock.json
 │   ├── detectors/             # rules.py, anomaly.py, supervised.py
 │   ├── forensics/             # benford.py, duplicates.py, entity_resolution.py, graph.py, reconciliation.py, cashflow_sim.py
 │   ├── risk/                  # signal fusion, tiers, volume guard

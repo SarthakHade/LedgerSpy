@@ -1,0 +1,238 @@
+{
+ "amount_minor": {
+  "definition_sha256": "70a3ba79d6960e1c7e17ce5f120ec1bef31c8941b46a45093f156a99cbbf559e",
+  "version": 1
+ },
+ "amount_pctl_prior": {
+  "definition_sha256": "824d2205cc739de69ceaa7bc836738aeb4e23776e16a18d36efd29171c5409c6",
+  "version": 1
+ },
+ "amount_robust_z": {
+  "definition_sha256": "2e54d19ea821ad108091350dfea3ce69dbe616c354b5285582ad1a571c584513",
+  "version": 1
+ },
+ "amount_to_account_median_ratio": {
+  "definition_sha256": "3cbdec617f83a5808858d3daabaa384c1b04aea7a09ac504710de039b2c4dba4",
+  "version": 1
+ },
+ "amount_to_cp_median_ratio": {
+  "definition_sha256": "096a8bd45181c663f2108be75f3df9847c0bc440674037298051939a12e508c3",
+  "version": 1
+ },
+ "cp_amount_sum_30d": {
+  "definition_sha256": "b525985e61be45f4d5842665ccaa694151f888044fda95ed75bc93c2819b0fe2",
+  "version": 1
+ },
+ "cp_count_30d": {
+  "definition_sha256": "416083ac55e482159d5c52bb8e9c1c684f5b515f6f2bfa26dd28b131522dda78",
+  "version": 1
+ },
+ "cp_count_30d_peer_ratio": {
+  "definition_sha256": "1e6e76b9793aafcf9163da904da0f70fc1896334da1993521684528eacb5c935",
+  "version": 1
+ },
+ "cp_count_7d": {
+  "definition_sha256": "c727486e86a22c5b4344b32780f98a7b101665f339f772f9cb201b7e1ad7a596",
+  "version": 1
+ },
+ "cp_days_since_first": {
+  "definition_sha256": "9865e547502b5dc5cd53939b8197edfb45495c7ff4c6dabea5e9f591831e6c77",
+  "version": 1
+ },
+ "cp_days_since_prev": {
+  "definition_sha256": "dd7b0f9bfe0bcef94e7b90de59e89bbaa390f94435a83b9614798dec5441ac76",
+  "version": 1
+ },
+ "cp_log_amount_trend": {
+  "definition_sha256": "fcfd012793abced1523c52d05040161cabce527c62d4ba7f8d2ce03d0c21e451",
+  "version": 1
+ },
+ "cp_prev_amount_ratio": {
+  "definition_sha256": "f8c1241e3889da44a0d07e54a6174dcbe990c77ee019422bfff2545c51c0f672",
+  "version": 1
+ },
+ "cp_prior_count": {
+  "definition_sha256": "629e2a59247da3f27d458ebe507f8cc51ad17a5b351831f188c378383154b27b",
+  "version": 1
+ },
+ "cp_reference_gap": {
+  "definition_sha256": "83ee499e2f6f32fda71d35b11697ac35c6a31ea7fd35fd638a0efd2350e98948",
+  "version": 1
+ },
+ "cp_velocity_ratio": {
+  "definition_sha256": "dd8e743d41c90e37eae7f232d87ea23c7c84025a20e0983e07dc83fd1e0720f6",
+  "version": 1
+ },
+ "day_of_week": {
+  "definition_sha256": "2aa375584d02cd595bcac4a0fe4b3bfb33738313bccf9f6fb4d776f1e435b2d7",
+  "version": 1
+ },
+ "days_to_fiscal_year_end": {
+  "definition_sha256": "1cc3bfc461255a3392be87b4a7f3b6bd76657e8d74176d91dc296bcb57f60481",
+  "version": 1
+ },
+ "days_to_month_end": {
+  "definition_sha256": "f6e64ab22e20271daaedeb4bb07a033d8b1e088527f3c3813798d432cbccec38",
+  "version": 1
+ },
+ "dq_has_duplicate_issue": {
+  "definition_sha256": "69b52625bb5e1f1a2c067e69179e862872c28bdeb5db40f19266be11bf480d24",
+  "version": 1
+ },
+ "dq_has_missing_field": {
+  "definition_sha256": "22380da57910947671fcc4b0d9d34c7809dd290c37ea2fa0161f01717800cc0b",
+  "version": 1
+ },
+ "dq_is_normalized": {
+  "definition_sha256": "012addc1759e99bd75844670d3edc128affa3a0768fa4bae0fb241518a310649",
+  "version": 1
+ },
+ "dq_issue_count": {
+  "definition_sha256": "7763c87333d7dcc072e909f50b73af073c1f3ffa74783f43d5640c33467674b0",
+  "version": 1
+ },
+ "ent_after_hours_share": {
+  "definition_sha256": "a89838d3a36461a5e9d3929116664fd5ca1ce3dc85999194aa428ce91f4510e3",
+  "version": 1
+ },
+ "ent_fan_in": {
+  "definition_sha256": "5ff4044ec21c19cd649e1b2dda0d78e03702eb471132cf829974f643ba694c72",
+  "version": 1
+ },
+ "ent_fan_out": {
+  "definition_sha256": "16784052dc0f3bed6adc946e0efa55043f39db89c2f9cbe929ad6b6852477679",
+  "version": 1
+ },
+ "ent_first_seen": {
+  "definition_sha256": "8011f15ab7e1cac2b54f19e206bba7f88ece1e3ead7a564d711879585fbd9bc1",
+  "version": 1
+ },
+ "ent_last_seen": {
+  "definition_sha256": "d66a7283d269a12e0a0cd560cfa261bede19a1bada5d172c3f91c4956233b98a",
+  "version": 1
+ },
+ "ent_log_amount_dispersion": {
+  "definition_sha256": "31c9b30c459d882a00a5e33887aa5b7a59c6ad6ffe320b23c7442d6efd1f6e4d",
+  "version": 1
+ },
+ "ent_log_amount_trend": {
+  "definition_sha256": "cab8afcaad80353b693792e4bb40f73e24eddbf6dd3b12c3fb03ae4aec5bbe78",
+  "version": 1
+ },
+ "ent_max_gap_days": {
+  "definition_sha256": "92079be95514fd9a13c3b09695a0722acc576af1426716dfc57bb6ec0d4f8275",
+  "version": 1
+ },
+ "ent_mean_amount_minor": {
+  "definition_sha256": "87bcaff45f1397947c5f57a9b72e76b394dd9293a3fa088d3832471788d7a819",
+  "version": 1
+ },
+ "ent_median_amount_minor": {
+  "definition_sha256": "1b21950ccb7a670123b57d9bcc4a4e599da41bb8d7e08ac6d2209220773e6e18",
+  "version": 1
+ },
+ "ent_median_to_peer_ratio": {
+  "definition_sha256": "43e243f0491ac38d083ff5e27bb474d2fa185d9d2d782d6202f571518df4a52c",
+  "version": 1
+ },
+ "ent_non_working_share": {
+  "definition_sha256": "79d3656e8b3540eaf9f2456f8bade685d9ff4b5b55138fdd57c7b5e719a61d5f",
+  "version": 1
+ },
+ "ent_recent_amount_ratio": {
+  "definition_sha256": "441ff84a65e4457590c7a4c4b46afcc0c58e7dad1425e91785531266100d29ad",
+  "version": 1
+ },
+ "ent_recent_count_ratio": {
+  "definition_sha256": "052acba35946ac5075100e965a02be2a85845c20c0af0b79fb372b20abd0ebb6",
+  "version": 1
+ },
+ "ent_reference_sequential_share": {
+  "definition_sha256": "69b152e7a39ed34589f6d0f99a7232de6bcbac4c7df78254c22e5a2b94b148dd",
+  "version": 1
+ },
+ "ent_round_share": {
+  "definition_sha256": "7525c9c3985290b2ec9a0aac9f5d7c9a73eabaa5cefabb3ab0682d58b1c7471e",
+  "version": 1
+ },
+ "ent_share_of_flow": {
+  "definition_sha256": "bfd04c2781fff7a4fbe8f7b050637908f2c23e295f9eda85e6a942f794295526",
+  "version": 1
+ },
+ "ent_total_amount_minor": {
+  "definition_sha256": "d5eba4e65472b39e8759adbad2faca4b5f0185f7e198bae8b714304c07b8bc63",
+  "version": 1
+ },
+ "ent_txn_count": {
+  "definition_sha256": "25e83ffbf907e3e2f31b3e5edf8e128aa4a06d5760881246b2820b7083381b72",
+  "version": 1
+ },
+ "hour_deviation": {
+  "definition_sha256": "cc56f42c4b0b00f0bc4af1b31114fa13375e9bc8991d768effbad0046c806bc3",
+  "version": 1
+ },
+ "hour_of_day": {
+  "definition_sha256": "312d097ce4c2d3bfec32b182ba9fe712d678f3273c645667218ca88b9ed50031",
+  "version": 1
+ },
+ "is_after_hours": {
+  "definition_sha256": "c1a6fefc3e315168d5eb26bc0f5b630c340d64fa1ce8ae2b2257180be59f63fe",
+  "version": 1
+ },
+ "is_holiday": {
+  "definition_sha256": "9e1573088ee1cd7fc9ed250ba0629028da613b8d1920772d20f15844e290b262",
+  "version": 1
+ },
+ "is_non_working_weekday": {
+  "definition_sha256": "15dc20586a7fd07d36e37d4c872b0fa4c30da9ae9aede49ded8a000618488f47",
+  "version": 1
+ },
+ "is_outflow": {
+  "definition_sha256": "8112e9d712c81f7cf55786e2e88d5445d272559386db4f86abe450f94aa6c263",
+  "version": 1
+ },
+ "is_reciprocal_pair": {
+  "definition_sha256": "d2318c59ed943ec4d9e13624764fb8a7d82621587c1d9ec3b5081268ba7e6383",
+  "version": 1
+ },
+ "log_amount": {
+  "definition_sha256": "9d6c39a09d15216a72f5c06a440a1ad800ce5ef123c28e30df99f5dcdc1d2e93",
+  "version": 1
+ },
+ "pair_prior_count": {
+  "definition_sha256": "3ec0c7ad9869c7ddc3af17d64058e77997d25bd2f85b313cc88882c09ddab6d6",
+  "version": 1
+ },
+ "pair_share_of_payer_outflow": {
+  "definition_sha256": "fcf25ce9ed8cf5b8f45b4a7d600d460b771b92e873749d4d83543f76e6db2992",
+  "version": 1
+ },
+ "payee_distinct_payers_prior": {
+  "definition_sha256": "0d2d8ec89070a49969cbc698a2d1e04d6f11defd10210f0392d007387cf6f5f7",
+  "version": 1
+ },
+ "payer_distinct_payees_prior": {
+  "definition_sha256": "6d74bc42f1179ecfd3a5e897ae59a403d983bfa16188039d0f6e886b35c964f4",
+  "version": 1
+ },
+ "payer_new_payees_7d": {
+  "definition_sha256": "5077e0f752070f9ba0c8c3ef747fd4b262c3645e9eb102ec6491972750736c29",
+  "version": 1
+ },
+ "posting_lag_days": {
+  "definition_sha256": "f5f22e56f54241ade3b9132ca934de663af314d7871f857d9a4d751685172438",
+  "version": 1
+ },
+ "round_level": {
+  "definition_sha256": "90d37021ae953d37d928b17665aa887619fd826f1cefb0d25deef3dbcb33f0ce",
+  "version": 1
+ },
+ "threshold_proximity": {
+  "definition_sha256": "83bac5824b20c44e44b70ef02c635f6c2bf78250b27aad1bebfa5be94f9c7fc9",
+  "version": 1
+ },
+ "txn_type": {
+  "definition_sha256": "88e2fc187f579b10e86791b3d79cedead50501c9600a32301d78f7eb4a2a3fd8",
+  "version": 1
+ }
+}

@@ -12,7 +12,7 @@ P0 Cleanup ✔
      └─ P2 Foundation (package, config, schema, IDs, SQLite, audit log, API skeleton) ✔
          └─ P3 Ingestion + evidence ✔ ┬─ P4 Validation / cleaning / integrity dashboard ✔
                                       └─ P5 Synthetic scenario data ✔ ◄─ (needs canonical schema from P2/P3)
-                                          └─ P6 Feature registry
+                                          └─ P6 Feature registry ✔
                                               ├─ P7 Forensic rules + Benford
                                               ├─ P8 Anomaly detection
                                               └─ P9 Risk engine v1 + Explainability v1 + UI wired to API  ◄── first end-to-end slice
@@ -104,7 +104,7 @@ See [`cleanup-log.md`](cleanup-log.md).
 - **Tests.** Determinism (same seed gives the same hash); every scenario present in the ground truth; files pass P3 ingestion and P4 integrity checks with the expected injected issues only.
 - **Acceptance.** The generated files are importable, clearly labelled, and cover every scenario in `data-strategy.md` §4.
 
-### P6 — Feature engineering (single registry)
+### P6 — Feature engineering (single registry) ✔ (done; see [`p6-acceptance.md`](p6-acceptance.md))
 - **Objective.** One feature registry: name, definition, inputs, point-in-time rule and version. Implements the "Target definition" column of the feature review in `architecture.md` §6.
 - **Why now.** Detectors and models consume features. One registry removes the Python/JS duplication.
 - **Files.** `ledgerspy/features/*`.

@@ -1,0 +1,77 @@
+"""Build a feature run for a canonicalised dataset in the workspace.
+
+Inputs are the normalised view (`ledgerspy.normalize.view.load_view`) and, for data-quality features, the
+issues of the latest P4 integrity run of the *current* data version. Nothing else is read: not the `labels`
+table, not `extra`, not any file. The effective configuration (with case overrides) is passed in and hashed
+into the manifest.
+"""
+
+import sqlite3
+
+from ledgerspy.config.loader import EffectiveConfig
+from ledgerspy.features import data, matrix
+from ledgerspy.features.data import FeatureInput
+from ledgerspy.normalize.view import DatasetView, load_view
+
+# Canonical fields that count as "mapped" for a view (the mapping names `amount` for amount_minor).
+_MAPPED_ALIASES = {"amount": "amount_minor", "debit_amount": "amount_minor", "credit_amount": "amount_minor"}
+
+
+def mapped_fields(view: DatasetView) -> set[str]:
+    out = {_MAPPED_ALIASES.get(f, f) for f in view.mapping["fields"]}
+    if view.mapped("direction"):
+        out.add("direction")
+    return out
+
+
+def p4_issues(
+    conn: sqlite3.Connection, dataset_id: str, data_version: str
+) -> tuple[str | None, dict[str, list[str]]]:
+    """Row-level issues of the latest integrity run on this data version, or (None, {}) if there is none."""
+    run = conn.execute(
+        "SELECT run_id FROM integrity_runs WHERE dataset_id = ? AND data_version = ? ORDER BY created_at "
+        "DESC, run_id DESC LIMIT 1",
+        (dataset_id, data_version),
+    ).fetchone()
+    if run is None:
+        return None, {}
+    issues: dict[str, list[str]] = {}
+    for txn_id, check in conn.execute(
+        "SELECT txn_id, check_code FROM integrity_issues WHERE run_id = ? AND txn_id IS NOT NULL ORDER BY "
+        "txn_id, check_code, issue_id",
+        (run[0],),
+    ):
+        issues.setdefault(txn_id, []).append(check)
+    return run[0], issues
+
+
+def input_from_view(
+    view: DatasetView, cfg: EffectiveConfig, p4: tuple[str | None, dict[str, list[str]]]
+) -> FeatureInput:
+    fcfg = cfg.settings.features
+    profile = fcfg.adapters.get(view.adapter)
+    rows = data.rows_from_records(view.rows, profile.counterparty if profile else "by_direction")
+    run_id, issues = p4
+    return FeatureInput(
+        dataset_id=view.dataset_id,
+        adapter=view.adapter,
+        time_basis=view.time_basis,
+        data_version=view.data_version,
+        rows=rows,
+        capabilities=data.capabilities(
+            adapter=view.adapter,
+            time_basis=view.time_basis,
+            mapped=mapped_fields(view),
+            rows=rows,
+            cfg=fcfg,
+            p4_current=run_id is not None,
+        ),
+        cfg=fcfg,
+        p4_issues=issues,
+        p4_run_id=run_id,
+    )
+
+
+def build_for_dataset(conn: sqlite3.Connection, cfg: EffectiveConfig, dataset_id: str) -> matrix.FeatureRun:
+    view = load_view(conn, dataset_id)
+    return matrix.build(input_from_view(view, cfg, p4_issues(conn, dataset_id, view.data_version)))

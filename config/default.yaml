@@ -205,3 +205,41 @@ synth:
     expense_claim_minor: 500000     # ₹5,000.00: expense claims at or above need Finance approval
     vendor_payment_minor: 20000000  # ₹2,00,000.00: vendor payments at or above need CFO approval
   business_hours: ["09:30", "18:30"]  # Monday–Saturday, except company holidays
+
+# ---------------------------------------------------------------------------------------------
+# P6 — feature registry. Every feature is defined once in ledgerspy/features (name, version, meaning, inputs,
+# point-in-time rule). These values parameterise those definitions; the effective values are hashed into every
+# feature manifest. Features read canonical fields (normalised view) only — never `extra`, labels or ground truth.
+features:
+  # Point-in-time history = rows with a strictly earlier posting timestamp (rows sharing a timestamp never see
+  # each other). Baselines use at most the most recent `baseline_window` prior observations of a group.
+  baseline_window: 200
+  min_entity_history: 5   # an entity (counterparty) baseline needs at least this many prior rows
+  min_peer_history: 20    # a peer-group or global baseline needs at least this many prior rows
+  min_peers: 3            # peer-relative frequency needs this many other active counterparties in the group
+  mad_scale_floor: 0.1    # smallest robust scale (log-amount units, ~10%): a constant history never divides by 0
+  round_level_min: 3      # "round" = a multiple of 10^3 currency units (₹1,000) for round-share features
+  velocity_min_history_days: 90  # velocity deviation needs this much history before the recent 30 days
+  trend_window_days: 180  # escalation trend: slope over the prior rows in this window ...
+  trend_min_points: 6     # ... when there are at least this many
+  recent_days: 90         # entity (post-period) features: "recent" = the last 90 days of the dataset
+  calendar:
+    business_hours: ["09:30", "18:30"]  # after-hours = posted outside this window (case-specific)
+    non_working_weekdays: [6]           # Monday=0 … Sunday=6 (Monday–Saturday working week)
+    fiscal_year_start_month: 4          # April–March financial year
+    holidays: []                        # case-specific list of YYYY-MM-DD; empty → is_holiday is not available
+  # Approval limits (delegation of authority) in minor units, case-specific. Empty → threshold_proximity is not
+  # available. A case supplies them as a config override, e.g. [{name: expense_claim, amount_minor: 500000}].
+  approval_thresholds: []
+  # How each adapter's canonical fields are read.
+  #   counterparty: by_direction = payee for debit/out rows and payer for credit/in rows (a company ledger or bank
+  #                 statement); payee = always the payee (PaySim: the origin account books every row).
+  #   account_is_category: the `account` field is a GL/category code usable as a peer group (not an account holder).
+  #   corporate: approval thresholds apply.
+  adapters:
+    generic_ledger: {counterparty: by_direction, account_is_category: true, corporate: true}
+    paysim: {counterparty: payee, account_is_category: false, corporate: false}
+  # Feature-quality report flags (reported, never used to drop features).
+  report:
+    max_missing_share: 0.5      # "excessive missingness" above this share of rows
+    min_distinct_values: 2      # fewer distinct non-null values → "constant"

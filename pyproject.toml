@@ -33,6 +33,9 @@ ledgerspy = "ledgerspy.cli:main"
 [tool.setuptools.packages.find]
 include = ["ledgerspy*"]
 
+[tool.setuptools.package-data]
+"ledgerspy.features" = ["registry_lock.json"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests/backend"]
 # Network guard: every test may only connect to loopback. Any other connect() raises.
