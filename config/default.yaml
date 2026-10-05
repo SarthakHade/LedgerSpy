@@ -190,3 +190,18 @@ normalize:
   identifier_fields: [account, reference]
   # explicit case normalisation, per field
   case: {txn_type: upper}
+
+# ---------------------------------------------------------------------------------------------
+# P5 — synthetic company generator (`ledgerspy synth`). CLI flags override these defaults.
+# The approval limits are the fictional company's POLICY: scenarios are built relative to them, and later
+# detectors must read thresholds from configuration/company data, never from code.
+synth:
+  seed: 42
+  start_date: "2023-04-01"          # first day of the first financial year (April–March)
+  years: 3
+  scale: 1.0                        # multiplies the number of normal vendors, employees and customers
+  currency: INR
+  approval_limits:
+    expense_claim_minor: 500000     # ₹5,000.00: expense claims at or above need Finance approval
+    vendor_payment_minor: 20000000  # ₹2,00,000.00: vendor payments at or above need CFO approval
+  business_hours: ["09:30", "18:30"]  # Monday–Saturday, except company holidays

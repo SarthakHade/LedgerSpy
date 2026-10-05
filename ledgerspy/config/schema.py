@@ -285,6 +285,24 @@ class NormalizeConfig(_Section):
     case: dict[TextField, Literal["upper", "lower"]]
 
 
+# ------------------------------------------------------------------------------------- P5 synthetic data
+
+
+class ApprovalLimits(_Section):
+    expense_claim_minor: int = Field(ge=1, description="claims at or above this need Finance approval")
+    vendor_payment_minor: int = Field(ge=1, description="payments at or above this need CFO approval")
+
+
+class SynthConfig(_Section):
+    seed: int = Field(ge=0)
+    start_date: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
+    years: int = Field(ge=2, le=5)
+    scale: float = Field(gt=0.0, le=20.0)
+    currency: str = Field(pattern=r"^[A-Z]{3}$")
+    approval_limits: ApprovalLimits
+    business_hours: list[str] = Field(min_length=2, max_length=2)
+
+
 class LedgerSpyConfig(_Section):
     config_version: Literal[1]
     server: ServerConfig
@@ -294,3 +312,4 @@ class LedgerSpyConfig(_Section):
     adapters: AdaptersConfig
     quality: QualityConfig
     normalize: NormalizeConfig
+    synth: SynthConfig

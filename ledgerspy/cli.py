@@ -101,6 +101,36 @@ def cmd_evidence_verify(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_synth(args: argparse.Namespace) -> int:
+    from datetime import date
+
+    from ledgerspy.synth.generator import generate_to, params_from
+    from ledgerspy.synth.output import GeneratorError
+
+    cfg = load_config(args.config)
+    try:
+        params = params_from(
+            cfg.settings.synth,
+            seed=args.seed,
+            start=date.fromisoformat(args.start) if args.start else None,
+            years=args.years,
+            scale=args.scale,
+        )
+        manifest = generate_to(params, Path(args.out), force=args.force)
+    except (GeneratorError, ValueError) as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return 1
+    p = manifest["parameters"]
+    print(f"SYNTHETIC dataset written to {Path(args.out).resolve()}")
+    print(f"seed {p['seed']} | {p['start_date']} .. {p['end_date']} | scale {p['scale']}")
+    for name, info in manifest["files"].items():
+        rows = "" if info["rows"] is None else f"{info['rows']:>6} rows  "
+        print(f"  {name:48} {rows}sha256 {info['sha256'][:16]}")
+    print(f"scenarios: {manifest['scenario_count']} (ground truth in ground_truth/, never an input)")
+    print(f"dataset sha256: {manifest['dataset_sha256']}")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="ledgerspy", description="LedgerSpy offline forensic audit tool")
     parser.add_argument("--version", action="version", version=f"ledgerspy {__version__}")
@@ -129,6 +159,18 @@ def build_parser() -> argparse.ArgumentParser:
     common(ev_verify)
     ev_verify.add_argument("--db", help="database file (default: from config workspace)")
     ev_verify.set_defaults(func=cmd_evidence_verify)
+
+    synth = commands.add_parser("synth", help="generate the deterministic synthetic company (SYNTHETIC data)")
+    synth.add_argument("--out", required=True, help="output directory")
+    synth.add_argument("--config", help="config file (default: config/default.yaml)")
+    synth.add_argument("--seed", type=int, help="random seed (default: synth.seed)")
+    synth.add_argument("--start", help="first day, YYYY-MM-DD (default: synth.start_date)")
+    synth.add_argument("--years", type=int, help="number of years, 2-5 (default: synth.years)")
+    synth.add_argument(
+        "--scale", type=float, help="volume multiplier for normal entities (default: synth.scale)"
+    )
+    synth.add_argument("--force", action="store_true", help="replace an existing synthetic dataset in --out")
+    synth.set_defaults(func=cmd_synth)
     return parser
 
 

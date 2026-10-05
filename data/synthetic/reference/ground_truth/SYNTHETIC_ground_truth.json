@@ -1,0 +1,4311 @@
+{
+  "synthetic": true,
+  "purpose": "Evaluation only. Detectors must never read this file.",
+  "generator_version": "1",
+  "parameters": {
+    "seed": 42,
+    "start_date": "2023-04-01",
+    "end_date": "2026-03-31",
+    "years": 3,
+    "scale": 1.0,
+    "currency": "INR",
+    "approval_limits_minor": {
+      "expense_claim": 500000,
+      "vendor_payment": 20000000
+    },
+    "business_hours": [
+      "09:30",
+      "18:30"
+    ]
+  },
+  "scenario_count": 63,
+  "injected_scenarios": 45,
+  "control_scenarios": 18,
+  "scenarios": [
+    {
+      "scenario_id": "S-A-01",
+      "scenario_type": "amount_anomaly",
+      "category": "A",
+      "is_control": false,
+      "severity": "high",
+      "description": "One payment about 9x the vendor's own median, otherwise routine (same description, normal posting time and approver).",
+      "expected_detection": {
+        "targets": [
+          "robust z of amount within vendor (peer/behavioural deviation)",
+          "risk fusion"
+        ],
+        "phases": [
+          "P8",
+          "P9"
+        ]
+      },
+      "affected": {
+        "ledger_txn_ids": [
+          "LVC-JV-003507"
+        ],
+        "bank_txn_ids": [],
+        "vendor_ids": [
+          "V0030"
+        ],
+        "employee_ids": [],
+        "customer_ids": [],
+        "group_entities": []
+      },
+      "stages": {},
+      "injection_parameters": {
+        "multiplier": 9.2,
+        "vendor_median_minor": 6959492,
+        "history_rows": 84
+      },
+      "start_date": "2024-11-29",
+      "end_date": "2024-11-29",
+      "explanation_evidence": [
+        "amount 64027326 vs vendor median 6959492"
+      ],
+      "also_part_of": []
+    },
+    {
+      "scenario_id": "S-A-02",
+      "scenario_type": "amount_anomaly",
+      "category": "A",
+      "is_control": false,
+      "severity": "medium",
+      "description": "Part of S-X-01: one payment ~7x the vendor's others.",
+      "expected_detection": {
+        "targets": [
+          "component of a composite case"
+        ],
+        "phases": [
+          "P9"
+        ]
+      },
+      "affected": {
+        "ledger_txn_ids": [
+          "LVC-JV-005792"
+        ],
+        "bank_txn_ids": [],
+        "vendor_ids": [
+          "V0099"
+        ],
+        "employee_ids": [],
+        "customer_ids": [],
+        "group_entities": []
+      },
+      "stages": {},
+      "injection_parameters": {},
+      "start_date": "2025-12-05",
+      "end_date": "2025-12-05",
+      "explanation_evidence": [],
+      "also_part_of": [
+        "S-X-01"
+      ]
+    },
+    {
+      "scenario_id": "S-B-01",
+      "scenario_type": "round_number",
+      "category": "B",
+      "is_control": false,
+      "severity": "medium",
+      "description": "Every payment to this vendor is an exact multiple of ₹1,000; its category peers pay paise-level amounts.",
+      "expected_detection": {
+        "targets": [
+          "round-amount proportion per payee vs population (binomial test)",
+          "Benford last-two-digits"
+        ],
+        "phases": [
+          "P7",
+          "P9"
+        ]
+      },
+      "affected": {
+        "ledger_txn_ids": [
+          "LVC-JV-000409",
+          "LVC-JV-000598",
+          "LVC-JV-000812",
+          "LVC-JV-000985",
+          "LVC-JV-001225",
+          "LVC-JV-001389",
+          "LVC-JV-001545",
+          "LVC-JV-001722",
+          "LVC-JV-002020",
+          "LVC-JV-002276",
+          "LVC-JV-002497",
+          "LVC-JV-002694",
+          "LVC-JV-002845",
+          "LVC-JV-003113",
+          "LVC-JV-003249",
+          "LVC-JV-003462",
+          "LVC-JV-003649",
+          "LVC-JV-003835"
+        ],
+        "bank_txn_ids": [],
+        "vendor_ids": [
+          "V0072"
+        ],
+        "employee_ids": [],
+        "customer_ids": [],
+        "group_entities": []
+      },
+      "stages": {},
+      "injection_parameters": {
+        "amounts_rupees": [
+          49000,
+          75000,
+          100000,
+          50000,
+          125000,
+          60000,
+          90000,
+          80000,
+          110000
+        ],
+        "payments": 18
+      },
+      "start_date": "2023-06-17",
+      "end_date": "2025-01-20",
+      "explanation_evidence": [
+        "all amounts end in 000.00"
+      ],
+      "also_part_of": []
+    },
+    {
+      "scenario_id": "S-B-02",
+      "scenario_type": "round_number",
+      "category": "B",
+      "is_control": false,
+      "severity": "medium",
+      "description": "Round amounts in the late stage of S-Q-01 (non-isolated).",
+      "expected_detection": {
+        "targets": [
+          "round-amount proportion per payee (P7)"
+        ],
+        "phases": [
+          "P7"
+        ]
+      },
+      "affected": {
+        "ledger_txn_ids": [
+          "LVC-JV-003755",
+          "LVC-JV-003800",
+          "LVC-JV-003874",
+          "LVC-JV-003951",
+          "LVC-JV-003958",
+          "LVC-JV-003970",
+          "LVC-JV-004036",
+          "LVC-JV-004186",
+          "LVC-JV-004218",
+          "LVC-JV-004279",
+          "LVC-JV-004318",
+          "LVC-JV-004324",
+          "LVC-JV-004370",
+          "LVC-JV-004382",
+          "LVC-JV-004530",
+          "LVC-JV-004589",
+          "LVC-JV-004607",
+          "LVC-JV-004703",
+          "LVC-JV-004740",
+          "LVC-JV-004758",
+          "LVC-JV-004840",
+          "LVC-JV-004915",
+          "LVC-JV-004916",
+          "LVC-JV-004948",
+          "LVC-JV-005039",
+          "LVC-JV-005054",
+          "LVC-JV-005160",
+          "LVC-JV-005191",
+          "LVC-JV-005200",
+          "LVC-JV-005297",
+          "LVC-JV-005387",
+          "LVC-JV-005420",
+          "LVC-JV-005446",
+          "LVC-JV-005469",
+          "LVC-JV-005472"
+        ],
+        "bank_txn_ids": [],
+        "vendor_ids": [
+          "V0067"
+        ],
+        "employee_ids": [],
+        "customer_ids": [],
+        "group_entities": []
+      },
+      "stages": {},
+      "injection_parameters": {},
+      "start_date": "2025-01-06",
+      "end_date": "2025-10-15",
+      "explanation_evidence": [],
+      "also_part_of": [
+        "S-Q-01"
+      ]
+    },
+    {
+      "scenario_id": "S-C-01",
+      "scenario_type": "duplicate_transaction",
+      "category": "C",
+      "is_control": false,
+      "severity": "high",
+      "description": "The same payment posted twice at the same moment (every field identical).",
+      "expected_detection": {
+        "targets": [
+          "exact duplicate (P4 integrity, P7 duplicates rule)"
+        ],
+        "phases": [
+          "P4",
+          "P7"
+        ]
+      },
+      "affected": {
+        "ledger_txn_ids": [
+          "LVC-JV-002362",
+          "LVC-JV-002363"
+        ],
+        "bank_txn_ids": [],
+        "vendor_ids": [
+          "V0009"
+        ],
+        "employee_ids": [],
+        "customer_ids": [],
+        "group_entities": []
+      },
+      "stages": {
+        "duplicate": [
+          "LVC-JV-002363"
+        ]
+      },
+      "injection_parameters": {
+        "mode": "double posting"
+      },
+      "start_date": "2024-05-21",
+      "end_date": "2024-05-21",
+      "explanation_evidence": [
+        "identical posting time, amount, invoice"
+      ],
+      "also_part_of": []
+    },
+    {
+      "scenario_id": "S-C-02",
+      "scenario_type": "duplicate_transaction",
+      "category": "C",
+      "is_control": false,
+      "severity": "high",
+      "description": "The same invoice paid again 9 days later (same vendor, invoice number, amount).",
+      "expected_detection": {
+        "targets": [
+          "duplicate invoice payment (P7 duplicates rule)",
+          "duplicate document id (P4)"
+        ],
+        "phases": [
+          "P4",
+          "P7"
+        ]
+      },
+      "affected": {
+        "ledger_txn_ids": [
+          "LVC-JV-003252",
+          "LVC-JV-003292"
+        ],
+        "bank_txn_ids": [],
+        "vendor_ids": [
+          "V0015"
+        ],
+        "employee_ids": [],
+        "customer_ids": [],
+        "group_entities": []
+      },
+      "stages": {
+        "duplicate": [
+          "LVC-JV-003292"
+        ]
+      },
+      "injection_parameters": {
+        "days_later": 9
+      },
+      "start_date": "2024-10-16",
+      "end_date": "2024-10-25",
+      "explanation_evidence": [
+        "invoice HST9/00970 paid twice"
+      ],
+      "also_part_of": []
+    },
+    {
+      "scenario_id": "S-D-01",
+      "scenario_type": "near_duplicate",
+      "category": "D",
+      "is_control": false,
+      "severity": "high",
+      "description": "Same vendor and amount the next day with the invoice number suffixed 'A'.",
+      "expected_detection": {
+        "targets": [
+          "near duplicate (P4 integrity, P7 duplicates with reference similarity)"
+        ],
+        "phases": [
+          "P4",
+          "P7"
+        ]
+      },
+      "affected": {
+        "ledger_txn_ids": [
+          "LVC-JV-001496",
+          "LVC-JV-001498"
+        ],
+        "bank_txn_ids": [],
+        "vendor_ids": [
+          "V0020"
+        ],
+        "employee_ids": [],
+        "customer_ids": [],
+        "group_entities": []
+      },
+      "stages": {
+        "duplicate": [
+          "LVC-JV-001498"
+        ]
+      },
+      "injection_parameters": {
+        "days_later": 1,
+        "reference_change": "+A"
+      },
+      "start_date": "2023-12-27",
+      "end_date": "2023-12-28",
+      "explanation_evidence": [
+        "GMP6/00195 vs GMP6/00195A"
+      ],
+      "also_part_of": []
+    },
+    {
+      "scenario_id": "S-D-02",
+      "scenario_type": "near_duplicate",
+      "category": "D",
+      "is_control": false,
+      "severity": "medium",
+      "description": "Next-day payment to the same vendor with transposed digits in both amount and invoice number (a typo-style duplicate that exact matching misses).",
+      "expected_detection": {
+        "targets": [
+          "fuzzy duplicate (amount/reference edit distance, P7)"
+        ],
+        "phases": [
+          "P7"
+        ]
+      },
+      "affected": {
+        "ledger_txn_ids": [
+          "LVC-JV-005458",
+          "LVC-JV-005475"
+        ],
+        "bank_txn_ids": [],
+        "vendor_ids": [
+          "V0020"
+        ],
+        "employee_ids": [],
+        "customer_ids": [],
+        "group_entities": []
+      },
+      "stages": {
+        "duplicate": [
+          "LVC-JV-005475"
+        ]
+      },
+      "injection_parameters": {
+        "original_amount_minor": 32813118,
+        "duplicate_amount_minor": 32831118
+      },
+      "start_date": "2025-10-14",
+      "end_date": "2025-10-15",
+      "explanation_evidence": [
+        "GMP6/00412 vs GMP6/00421"
+      ],
+      "also_part_of": []
+    },
+    {
+      "scenario_id": "S-E-01",
+      "scenario_type": "lookalike_vendor",
+      "category": "E",
+      "is_control": false,
+      "severity": "high",
+      "description": "New vendor 'Ulvanee Alloy Pvt Ltd' imitates long-standing 'Ulvane Alloys Private Limited' (same trade and city, different bank account), and is paid for the same kind of goods.",
+      "expected_detection": {
+        "targets": [
+          "fuzzy entity matching / similarity matrix (P12)",
+          "new-vendor rules (P7)"
+        ],
+        "phases": [
+          "P12",
+          "P7",
+          "P9"
+        ]
+      },
+      "affected": {
+        "ledger_txn_ids": [
+          "LVC-JV-003266",
+          "LVC-JV-003374",
+          "LVC-JV-003495",
+          "LVC-JV-003640",
+          "LVC-JV-003818"
+        ],
+        "bank_txn_ids": [],
+        "vendor_ids": [
+          "V0006",
+          "V0083"
+        ],
+        "employee_ids": [],
+        "customer_ids": [],
+        "group_entities": []
+      },
+      "stages": {},
+      "injection_parameters": {
+        "original": "Ulvane Alloys Private Limited",
+        "variant": "Ulvanee Alloy Pvt Ltd"
+      },
+      "start_date": "2024-10-18",
+      "end_date": "2025-01-15",
+      "explanation_evidence": [
+        "high name similarity",
+        "different bank account",
+        "onboarded recently"
+      ],
+      "also_part_of": []
+    },
+    {
+      "scenario_id": "S-E-02",
+      "scenario_type": "lookalike_vendor",
+      "category": "E",
+      "is_control": false,
+      "severity": "high",
+      "description": "New vendor 'Quor-ven Carton L.L.P.' imitates long-standing 'Quorven Cartons LLP' (same trade and city, different bank account), and is paid for the same kind of goods.",
+      "expected_detection": {
+        "targets": [
+          "fuzzy entity matching / similarity matrix (P12)",
+          "new-vendor rules (P7)"
+        ],
+        "phases": [
+          "P12",
+          "P7",
+          "P9"
+        ]
+      },
+      "affected": {
+        "ledger_txn_ids": [
+          "LVE-JV-000445",
+          "LVE-JV-000455",
+          "LVE-JV-000474",
+          "LVE-JV-000498",
+          "LVE-JV-000508"
+        ],
+        "bank_txn_ids": [],
+        "vendor_ids": [
+          "V0024",
+          "V0084"
+        ],
+        "employee_ids": [],
+        "customer_ids": [],
+        "group_entities": []
+      },
+      "stages": {},
+      "injection_parameters": {
+        "original": "Quorven Cartons LLP",
+        "variant": "Quor-ven Carton L.L.P."
+      },
+      "start_date": "2025-02-07",
+      "end_date": "2025-04-30",
+      "explanation_evidence": [
+        "high name similarity",
+        "different bank account",
+        "onboarded recently"
+      ],
+      "also_part_of": []
+    },
+    {
+      "scenario_id": "S-F-01",
+      "scenario_type": "ghost_vendor",
+      "category": "F",
+      "is_control": false,
+      "severity": "critical",
+      "description": "A consultancy with no tax ID, phone or e-mail, registered at the home address and paid into the bank account of the buyer who created it; sequential invoice numbers; round amounts just under the CFO approval limit.",
+      "expected_detection": {
+        "targets": [
+          "entity resolution vendor↔employee attributes (P12)",
+          "shell/ghost indicators (P13)",
+          "sequential invoices and round amounts (P7)",
+          "threshold proximity (P7)"
+        ],
+        "phases": [
+          "P7",
+          "P12",
+          "P13",
+          "P9"
+        ]
+      },
+      "affected": {
+        "ledger_txn_ids": [
+          "LVC-JV-001791",
+          "LVC-JV-002006",
+          "LVC-JV-002232",
+          "LVC-JV-002476",
+          "LVC-JV-002672",
+          "LVC-JV-002846"
+        ],
+        "bank_txn_ids": [],
+        "vendor_ids": [
+          "V0078"
+        ],
+        "employee_ids": [
+          "E0002"
+        ],
+        "customer_ids": [],
+        "group_entities": []
+      },
+      "stages": {},
+      "injection_parameters": {
+        "fractions_of_limit": [
+          0.925,
+          0.95,
+          0.975,
+          0.94,
+          0.965,
+          0.955
+        ],
+        "limit_minor": 20000000
+      },
+      "start_date": "2024-02-14",
+      "end_date": "2024-08-12",
+      "explanation_evidence": [
+        "missing tax ID/phone/e-mail",
+        "address = employee home address",
+        "bank account = employee salary account",
+        "created by the same employee",
+        "invoice numbers 001, 002, …",
+        "amounts are round and just below the approval limit"
+      ],
+      "also_part_of": []
+    },
+    {
+      "scenario_id": "S-G-01",
+      "scenario_type": "sudden_vendor_appearance",
+      "category": "G",
+      "is_control": false,
+      "severity": "high",
+      "description": "Vendor onboarded and paid three amounts ~4x the category median within 25 days.",
+      "expected_detection": {
+        "targets": [
+          "new vendor + large amount rule (P7)",
+          "vendor age at transaction (P6)"
+        ],
+        "phases": [
+          "P7",
+          "P9"
+        ]
+      },
+      "affected": {
+        "ledger_txn_ids": [
+          "LVC-JV-003915",
+          "LVC-JV-003988",
+          "LVC-JV-004038"
+        ],
+        "bank_txn_ids": [],
+        "vendor_ids": [
+          "V0085"
+        ],
+        "employee_ids": [],
+        "customer_ids": [],
+        "group_entities": []
+      },
+      "stages": {},
+      "injection_parameters": {
+        "days_to_first_payment": 6,
+        "category_median_minor": 22230365,
+        "multipliers": [
+          3.8,
+          4.1,
+          3.5
+        ]
+      },
+      "start_date": "2025-02-03",
+      "end_date": "2025-02-21",
+      "explanation_evidence": [
+        "first payment within days of onboarding",
+        "amounts far above category median"
+      ],
+      "also_part_of": []
+    },
+    {
+      "scenario_id": "S-G-02",
+      "scenario_type": "sudden_vendor_appearance",
+      "category": "G",
+      "is_control": false,
+      "severity": "medium",
+      "description": "Part of S-X-01: payments soon after onboarding.",
+      "expected_detection": {
+        "targets": [
+          "component of a composite case"
+        ],
+        "phases": [
+          "P9"
+        ]
+      },
+      "affected": {
+        "ledger_txn_ids": [
+          "LVC-JV-005713",
+          "LVC-JV-005729",
+          "LVC-JV-005753",
+          "LVC-JV-005777",
+          "LVC-JV-005792",
+          "LVC-JV-005805"
+        ],
+        "bank_txn_ids": [],
+        "vendor_ids": [
+          "V0099"
+        ],
+        "employee_ids": [],
+        "customer_ids": [],
+        "group_entities": []
+      },
+      "stages": {},
+      "injection_parameters": {},
+      "start_date": "2025-11-24",
+      "end_date": "2025-12-09",
+      "explanation_evidence": [],
+      "also_part_of": [
+        "S-X-01"
+      ]
+    },
+    {
+      "scenario_id": "S-H-01",
+      "scenario_type": "velocity_spike",
+      "category": "H",
+      "is_control": false,
+      "severity": "medium",
+      "description": "A vendor paid about once a month receives nine payments in about two weeks, each of an ordinary amount.",
+      "expected_detection": {
+        "targets": [
+          "rolling 7/30-day count vs own history (P6/P8)"
+        ],
+        "phases": [
+          "P6",
+          "P8",
+          "P9"
+        ]
+      },
+      "affected": {
+        "ledger_txn_ids": [
+          "LVC-JV-004437",
+          "LVC-JV-004442",
+          "LVC-JV-004452",
+          "LVC-JV-004464",
+          "LVC-JV-004481",
+          "LVC-JV-004500",
+          "LVC-JV-004503",
+          "LVC-JV-004509",
+          "LVC-JV-004516"
+        ],
+        "bank_txn_ids": [],
+        "vendor_ids": [
+          "V0025"
+        ],
+        "employee_ids": [],
+        "customer_ids": [],
+        "group_entities": []
+      },
+      "stages": {},
+      "injection_parameters": {
+        "payments": 9,
+        "usual_rate_per_month": 1.22
+      },
+      "start_date": "2025-04-26",
+      "end_date": "2025-05-09",
+      "explanation_evidence": [
+        "burst of payments vs monthly cadence"
+      ],
+      "also_part_of": []
+    },
+    {
+      "scenario_id": "S-H-02",
+      "scenario_type": "velocity_spike",
+      "category": "H",
+      "is_control": false,
+      "severity": "medium",
+      "description": "Part of S-X-01: six payments in 18 days.",
+      "expected_detection": {
+        "targets": [
+          "component of a composite case"
+        ],
+        "phases": [
+          "P9"
+        ]
+      },
+      "affected": {
+        "ledger_txn_ids": [
+          "LVC-JV-005713",
+          "LVC-JV-005729",
+          "LVC-JV-005753",
+          "LVC-JV-005777",
+          "LVC-JV-005792",
+          "LVC-JV-005805"
+        ],
+        "bank_txn_ids": [],
+        "vendor_ids": [
+          "V0099"
+        ],
+        "employee_ids": [],
+        "customer_ids": [],
+        "group_entities": []
+      },
+      "stages": {},
+      "injection_parameters": {},
+      "start_date": "2025-11-24",
+      "end_date": "2025-12-09",
+      "explanation_evidence": [],
+      "also_part_of": [
+        "S-X-01"
+      ]
+    },
+    {
+      "scenario_id": "S-H-03",
+      "scenario_type": "dormant_vendor_reactivation",
+      "category": "H",
+      "is_control": false,
+      "severity": "high",
+      "description": "A vendor paid monthly for 11 months, then silent for 16 months, suddenly receives six payments of about 3x its old level within three weeks.",
+      "expected_detection": {
+        "targets": [
+          "dormant-then-active vendor (P7 suspicious sequences)",
+          "velocity vs own history (P6/P8)"
+        ],
+        "phases": [
+          "P6",
+          "P7",
+          "P8",
+          "P9"
+        ]
+      },
+      "affected": {
+        "ledger_txn_ids": [
+          "LVC-JV-000040",
+          "LVC-JV-000281",
+          "LVC-JV-000307",
+          "LVC-JV-000545",
+          "LVC-JV-000820",
+          "LVC-JV-000955",
+          "LVC-JV-001009",
+          "LVC-JV-001204",
+          "LVC-JV-001412",
+          "LVC-JV-001635",
+          "LVC-JV-001714",
+          "LVC-JV-004717",
+          "LVC-JV-004737",
+          "LVC-JV-004749",
+          "LVC-JV-004780",
+          "LVC-JV-004799",
+          "LVC-JV-004823"
+        ],
+        "bank_txn_ids": [],
+        "vendor_ids": [
+          "V0062"
+        ],
+        "employee_ids": [],
+        "customer_ids": [],
+        "group_entities": []
+      },
+      "stages": {
+        "active": [
+          "LVC-JV-000040",
+          "LVC-JV-000281",
+          "LVC-JV-000307",
+          "LVC-JV-000545",
+          "LVC-JV-000820",
+          "LVC-JV-000955",
+          "LVC-JV-001009",
+          "LVC-JV-001204",
+          "LVC-JV-001412",
+          "LVC-JV-001635",
+          "LVC-JV-001714"
+        ],
+        "reactivated": [
+          "LVC-JV-004717",
+          "LVC-JV-004737",
+          "LVC-JV-004749",
+          "LVC-JV-004780",
+          "LVC-JV-004799",
+          "LVC-JV-004823"
+        ]
+      },
+      "injection_parameters": {
+        "active_until_fraction": 0.3,
+        "reactivated_at_fraction": 0.74,
+        "silent_days": 494
+      },
+      "start_date": "2023-04-11",
+      "end_date": "2025-06-26",
+      "explanation_evidence": [
+        "no payments for 494 days",
+        "6 payments in ~3 weeks after reactivation"
+      ],
+      "also_part_of": []
+    },
+    {
+      "scenario_id": "S-I-01",
+      "scenario_type": "first_time_high_value",
+      "category": "I",
+      "is_control": false,
+      "severity": "medium",
+      "description": "An employee whose claims are usually ₹1–3k files a ₹46.5k claim (correctly approved).",
+      "expected_detection": {
+        "targets": [
+          "first-time high value vs personal history (P6/P8)"
+        ],
+        "phases": [
+          "P6",
+          "P8",
+          "P9"
+        ]
+      },
+      "affected": {
+        "ledger_txn_ids": [
+          "LVC-JV-003356"
+        ],
+        "bank_txn_ids": [],
+        "vendor_ids": [],
+        "employee_ids": [
+          "E0026"
+        ],
+        "customer_ids": [],
+        "group_entities": []
+      },
+      "stages": {},
+      "injection_parameters": {
+        "amount_minor": 4650086
+      },
+      "start_date": "2024-11-05",
+      "end_date": "2024-11-05",
+      "explanation_evidence": [
+        "largest claim by far for this employee"
+      ],
+      "also_part_of": []
+    },
+    {
+      "scenario_id": "S-J-01",
+      "scenario_type": "threshold_splitting",
+      "category": "J",
+      "is_control": false,
+      "severity": "high",
+      "description": "One purchase claimed as three same-day claims just under the expense approval limit.",
+      "expected_detection": {
+        "targets": [
+          "split payments under an approval limit (P7, limit from company policy/config)"
+        ],
+        "phases": [
+          "P7",
+          "P9"
+        ]
+      },
+      "affected": {
+        "ledger_txn_ids": [
+          "LVC-JV-002678",
+          "LVC-JV-002679",
+          "LVC-JV-002680"
+        ],
+        "bank_txn_ids": [],
+        "vendor_ids": [],
+        "employee_ids": [
+          "E0036"
+        ],
+        "customer_ids": [],
+        "group_entities": []
+      },
+      "stages": {},
+      "injection_parameters": {
+        "limit_minor": 500000,
+        "fractions": [
+          0.98,
+          0.99,
+          0.996
+        ]
+      },
+      "start_date": "2024-07-13",
+      "end_date": "2024-07-13",
+      "explanation_evidence": [
+        "3 claims in one day, each 98–99.6% of the limit, total above the limit"
+      ],
+      "also_part_of": []
+    },
+    {
+      "scenario_id": "S-J-02",
+      "scenario_type": "threshold_splitting",
+      "category": "J",
+      "is_control": false,
+      "severity": "high",
+      "description": "Three payments to one vendor on consecutive working days, each just below the CFO approval limit, all approved by the AP manager.",
+      "expected_detection": {
+        "targets": [
+          "split payments under an approval limit (P7)"
+        ],
+        "phases": [
+          "P7",
+          "P9"
+        ]
+      },
+      "affected": {
+        "ledger_txn_ids": [
+          "LVC-JV-005085",
+          "LVC-JV-005092",
+          "LVC-JV-005097"
+        ],
+        "bank_txn_ids": [],
+        "vendor_ids": [
+          "V0004"
+        ],
+        "employee_ids": [
+          "E0001"
+        ],
+        "customer_ids": [],
+        "group_entities": []
+      },
+      "stages": {},
+      "injection_parameters": {
+        "limit_minor": 20000000,
+        "fractions": [
+          0.98,
+          0.9925,
+          0.996
+        ]
+      },
+      "start_date": "2025-08-12",
+      "end_date": "2025-08-14",
+      "explanation_evidence": [
+        "sum exceeds the limit",
+        "approver below CFO level"
+      ],
+      "also_part_of": []
+    },
+    {
+      "scenario_id": "S-K-01",
+      "scenario_type": "temporal_anomaly",
+      "category": "K",
+      "is_control": false,
+      "severity": "medium",
+      "description": "Six payments posted late at night, on Sundays and on a company holiday by one AP user.",
+      "expected_detection": {
+        "targets": [
+          "after-hours / weekend / holiday postings vs company calendar (P7)"
+        ],
+        "phases": [
+          "P7",
+          "P9"
+        ]
+      },
+      "affected": {
+        "ledger_txn_ids": [
+          "LVC-JV-003519",
+          "LVC-JV-003536",
+          "LVC-JV-003565",
+          "LVC-JV-003567",
+          "LVC-JV-003656",
+          "LVC-JV-003682"
+        ],
+        "bank_txn_ids": [],
+        "vendor_ids": [
+          "V0012"
+        ],
+        "employee_ids": [
+          "E0008"
+        ],
+        "customer_ids": [],
+        "group_entities": []
+      },
+      "stages": {},
+      "injection_parameters": {
+        "posting_times": [
+          "2024-12-03T23:42:00",
+          "2024-12-10T01:15:00",
+          "2024-12-01T11:05:00",
+          "2024-12-08T16:40:00",
+          "2024-12-25T10:30:00",
+          "2024-12-21T22:55:00"
+        ]
+      },
+      "start_date": "2024-12-01",
+      "end_date": "2024-12-25",
+      "explanation_evidence": [
+        "outside 09:30–18:30 Mon–Sat or on a holiday"
+      ],
+      "also_part_of": []
+    },
+    {
+      "scenario_id": "S-K-02",
+      "scenario_type": "temporal_anomaly",
+      "category": "K",
+      "is_control": false,
+      "severity": "medium",
+      "description": "Sunday postings in the late stage of S-Q-01 (non-isolated).",
+      "expected_detection": {
+        "targets": [
+          "weekend postings (P7)"
+        ],
+        "phases": [
+          "P7"
+        ]
+      },
+      "affected": {
+        "ledger_txn_ids": [
+          "LVC-JV-003800",
+          "LVC-JV-003970",
+          "LVC-JV-004186",
+          "LVC-JV-004324",
+          "LVC-JV-004530",
+          "LVC-JV-004840",
+          "LVC-JV-004916",
+          "LVC-JV-005191",
+          "LVC-JV-005387",
+          "LVC-JV-005446"
+        ],
+        "bank_txn_ids": [],
+        "vendor_ids": [
+          "V0067"
+        ],
+        "employee_ids": [
+          "E0008"
+        ],
+        "customer_ids": [],
+        "group_entities": []
+      },
+      "stages": {},
+      "injection_parameters": {},
+      "start_date": "2025-01-12",
+      "end_date": "2025-10-12",
+      "explanation_evidence": [],
+      "also_part_of": [
+        "S-Q-01"
+      ]
+    },
+    {
+      "scenario_id": "S-K-03",
+      "scenario_type": "period_end_clustering",
+      "category": "K",
+      "is_control": false,
+      "severity": "medium",
+      "description": "Five unusually large payments to a small supplier posted after 21:30 on the last working day of the financial year by one AP user (contrast: S-U-08, routine quarter-end work by Finance).",
+      "expected_detection": {
+        "targets": [
+          "period-end clustering and after-hours postings (P7)"
+        ],
+        "phases": [
+          "P7",
+          "P9"
+        ]
+      },
+      "affected": {
+        "ledger_txn_ids": [
+          "LVC-JV-004285",
+          "LVC-JV-004286",
+          "LVC-JV-004287",
+          "LVC-JV-004288",
+          "LVC-JV-004289"
+        ],
+        "bank_txn_ids": [],
+        "vendor_ids": [
+          "V0007"
+        ],
+        "employee_ids": [
+          "E0008"
+        ],
+        "customer_ids": [],
+        "group_entities": []
+      },
+      "stages": {},
+      "injection_parameters": {
+        "date": "2025-03-31",
+        "amount_multiplier_range": [
+          3.5,
+          5.0
+        ]
+      },
+      "start_date": "2025-03-31",
+      "end_date": "2025-03-31",
+      "explanation_evidence": [
+        "posted 21:35–21:59 on the year-end working day",
+        "3.5–5x the supplier's median payment"
+      ],
+      "also_part_of": []
+    },
+    {
+      "scenario_id": "S-L-01",
+      "scenario_type": "sequence_pattern",
+      "category": "L",
+      "is_control": false,
+      "severity": "high",
+      "description": "New vendor: three small payments two weeks apart, then a large one (test-then-exploit).",
+      "expected_detection": {
+        "targets": [
+          "escalating sequence for a new vendor (P7 suspicious sequences)"
+        ],
+        "phases": [
+          "P7",
+          "P9"
+        ]
+      },
+      "affected": {
+        "ledger_txn_ids": [
+          "LVC-JV-004573",
+          "LVC-JV-004647",
+          "LVC-JV-004744",
+          "LVC-JV-004824"
+        ],
+        "bank_txn_ids": [],
+        "vendor_ids": [
+          "V0088"
+        ],
+        "employee_ids": [],
+        "customer_ids": [],
+        "group_entities": []
+      },
+      "stages": {},
+      "injection_parameters": {
+        "amounts_rupees": [
+          8500,
+          9200,
+          11000,
+          385000
+        ]
+      },
+      "start_date": "2025-05-16",
+      "end_date": "2025-06-27",
+      "explanation_evidence": [
+        "small → small → small → large within 7 weeks of onboarding"
+      ],
+      "also_part_of": []
+    },
+    {
+      "scenario_id": "S-M-01",
+      "scenario_type": "employee_vendor_relationship",
+      "category": "M",
+      "is_control": false,
+      "severity": "critical",
+      "description": "A vendor's bank account is the salary account of the AP executive who posts its payments; the link is not declared.",
+      "expected_detection": {
+        "targets": [
+          "employee–vendor attribute link (P12)",
+          "segregation of duties (P15)"
+        ],
+        "phases": [
+          "P12",
+          "P13",
+          "P9"
+        ]
+      },
+      "affected": {
+        "ledger_txn_ids": [
+          "LVC-JV-001426",
+          "LVC-JV-001698",
+          "LVC-JV-002029",
+          "LVC-JV-002355",
+          "LVC-JV-002612",
+          "LVC-JV-002813",
+          "LVC-JV-003093"
+        ],
+        "bank_txn_ids": [],
+        "vendor_ids": [
+          "V0077"
+        ],
+        "employee_ids": [
+          "E0018"
+        ],
+        "customer_ids": [],
+        "group_entities": []
+      },
+      "stages": {},
+      "injection_parameters": {
+        "shared": "bank_account",
+        "declared": false
+      },
+      "start_date": "2023-12-18",
+      "end_date": "2024-09-21",
+      "explanation_evidence": [
+        "vendor bank account = employee bank account",
+        "employee posted every payment"
+      ],
+      "also_part_of": []
+    },
+    {
+      "scenario_id": "S-M-02",
+      "scenario_type": "employee_vendor_relationship",
+      "category": "M",
+      "is_control": true,
+      "severity": "none",
+      "description": "Declared conflict of interest: the procurement head's spouse owns this vendor (same address); the head never approves its payments.",
+      "expected_detection": {
+        "targets": [
+          "should rank low: declared in the relationship register, independent approvals"
+        ],
+        "phases": [
+          "P12",
+          "P9"
+        ]
+      },
+      "affected": {
+        "ledger_txn_ids": [
+          "LVC-JV-000247",
+          "LVC-JV-000295",
+          "LVC-JV-000328",
+          "LVC-JV-001048",
+          "LVC-JV-001553",
+          "LVC-JV-001564",
+          "LVC-JV-001690",
+          "LVC-JV-001958",
+          "LVC-JV-002960",
+          "LVC-JV-002962",
+          "LVC-JV-003142",
+          "LVC-JV-003341",
+          "LVC-JV-003863",
+          "LVC-JV-004042",
+          "LVC-JV-004221",
+          "LVC-JV-005333",
+          "LVC-JV-005543",
+          "LVC-JV-005951",
+          "LVC-JV-006153",
+          "LVC-JV-006319"
+        ],
+        "bank_txn_ids": [],
+        "vendor_ids": [
+          "V0047"
+        ],
+        "employee_ids": [
+          "E0013"
+        ],
+        "customer_ids": [],
+        "group_entities": []
+      },
+      "stages": {},
+      "injection_parameters": {
+        "shared": "address",
+        "declared": true
+      },
+      "start_date": "2023-05-19",
+      "end_date": "2026-02-27",
+      "explanation_evidence": [],
+      "also_part_of": []
+    },
+    {
+      "scenario_id": "S-N-01",
+      "scenario_type": "shared_attributes",
+      "category": "N",
+      "is_control": false,
+      "severity": "high",
+      "description": "Vendor phone number is a shift supervisor's phone (undeclared).",
+      "expected_detection": {
+        "targets": [
+          "shared phone vendor↔employee (P12 attribute edges)"
+        ],
+        "phases": [
+          "P12",
+          "P13",
+          "P9"
+        ]
+      },
+      "affected": {
+        "ledger_txn_ids": [
+          "LVC-JV-002958",
+          "LVC-JV-003148",
+          "LVC-JV-003367",
+          "LVC-JV-003538"
+        ],
+        "bank_txn_ids": [],
+        "vendor_ids": [
+          "V0082"
+        ],
+        "employee_ids": [
+          "E0032"
+        ],
+        "customer_ids": [],
+        "group_entities": []
+      },
+      "stages": {},
+      "injection_parameters": {
+        "shared": "phone",
+        "declared": false
+      },
+      "start_date": "2024-09-02",
+      "end_date": "2024-12-04",
+      "explanation_evidence": [],
+      "also_part_of": []
+    },
+    {
+      "scenario_id": "S-N-02",
+      "scenario_type": "shared_attributes",
+      "category": "N",
+      "is_control": false,
+      "severity": "critical",
+      "description": "Ghost vendor shares address and bank account with an employee.",
+      "expected_detection": {
+        "targets": [
+          "shared address/bank account vendor↔employee (P12)"
+        ],
+        "phases": [
+          "P12",
+          "P13"
+        ]
+      },
+      "affected": {
+        "ledger_txn_ids": [],
+        "bank_txn_ids": [],
+        "vendor_ids": [
+          "V0078"
+        ],
+        "employee_ids": [
+          "E0002"
+        ],
+        "customer_ids": [],
+        "group_entities": []
+      },
+      "stages": {},
+      "injection_parameters": {
+        "shared": [
+          "address",
+          "bank_account"
+        ],
+        "declared": false
+      },
+      "start_date": null,
+      "end_date": null,
+      "explanation_evidence": [],
+      "also_part_of": [
+        "S-F-01"
+      ]
+    },
+    {
+      "scenario_id": "S-N-03",
+      "scenario_type": "shared_attributes",
+      "category": "N",
+      "is_control": false,
+      "severity": "critical",
+      "description": "Vendor shares a bank account with an AP executive.",
+      "expected_detection": {
+        "targets": [
+          "shared bank account vendor↔employee (P12)"
+        ],
+        "phases": [
+          "P12",
+          "P13"
+        ]
+      },
+      "affected": {
+        "ledger_txn_ids": [],
+        "bank_txn_ids": [],
+        "vendor_ids": [
+          "V0077"
+        ],
+        "employee_ids": [
+          "E0018"
+        ],
+        "customer_ids": [],
+        "group_entities": []
+      },
+      "stages": {},
+      "injection_parameters": {
+        "shared": "bank_account",
+        "declared": false
+      },
+      "start_date": null,
+      "end_date": null,
+      "explanation_evidence": [],
+      "also_part_of": [
+        "S-M-01"
+      ]
+    },
+    {
+      "scenario_id": "S-N-04",
+      "scenario_type": "shared_attributes",
+      "category": "N",
+      "is_control": true,
+      "severity": "none",
+      "description": "Two sister concerns share phone, address and collection account; declared as one corporate group in the relationship register.",
+      "expected_detection": {
+        "targets": [
+          "should rank low: declared group relationship"
+        ],
+        "phases": [
+          "P12",
+          "P13"
+        ]
+      },
+      "affected": {
+        "ledger_txn_ids": [
+          "LVC-JV-000043",
+          "LVC-JV-000050",
+          "LVC-JV-000100",
+          "LVC-JV-000106",
+          "LVC-JV-000148",
+          "LVC-JV-000171",
+          "LVC-JV-000176",
+          "LVC-JV-000187",
+          "LVC-JV-000190",
+          "LVC-JV-000242",
+          "LVC-JV-000276",
+          "LVC-JV-000297",
+          "LVC-JV-000436",
+          "LVC-JV-000444",
+          "LVC-JV-000457",
+          "LVC-JV-000480",
+          "LVC-JV-000554",
+          "LVC-JV-000658",
+          "LVC-JV-000865",
+          "LVC-JV-000866",
+          "LVC-JV-001000",
+          "LVC-JV-001062",
+          "LVC-JV-001175",
+          "LVC-JV-001239",
+          "LVC-JV-001307",
+          "LVC-JV-001310",
+          "LVC-JV-001343",
+          "LVC-JV-001360",
+          "LVC-JV-001462",
+          "LVC-JV-001580",
+          "LVC-JV-001607",
+          "LVC-JV-001656",
+          "LVC-JV-001658",
+          "LVC-JV-001674",
+          "LVC-JV-001689",
+          "LVC-JV-001748",
+          "LVC-JV-001787",
+          "LVC-JV-001788",
+          "LVC-JV-001799",
+          "LVC-JV-001910",
+          "LVC-JV-001962",
+          "LVC-JV-002043",
+          "LVC-JV-002065",
+          "LVC-JV-002137",
+          "LVC-JV-002176",
+          "LVC-JV-002181",
+          "LVC-JV-002210",
+          "LVC-JV-002230",
+          "LVC-JV-002266",
+          "LVC-JV-002329",
+          "LVC-JV-002332",
+          "LVC-JV-002380",
+          "LVC-JV-002383",
+          "LVC-JV-002449",
+          "LVC-JV-002465",
+          "LVC-JV-002515",
+          "LVC-JV-002534",
+          "LVC-JV-002605",
+          "LVC-JV-002620",
+          "LVC-JV-002668",
+          "LVC-JV-002674",
+          "LVC-JV-002794",
+          "LVC-JV-002826",
+          "LVC-JV-002933",
+          "LVC-JV-003000",
+          "LVC-JV-003033",
+          "LVC-JV-003046",
+          "LVC-JV-003047",
+          "LVC-JV-003048",
+          "LVC-JV-003079",
+          "LVC-JV-003091",
+          "LVC-JV-003172",
+          "LVC-JV-003199",
+          "LVC-JV-003207",
+          "LVC-JV-003245",
+          "LVC-JV-003271",
+          "LVC-JV-003277",
+          "LVC-JV-003278",
+          "LVC-JV-003351",
+          "LVC-JV-003397",
+          "LVC-JV-003409",
+          "LVC-JV-003422",
+          "LVC-JV-003445",
+          "LVC-JV-003454",
+          "LVC-JV-003499",
+          "LVC-JV-003551",
+          "LVC-JV-003554",
+          "LVC-JV-003575",
+          "LVC-JV-003596",
+          "LVC-JV-003624",
+          "LVC-JV-003636",
+          "LVC-JV-003644",
+          "LVC-JV-003668",
+          "LVC-JV-003680",
+          "LVC-JV-003683",
+          "LVC-JV-003684",
+          "LVC-JV-003716",
+          "LVC-JV-003753",
+          "LVC-JV-003785",
+          "LVC-JV-003840",
+          "LVC-JV-003987",
+          "LVC-JV-003999",
+          "LVC-JV-004070",
+          "LVC-JV-004102",
+          "LVC-JV-004149",
+          "LVC-JV-004179",
+          "LVC-JV-004202",
+          "LVC-JV-004212",
+          "LVC-JV-004376",
+          "LVC-JV-004395",
+          "LVC-JV-004397",
+          "LVC-JV-004398",
+          "LVC-JV-004466",
+          "LVC-JV-004490",
+          "LVC-JV-004574",
+          "LVC-JV-004590",
+          "LVC-JV-004767",
+          "LVC-JV-004769",
+          "LVC-JV-004828",
+          "LVC-JV-004974",
+          "LVC-JV-005030",
+          "LVC-JV-005108",
+          "LVC-JV-005195",
+          "LVC-JV-005239",
+          "LVC-JV-005331",
+          "LVC-JV-005342",
+          "LVC-JV-005349",
+          "LVC-JV-005409",
+          "LVC-JV-005456",
+          "LVC-JV-005477",
+          "LVC-JV-005488",
+          "LVC-JV-005506",
+          "LVC-JV-005542",
+          "LVC-JV-005561",
+          "LVC-JV-005640",
+          "LVC-JV-005658",
+          "LVC-JV-005665",
+          "LVC-JV-005699",
+          "LVC-JV-005812",
+          "LVC-JV-005823",
+          "LVC-JV-005911",
+          "LVC-JV-005953",
+          "LVC-JV-006039",
+          "LVC-JV-006057",
+          "LVC-JV-006058",
+          "LVC-JV-006204",
+          "LVC-JV-006221",
+          "LVC-JV-006229",
+          "LVC-JV-006259",
+          "LVC-JV-006308",
+          "LVC-JV-006347",
+          "LVC-JV-006410",
+          "LVC-JV-006457",
+          "LVC-JV-006466"
+        ],
+        "bank_txn_ids": [],
+        "vendor_ids": [
+          "V0027",
+          "V0039"
+        ],
+        "employee_ids": [],
+        "customer_ids": [],
+        "group_entities": []
+      },
+      "stages": {},
+      "injection_parameters": {
+        "shared": [
+          "phone",
+          "address",
+          "bank_account"
+        ],
+        "declared": true
+      },
+      "start_date": "2023-04-11",
+      "end_date": "2026-03-27",
+      "explanation_evidence": [],
+      "also_part_of": []
+    },
+    {
+      "scenario_id": "S-N-05",
+      "scenario_type": "shared_attributes",
+      "category": "N",
+      "is_control": false,
+      "severity": "medium",
+      "description": "Part of S-X-01: phone shared with an employee.",
+      "expected_detection": {
+        "targets": [
+          "component of a composite case"
+        ],
+        "phases": [
+          "P9"
+        ]
+      },
+      "affected": {
+        "ledger_txn_ids": [],
+        "bank_txn_ids": [],
+        "vendor_ids": [
+          "V0099"
+        ],
+        "employee_ids": [
+          "E0023"
+        ],
+        "customer_ids": [],
+        "group_entities": []
+      },
+      "stages": {},
+      "injection_parameters": {},
+      "start_date": null,
+      "end_date": null,
+      "explanation_evidence": [],
+      "also_part_of": [
+        "S-X-01"
+      ]
+    },
+    {
+      "scenario_id": "S-O-01",
+      "scenario_type": "circular_trading",
+      "category": "O",
+      "is_control": false,
+      "severity": "critical",
+      "description": "Ring of length 3: LVC pays a trading firm, the same firm pays LVE an 'advance', LVE returns funds to LVC; temporally ordered within 13 days, 96% of value retained.",
+      "expected_detection": {
+        "targets": [
+          "temporal cycle detection (P13)",
+          "vendor-customer identity (P12)"
+        ],
+        "phases": [
+          "P12",
+          "P13",
+          "P9"
+        ]
+      },
+      "affected": {
+        "ledger_txn_ids": [
+          "LVC-JV-002549",
+          "LVC-JV-002622",
+          "LVE-JV-000288",
+          "LVE-JV-000299"
+        ],
+        "bank_txn_ids": [],
+        "vendor_ids": [
+          "V0079"
+        ],
+        "employee_ids": [],
+        "customer_ids": [
+          "C0024"
+        ],
+        "group_entities": [
+          "LVC",
+          "LVE"
+        ]
+      },
+      "stages": {},
+      "injection_parameters": {
+        "cycle": [
+          "LVC",
+          "V0079/C0024",
+          "LVE",
+          "LVC"
+        ],
+        "k": 3,
+        "value_retained": 0.9597
+      },
+      "start_date": "2024-06-21",
+      "end_date": "2024-07-04",
+      "explanation_evidence": [
+        "the vendor and the customer share tax ID, address and phone"
+      ],
+      "also_part_of": []
+    },
+    {
+      "scenario_id": "S-O-02",
+      "scenario_type": "circular_trading",
+      "category": "O",
+      "is_control": false,
+      "severity": "critical",
+      "description": "Ring of length 4 through two trading firms that are both suppliers and customers.",
+      "expected_detection": {
+        "targets": [
+          "temporal cycle detection (P13)"
+        ],
+        "phases": [
+          "P12",
+          "P13",
+          "P9"
+        ]
+      },
+      "affected": {
+        "ledger_txn_ids": [
+          "LVC-JV-004602",
+          "LVC-JV-004706",
+          "LVE-JV-000527",
+          "LVE-JV-000531"
+        ],
+        "bank_txn_ids": [],
+        "vendor_ids": [
+          "V0086",
+          "V0087"
+        ],
+        "employee_ids": [],
+        "customer_ids": [
+          "C0025",
+          "C0026"
+        ],
+        "group_entities": [
+          "LVC",
+          "LVE"
+        ]
+      },
+      "stages": {},
+      "injection_parameters": {
+        "k": 4,
+        "value_retained": 0.9477
+      },
+      "start_date": "2025-05-23",
+      "end_date": "2025-06-10",
+      "explanation_evidence": [],
+      "also_part_of": []
+    },
+    {
+      "scenario_id": "S-P-01",
+      "scenario_type": "concentration_fan_in",
+      "category": "P",
+      "is_control": false,
+      "severity": "high",
+      "description": "Three similarly named new vendors share one bank account, which receives payments from both group companies under three names.",
+      "expected_detection": {
+        "targets": [
+          "fan-in to a shared account (P13)",
+          "look-alike names (P12)"
+        ],
+        "phases": [
+          "P12",
+          "P13",
+          "P9"
+        ]
+      },
+      "affected": {
+        "ledger_txn_ids": [
+          "LVC-JV-004969",
+          "LVC-JV-004982",
+          "LVC-JV-005122",
+          "LVC-JV-005159",
+          "LVC-JV-005164",
+          "LVC-JV-005259",
+          "LVE-JV-000557",
+          "LVE-JV-000580",
+          "LVE-JV-000586",
+          "LVE-JV-000598",
+          "LVE-JV-000609",
+          "LVE-JV-000625"
+        ],
+        "bank_txn_ids": [],
+        "vendor_ids": [
+          "V0089",
+          "V0090",
+          "V0091"
+        ],
+        "employee_ids": [],
+        "customer_ids": [],
+        "group_entities": []
+      },
+      "stages": {},
+      "injection_parameters": {
+        "shared_bank_account": "SYN925679973556",
+        "names": [
+          "Brightwell Supply Co",
+          "Brightwel Supplies",
+          "BW Supply House"
+        ]
+      },
+      "start_date": "2025-07-11",
+      "end_date": "2025-09-30",
+      "explanation_evidence": [],
+      "also_part_of": []
+    },
+    {
+      "scenario_id": "S-P-02",
+      "scenario_type": "concentration_fan_out",
+      "category": "P",
+      "is_control": false,
+      "severity": "high",
+      "description": "Right after a large receipt, LVE pays seven vendors created the same day by one buyer within four days (pass-through fan-out).",
+      "expected_detection": {
+        "targets": [
+          "fan-out burst vs population percentile (P13)",
+          "new vendors (P7)"
+        ],
+        "phases": [
+          "P13",
+          "P9"
+        ]
+      },
+      "affected": {
+        "ledger_txn_ids": [
+          "LVE-JV-000623",
+          "LVE-JV-000624",
+          "LVE-JV-000627",
+          "LVE-JV-000630",
+          "LVE-JV-000631",
+          "LVE-JV-000632",
+          "LVE-JV-000633",
+          "LVE-JV-000635"
+        ],
+        "bank_txn_ids": [],
+        "vendor_ids": [
+          "V0092",
+          "V0093",
+          "V0094",
+          "V0095",
+          "V0096",
+          "V0097",
+          "V0098"
+        ],
+        "employee_ids": [],
+        "customer_ids": [
+          "C0005"
+        ],
+        "group_entities": [
+          "LVE"
+        ]
+      },
+      "stages": {
+        "trigger_receipt": [
+          "LVE-JV-000623"
+        ]
+      },
+      "injection_parameters": {
+        "vendors": 7,
+        "days": 4
+      },
+      "start_date": "2025-09-29",
+      "end_date": "2025-10-03",
+      "explanation_evidence": [],
+      "also_part_of": []
+    },
+    {
+      "scenario_id": "S-Q-01",
+      "scenario_type": "gradual_risk_escalation",
+      "category": "Q",
+      "is_control": false,
+      "severity": "high",
+      "description": "Over ~two years one vendor's payments grow 12% per month in size and frequency, then turn round-valued and partly weekend-posted by one AP user.",
+      "expected_detection": {
+        "targets": [
+          "risk trend over time (P9/P15)",
+          "behavioural deviation (P8)"
+        ],
+        "phases": [
+          "P8",
+          "P9",
+          "P15"
+        ]
+      },
+      "affected": {
+        "ledger_txn_ids": [
+          "LVC-JV-000956",
+          "LVC-JV-001066",
+          "LVC-JV-001321",
+          "LVC-JV-001494",
+          "LVC-JV-001643",
+          "LVC-JV-001717",
+          "LVC-JV-002045",
+          "LVC-JV-002132",
+          "LVC-JV-002268",
+          "LVC-JV-002305",
+          "LVC-JV-002459",
+          "LVC-JV-002471",
+          "LVC-JV-002506",
+          "LVC-JV-002722",
+          "LVC-JV-002753",
+          "LVC-JV-002862",
+          "LVC-JV-002874",
+          "LVC-JV-002887",
+          "LVC-JV-003001",
+          "LVC-JV-003120",
+          "LVC-JV-003147",
+          "LVC-JV-003230",
+          "LVC-JV-003315",
+          "LVC-JV-003434",
+          "LVC-JV-003500",
+          "LVC-JV-003667",
+          "LVC-JV-003685",
+          "LVC-JV-003693",
+          "LVC-JV-003755",
+          "LVC-JV-003800",
+          "LVC-JV-003874",
+          "LVC-JV-003951",
+          "LVC-JV-003958",
+          "LVC-JV-003970",
+          "LVC-JV-004036",
+          "LVC-JV-004186",
+          "LVC-JV-004218",
+          "LVC-JV-004279",
+          "LVC-JV-004318",
+          "LVC-JV-004324",
+          "LVC-JV-004370",
+          "LVC-JV-004382",
+          "LVC-JV-004530",
+          "LVC-JV-004589",
+          "LVC-JV-004607",
+          "LVC-JV-004703",
+          "LVC-JV-004740",
+          "LVC-JV-004758",
+          "LVC-JV-004840",
+          "LVC-JV-004915",
+          "LVC-JV-004916",
+          "LVC-JV-004948",
+          "LVC-JV-005039",
+          "LVC-JV-005054",
+          "LVC-JV-005160",
+          "LVC-JV-005191",
+          "LVC-JV-005200",
+          "LVC-JV-005297",
+          "LVC-JV-005387",
+          "LVC-JV-005420",
+          "LVC-JV-005446",
+          "LVC-JV-005469",
+          "LVC-JV-005472"
+        ],
+        "bank_txn_ids": [],
+        "vendor_ids": [
+          "V0067"
+        ],
+        "employee_ids": [
+          "E0008"
+        ],
+        "customer_ids": [],
+        "group_entities": []
+      },
+      "stages": {
+        "stage_1_normal": [
+          "LVC-JV-000956",
+          "LVC-JV-001066",
+          "LVC-JV-001321",
+          "LVC-JV-001494",
+          "LVC-JV-001643",
+          "LVC-JV-001717",
+          "LVC-JV-002045",
+          "LVC-JV-002132"
+        ],
+        "stage_2_rising": [
+          "LVC-JV-002268",
+          "LVC-JV-002305",
+          "LVC-JV-002459",
+          "LVC-JV-002471",
+          "LVC-JV-002506",
+          "LVC-JV-002722",
+          "LVC-JV-002753",
+          "LVC-JV-002862",
+          "LVC-JV-002874",
+          "LVC-JV-002887",
+          "LVC-JV-003001",
+          "LVC-JV-003120",
+          "LVC-JV-003147",
+          "LVC-JV-003230",
+          "LVC-JV-003315",
+          "LVC-JV-003434",
+          "LVC-JV-003500",
+          "LVC-JV-003667",
+          "LVC-JV-003685",
+          "LVC-JV-003693"
+        ],
+        "stage_3_round_offhours": [
+          "LVC-JV-003755",
+          "LVC-JV-003800",
+          "LVC-JV-003874",
+          "LVC-JV-003951",
+          "LVC-JV-003958",
+          "LVC-JV-003970",
+          "LVC-JV-004036",
+          "LVC-JV-004186",
+          "LVC-JV-004218",
+          "LVC-JV-004279",
+          "LVC-JV-004318",
+          "LVC-JV-004324",
+          "LVC-JV-004370",
+          "LVC-JV-004382",
+          "LVC-JV-004530",
+          "LVC-JV-004589",
+          "LVC-JV-004607",
+          "LVC-JV-004703",
+          "LVC-JV-004740",
+          "LVC-JV-004758",
+          "LVC-JV-004840",
+          "LVC-JV-004915",
+          "LVC-JV-004916",
+          "LVC-JV-004948",
+          "LVC-JV-005039",
+          "LVC-JV-005054",
+          "LVC-JV-005160",
+          "LVC-JV-005191",
+          "LVC-JV-005200",
+          "LVC-JV-005297",
+          "LVC-JV-005387",
+          "LVC-JV-005420",
+          "LVC-JV-005446",
+          "LVC-JV-005469",
+          "LVC-JV-005472"
+        ]
+      },
+      "injection_parameters": {
+        "monthly_growth": 0.12
+      },
+      "start_date": "2023-09-26",
+      "end_date": "2025-10-15",
+      "explanation_evidence": [],
+      "also_part_of": [
+        "S-B-02",
+        "S-K-02"
+      ]
+    },
+    {
+      "scenario_id": "S-R-01",
+      "scenario_type": "silent_small_fraud",
+      "category": "R",
+      "is_control": false,
+      "severity": "medium",
+      "description": "Many small 'local conveyance' claims (₹650–1,950), each unremarkable; together several times the department's per-person total.",
+      "expected_detection": {
+        "targets": [
+          "peer comparison of totals/frequency within department (P6/P8)"
+        ],
+        "phases": [
+          "P6",
+          "P8",
+          "P9"
+        ]
+      },
+      "affected": {
+        "ledger_txn_ids": [
+          "LVC-JV-000318",
+          "LVC-JV-000330",
+          "LVC-JV-000344",
+          "LVC-JV-000362",
+          "LVC-JV-000368",
+          "LVC-JV-000410",
+          "LVC-JV-000423",
+          "LVC-JV-000426",
+          "LVC-JV-000428",
+          "LVC-JV-000448",
+          "LVC-JV-000462",
+          "LVC-JV-000507",
+          "LVC-JV-000512",
+          "LVC-JV-000527",
+          "LVC-JV-000558",
+          "LVC-JV-000594",
+          "LVC-JV-000601",
+          "LVC-JV-000604",
+          "LVC-JV-000620",
+          "LVC-JV-000643",
+          "LVC-JV-000664",
+          "LVC-JV-000674",
+          "LVC-JV-000696",
+          "LVC-JV-000700",
+          "LVC-JV-000736",
+          "LVC-JV-000738",
+          "LVC-JV-000758",
+          "LVC-JV-000768",
+          "LVC-JV-000778",
+          "LVC-JV-000827",
+          "LVC-JV-000840",
+          "LVC-JV-000853",
+          "LVC-JV-000872",
+          "LVC-JV-000877",
+          "LVC-JV-000894",
+          "LVC-JV-000926",
+          "LVC-JV-000941",
+          "LVC-JV-000967",
+          "LVC-JV-000993",
+          "LVC-JV-001039",
+          "LVC-JV-001041",
+          "LVC-JV-001093",
+          "LVC-JV-001116",
+          "LVC-JV-001129",
+          "LVC-JV-001130",
+          "LVC-JV-001135",
+          "LVC-JV-001141",
+          "LVC-JV-001156",
+          "LVC-JV-001169",
+          "LVC-JV-001231",
+          "LVC-JV-001250",
+          "LVC-JV-001255",
+          "LVC-JV-001292",
+          "LVC-JV-001311",
+          "LVC-JV-001312",
+          "LVC-JV-001313",
+          "LVC-JV-001329",
+          "LVC-JV-001332",
+          "LVC-JV-001351",
+          "LVC-JV-001352",
+          "LVC-JV-001381",
+          "LVC-JV-001385",
+          "LVC-JV-001391",
+          "LVC-JV-001421",
+          "LVC-JV-001446",
+          "LVC-JV-001447",
+          "LVC-JV-001449",
+          "LVC-JV-001451",
+          "LVC-JV-001473",
+          "LVC-JV-001500",
+          "LVC-JV-001532",
+          "LVC-JV-001548",
+          "LVC-JV-001572",
+          "LVC-JV-001586",
+          "LVC-JV-001616",
+          "LVC-JV-001618",
+          "LVC-JV-001652",
+          "LVC-JV-001654",
+          "LVC-JV-001694",
+          "LVC-JV-001728",
+          "LVC-JV-001729",
+          "LVC-JV-001730",
+          "LVC-JV-001731",
+          "LVC-JV-001751",
+          "LVC-JV-001753",
+          "LVC-JV-001772",
+          "LVC-JV-001774",
+          "LVC-JV-001824",
+          "LVC-JV-001846",
+          "LVC-JV-001893",
+          "LVC-JV-001972",
+          "LVC-JV-001975",
+          "LVC-JV-002001",
+          "LVC-JV-002004",
+          "LVC-JV-002013",
+          "LVC-JV-002026",
+          "LVC-JV-002054",
+          "LVC-JV-002057",
+          "LVC-JV-002062",
+          "LVC-JV-002076",
+          "LVC-JV-002096",
+          "LVC-JV-002105",
+          "LVC-JV-002140",
+          "LVC-JV-002148",
+          "LVC-JV-002151",
+          "LVC-JV-002185",
+          "LVC-JV-002189",
+          "LVC-JV-002209",
+          "LVC-JV-002222",
+          "LVC-JV-002229",
+          "LVC-JV-002235",
+          "LVC-JV-002269",
+          "LVC-JV-002275",
+          "LVC-JV-002279",
+          "LVC-JV-002308",
+          "LVC-JV-002327",
+          "LVC-JV-002334",
+          "LVC-JV-002335",
+          "LVC-JV-002339",
+          "LVC-JV-002375",
+          "LVC-JV-002389",
+          "LVC-JV-002419",
+          "LVC-JV-002444",
+          "LVC-JV-002451",
+          "LVC-JV-002464",
+          "LVC-JV-002493",
+          "LVC-JV-002504",
+          "LVC-JV-002510",
+          "LVC-JV-002513",
+          "LVC-JV-002528",
+          "LVC-JV-002559",
+          "LVC-JV-002563",
+          "LVC-JV-002601",
+          "LVC-JV-002618",
+          "LVC-JV-002642",
+          "LVC-JV-002666",
+          "LVC-JV-002696",
+          "LVC-JV-002718",
+          "LVC-JV-002724",
+          "LVC-JV-002739",
+          "LVC-JV-002757",
+          "LVC-JV-002801",
+          "LVC-JV-002819",
+          "LVC-JV-002838",
+          "LVC-JV-002850",
+          "LVC-JV-002864",
+          "LVC-JV-002869",
+          "LVC-JV-002872",
+          "LVC-JV-002879",
+          "LVC-JV-002885",
+          "LVC-JV-002920",
+          "LVC-JV-002922",
+          "LVC-JV-002944",
+          "LVC-JV-002949",
+          "LVC-JV-002956",
+          "LVC-JV-002972",
+          "LVC-JV-002977",
+          "LVC-JV-003002",
+          "LVC-JV-003009",
+          "LVC-JV-003013",
+          "LVC-JV-003030",
+          "LVC-JV-003035",
+          "LVC-JV-003072",
+          "LVC-JV-003097",
+          "LVC-JV-003115",
+          "LVC-JV-003130",
+          "LVC-JV-003131",
+          "LVC-JV-003165",
+          "LVC-JV-003167",
+          "LVC-JV-003179",
+          "LVC-JV-003189",
+          "LVC-JV-003203",
+          "LVC-JV-003212",
+          "LVC-JV-003232",
+          "LVC-JV-003243",
+          "LVC-JV-003253",
+          "LVC-JV-003254",
+          "LVC-JV-003264",
+          "LVC-JV-003273",
+          "LVC-JV-003279",
+          "LVC-JV-003331",
+          "LVC-JV-003349",
+          "LVC-JV-003376",
+          "LVC-JV-003398",
+          "LVC-JV-003424",
+          "LVC-JV-003450",
+          "LVC-JV-003452",
+          "LVC-JV-003463",
+          "LVC-JV-003467",
+          "LVC-JV-003496",
+          "LVC-JV-003501",
+          "LVC-JV-003506",
+          "LVC-JV-003514",
+          "LVC-JV-003537",
+          "LVC-JV-003564",
+          "LVC-JV-003580",
+          "LVC-JV-003584",
+          "LVC-JV-003616",
+          "LVC-JV-003631",
+          "LVC-JV-003637",
+          "LVC-JV-003641",
+          "LVC-JV-003659",
+          "LVC-JV-003710",
+          "LVC-JV-003731",
+          "LVC-JV-003733",
+          "LVC-JV-003743",
+          "LVC-JV-003751",
+          "LVC-JV-003777",
+          "LVC-JV-003783",
+          "LVC-JV-003798",
+          "LVC-JV-003821",
+          "LVC-JV-003825",
+          "LVC-JV-003853",
+          "LVC-JV-003855",
+          "LVC-JV-003894",
+          "LVC-JV-003938",
+          "LVC-JV-003964",
+          "LVC-JV-003984",
+          "LVC-JV-003994",
+          "LVC-JV-004001",
+          "LVC-JV-004003",
+          "LVC-JV-004015",
+          "LVC-JV-004045",
+          "LVC-JV-004048",
+          "LVC-JV-004054",
+          "LVC-JV-004065",
+          "LVC-JV-004077",
+          "LVC-JV-004125",
+          "LVC-JV-004130",
+          "LVC-JV-004158",
+          "LVC-JV-004161",
+          "LVC-JV-004162",
+          "LVC-JV-004178",
+          "LVC-JV-004190",
+          "LVC-JV-004205",
+          "LVC-JV-004214",
+          "LVC-JV-004235",
+          "LVC-JV-004247",
+          "LVC-JV-004259",
+          "LVC-JV-004323",
+          "LVC-JV-004326",
+          "LVC-JV-004329",
+          "LVC-JV-004336",
+          "LVC-JV-004346",
+          "LVC-JV-004374",
+          "LVC-JV-004412",
+          "LVC-JV-004436",
+          "LVC-JV-004440",
+          "LVC-JV-004482",
+          "LVC-JV-004528",
+          "LVC-JV-004545",
+          "LVC-JV-004546",
+          "LVC-JV-004559",
+          "LVC-JV-004563",
+          "LVC-JV-004571",
+          "LVC-JV-004596",
+          "LVC-JV-004598",
+          "LVC-JV-004615",
+          "LVC-JV-004645",
+          "LVC-JV-004680",
+          "LVC-JV-004683",
+          "LVC-JV-004685",
+          "LVC-JV-004687",
+          "LVC-JV-004708",
+          "LVC-JV-004721",
+          "LVC-JV-004728",
+          "LVC-JV-004746",
+          "LVC-JV-004760",
+          "LVC-JV-004776",
+          "LVC-JV-004797",
+          "LVC-JV-004841",
+          "LVC-JV-004860",
+          "LVC-JV-004863",
+          "LVC-JV-004864",
+          "LVC-JV-004879",
+          "LVC-JV-004888",
+          "LVC-JV-004909",
+          "LVC-JV-004911",
+          "LVC-JV-004930",
+          "LVC-JV-004960",
+          "LVC-JV-005020",
+          "LVC-JV-005066",
+          "LVC-JV-005073",
+          "LVC-JV-005128",
+          "LVC-JV-005139",
+          "LVC-JV-005144",
+          "LVC-JV-005145",
+          "LVC-JV-005146",
+          "LVC-JV-005172",
+          "LVC-JV-005176",
+          "LVC-JV-005182",
+          "LVC-JV-005202",
+          "LVC-JV-005212",
+          "LVC-JV-005219",
+          "LVC-JV-005223",
+          "LVC-JV-005258",
+          "LVC-JV-005283",
+          "LVC-JV-005301",
+          "LVC-JV-005304",
+          "LVC-JV-005328",
+          "LVC-JV-005337",
+          "LVC-JV-005391",
+          "LVC-JV-005410",
+          "LVC-JV-005415",
+          "LVC-JV-005423",
+          "LVC-JV-005474",
+          "LVC-JV-005507",
+          "LVC-JV-005516",
+          "LVC-JV-005519",
+          "LVC-JV-005547",
+          "LVC-JV-005549",
+          "LVC-JV-005646",
+          "LVC-JV-005652",
+          "LVC-JV-005654",
+          "LVC-JV-005670",
+          "LVC-JV-005680",
+          "LVC-JV-005681",
+          "LVC-JV-005684",
+          "LVC-JV-005687",
+          "LVC-JV-005703",
+          "LVC-JV-005728",
+          "LVC-JV-005732",
+          "LVC-JV-005775",
+          "LVC-JV-005815",
+          "LVC-JV-005838",
+          "LVC-JV-005842",
+          "LVC-JV-005843",
+          "LVC-JV-005851",
+          "LVC-JV-005855",
+          "LVC-JV-005859",
+          "LVC-JV-005882",
+          "LVC-JV-005883",
+          "LVC-JV-005886",
+          "LVC-JV-005955",
+          "LVC-JV-005965",
+          "LVC-JV-006002",
+          "LVC-JV-006011",
+          "LVC-JV-006045",
+          "LVC-JV-006046",
+          "LVC-JV-006050",
+          "LVC-JV-006071",
+          "LVC-JV-006083",
+          "LVC-JV-006122"
+        ],
+        "bank_txn_ids": [],
+        "vendor_ids": [],
+        "employee_ids": [
+          "E0033"
+        ],
+        "customer_ids": [],
+        "group_entities": []
+      },
+      "stages": {},
+      "injection_parameters": {
+        "claims": 343,
+        "total_minor": 44030534
+      },
+      "start_date": "2023-06-03",
+      "end_date": "2026-01-30",
+      "explanation_evidence": [],
+      "also_part_of": []
+    },
+    {
+      "scenario_id": "S-S-01",
+      "scenario_type": "bank_mismatch",
+      "category": "S",
+      "is_control": false,
+      "severity": "high",
+      "description": "Three ledger payments never appear on the bank statement.",
+      "expected_detection": {
+        "targets": [
+          "reconciliation: ledger_only (P14)"
+        ],
+        "phases": [
+          "P14",
+          "P9"
+        ]
+      },
+      "affected": {
+        "ledger_txn_ids": [
+          "LVC-JV-003626",
+          "LVC-JV-005526",
+          "LVE-JV-000212"
+        ],
+        "bank_txn_ids": [],
+        "vendor_ids": [
+          "V0049",
+          "V0073",
+          "V0076"
+        ],
+        "employee_ids": [],
+        "customer_ids": [],
+        "group_entities": []
+      },
+      "stages": {},
+      "injection_parameters": {
+        "kind": "ledger_only"
+      },
+      "start_date": "2024-02-27",
+      "end_date": "2025-10-24",
+      "explanation_evidence": [],
+      "also_part_of": []
+    },
+    {
+      "scenario_id": "S-S-02",
+      "scenario_type": "bank_mismatch",
+      "category": "S",
+      "is_control": false,
+      "severity": "high",
+      "description": "Bank debits with no ledger entry (two unexplained ACH debits, one unbooked charge).",
+      "expected_detection": {
+        "targets": [
+          "reconciliation: bank_only (P14)"
+        ],
+        "phases": [
+          "P14",
+          "P9"
+        ]
+      },
+      "affected": {
+        "ledger_txn_ids": [],
+        "bank_txn_ids": [
+          "SB-2401-002828",
+          "SB-2401-004043",
+          "SB-2401-005927"
+        ],
+        "vendor_ids": [],
+        "employee_ids": [],
+        "customer_ids": [],
+        "group_entities": []
+      },
+      "stages": {},
+      "injection_parameters": {
+        "kind": "bank_only"
+      },
+      "start_date": null,
+      "end_date": null,
+      "explanation_evidence": [],
+      "also_part_of": []
+    },
+    {
+      "scenario_id": "S-S-03",
+      "scenario_type": "bank_mismatch",
+      "category": "S",
+      "is_control": false,
+      "severity": "low",
+      "description": "Payments cleared 8–11 working days after posting (outside a normal tolerance).",
+      "expected_detection": {
+        "targets": [
+          "reconciliation: delayed (P14)"
+        ],
+        "phases": [
+          "P14",
+          "P9"
+        ]
+      },
+      "affected": {
+        "ledger_txn_ids": [
+          "LVC-JV-000712",
+          "LVC-JV-004392",
+          "LVC-JV-006138",
+          "LVE-JV-000290"
+        ],
+        "bank_txn_ids": [
+          "SB-2401-000739",
+          "SB-2401-004451",
+          "SB-2401-006216",
+          "SB-6964-000301"
+        ],
+        "vendor_ids": [
+          "V0046",
+          "V0054",
+          "V0065",
+          "V0070"
+        ],
+        "employee_ids": [],
+        "customer_ids": [],
+        "group_entities": []
+      },
+      "stages": {},
+      "injection_parameters": {
+        "kind": "delayed"
+      },
+      "start_date": "2023-08-08",
+      "end_date": "2026-01-31",
+      "explanation_evidence": [],
+      "also_part_of": []
+    },
+    {
+      "scenario_id": "S-S-04",
+      "scenario_type": "bank_mismatch",
+      "category": "S",
+      "is_control": false,
+      "severity": "low",
+      "description": "Three ledger payments settled by one bank debit (sum).",
+      "expected_detection": {
+        "targets": [
+          "reconciliation: batched (P14)"
+        ],
+        "phases": [
+          "P14",
+          "P9"
+        ]
+      },
+      "affected": {
+        "ledger_txn_ids": [
+          "LVC-JV-003417",
+          "LVC-JV-003425",
+          "LVC-JV-003448"
+        ],
+        "bank_txn_ids": [
+          "SB-2401-003448"
+        ],
+        "vendor_ids": [
+          "V0002"
+        ],
+        "employee_ids": [],
+        "customer_ids": [],
+        "group_entities": []
+      },
+      "stages": {},
+      "injection_parameters": {
+        "kind": "batched",
+        "group_size": 3
+      },
+      "start_date": "2024-11-15",
+      "end_date": "2024-11-20",
+      "explanation_evidence": [],
+      "also_part_of": []
+    },
+    {
+      "scenario_id": "S-S-05",
+      "scenario_type": "bank_mismatch",
+      "category": "S",
+      "is_control": false,
+      "severity": "low",
+      "description": "One customer deposit settles three sales invoices booked separately.",
+      "expected_detection": {
+        "targets": [
+          "reconciliation: one_to_many (P14)"
+        ],
+        "phases": [
+          "P14",
+          "P9"
+        ]
+      },
+      "affected": {
+        "ledger_txn_ids": [
+          "LVC-JV-002405",
+          "LVC-JV-002406",
+          "LVC-JV-002407"
+        ],
+        "bank_txn_ids": [
+          "SB-2401-002416"
+        ],
+        "vendor_ids": [],
+        "employee_ids": [],
+        "customer_ids": [
+          "C0001"
+        ],
+        "group_entities": []
+      },
+      "stages": {},
+      "injection_parameters": {
+        "kind": "one_to_many",
+        "invoices": 3
+      },
+      "start_date": "2024-05-27",
+      "end_date": "2024-05-27",
+      "explanation_evidence": [],
+      "also_part_of": []
+    },
+    {
+      "scenario_id": "S-S-06",
+      "scenario_type": "bank_mismatch",
+      "category": "S",
+      "is_control": false,
+      "severity": "low",
+      "description": "Bank amount differs from the ledger by a bank fee (+₹590 on a remittance, −₹236 deducted from two receipts).",
+      "expected_detection": {
+        "targets": [
+          "reconciliation: fee_adjusted (P14)"
+        ],
+        "phases": [
+          "P14",
+          "P9"
+        ]
+      },
+      "affected": {
+        "ledger_txn_ids": [
+          "LVC-JV-001309",
+          "LVE-JV-000393",
+          "LVE-JV-000641"
+        ],
+        "bank_txn_ids": [
+          "SB-2401-001308",
+          "SB-6964-000391",
+          "SB-6964-000640"
+        ],
+        "vendor_ids": [
+          "V0076"
+        ],
+        "employee_ids": [],
+        "customer_ids": [
+          "C0010",
+          "C0018"
+        ],
+        "group_entities": []
+      },
+      "stages": {},
+      "injection_parameters": {
+        "kind": "fee_adjusted"
+      },
+      "start_date": "2023-11-24",
+      "end_date": "2025-10-09",
+      "explanation_evidence": [],
+      "also_part_of": []
+    },
+    {
+      "scenario_id": "S-S-07",
+      "scenario_type": "bank_mismatch",
+      "category": "S",
+      "is_control": false,
+      "severity": "critical",
+      "description": "Ledger says vendor X; the bank shows the money went to an employee's account.",
+      "expected_detection": {
+        "targets": [
+          "reconciliation: payee_mismatch (P14)"
+        ],
+        "phases": [
+          "P14",
+          "P9"
+        ]
+      },
+      "affected": {
+        "ledger_txn_ids": [
+          "LVC-JV-004750"
+        ],
+        "bank_txn_ids": [
+          "SB-2401-004762"
+        ],
+        "vendor_ids": [
+          "V0045"
+        ],
+        "employee_ids": [
+          "E0014"
+        ],
+        "customer_ids": [],
+        "group_entities": []
+      },
+      "stages": {},
+      "injection_parameters": {
+        "kind": "payee_mismatch",
+        "employee": "E0014"
+      },
+      "start_date": "2025-06-17",
+      "end_date": "2025-06-17",
+      "explanation_evidence": [],
+      "also_part_of": []
+    },
+    {
+      "scenario_id": "S-T-01",
+      "scenario_type": "digit_distribution_anomaly",
+      "category": "T",
+      "is_control": false,
+      "severity": "medium",
+      "description": "A subgroup whose amounts are spread evenly between ₹7,000 and ₹9,999 (leading digits 7–9 only). Not labelled as fraud: the Benford module must find the deviation.",
+      "expected_detection": {
+        "targets": [
+          "Benford first-digit subgroup test, MAD band (P7)"
+        ],
+        "phases": [
+          "P7"
+        ]
+      },
+      "affected": {
+        "ledger_txn_ids": [
+          "LVC-JV-000031",
+          "LVC-JV-000041",
+          "LVC-JV-000089",
+          "LVC-JV-000098",
+          "LVC-JV-000104",
+          "LVC-JV-000109",
+          "LVC-JV-000112",
+          "LVC-JV-000126",
+          "LVC-JV-000129",
+          "LVC-JV-000186",
+          "LVC-JV-000200",
+          "LVC-JV-000210",
+          "LVC-JV-000211",
+          "LVC-JV-000230",
+          "LVC-JV-000243",
+          "LVC-JV-000248",
+          "LVC-JV-000251",
+          "LVC-JV-000275",
+          "LVC-JV-000319",
+          "LVC-JV-000326",
+          "LVC-JV-000373",
+          "LVC-JV-000383",
+          "LVC-JV-000399",
+          "LVC-JV-000400",
+          "LVC-JV-000431",
+          "LVC-JV-000437",
+          "LVC-JV-000472",
+          "LVC-JV-000500",
+          "LVC-JV-000525",
+          "LVC-JV-000544",
+          "LVC-JV-000548",
+          "LVC-JV-000568",
+          "LVC-JV-000599",
+          "LVC-JV-000613",
+          "LVC-JV-000623",
+          "LVC-JV-000647",
+          "LVC-JV-000660",
+          "LVC-JV-000681",
+          "LVC-JV-000689",
+          "LVC-JV-000739",
+          "LVC-JV-000761",
+          "LVC-JV-000794",
+          "LVC-JV-000808",
+          "LVC-JV-000813",
+          "LVC-JV-000823",
+          "LVC-JV-000829",
+          "LVC-JV-000847",
+          "LVC-JV-000871",
+          "LVC-JV-000874",
+          "LVC-JV-000898",
+          "LVC-JV-000912",
+          "LVC-JV-000938",
+          "LVC-JV-000952",
+          "LVC-JV-000968",
+          "LVC-JV-000980",
+          "LVC-JV-001003",
+          "LVC-JV-001022",
+          "LVC-JV-001033",
+          "LVC-JV-001057",
+          "LVC-JV-001100",
+          "LVC-JV-001103",
+          "LVC-JV-001123",
+          "LVC-JV-001152",
+          "LVC-JV-001167",
+          "LVC-JV-001189",
+          "LVC-JV-001198",
+          "LVC-JV-001234",
+          "LVC-JV-001259",
+          "LVC-JV-001288",
+          "LVC-JV-001290",
+          "LVC-JV-001293",
+          "LVC-JV-001315",
+          "LVC-JV-001344",
+          "LVC-JV-001346",
+          "LVC-JV-001390",
+          "LVC-JV-001408",
+          "LVC-JV-001435",
+          "LVC-JV-001457",
+          "LVC-JV-001497",
+          "LVC-JV-001501",
+          "LVC-JV-001507",
+          "LVC-JV-001529",
+          "LVC-JV-001539",
+          "LVC-JV-001540",
+          "LVC-JV-001605",
+          "LVC-JV-001613",
+          "LVC-JV-001638",
+          "LVC-JV-001649",
+          "LVC-JV-001666",
+          "LVC-JV-001672",
+          "LVC-JV-001706",
+          "LVC-JV-001734",
+          "LVC-JV-001735",
+          "LVC-JV-001771",
+          "LVC-JV-001806",
+          "LVC-JV-001827",
+          "LVC-JV-001836",
+          "LVC-JV-001855",
+          "LVC-JV-001875",
+          "LVC-JV-001918",
+          "LVC-JV-001930",
+          "LVC-JV-001937",
+          "LVC-JV-001941",
+          "LVC-JV-001947",
+          "LVC-JV-001959",
+          "LVC-JV-001968",
+          "LVC-JV-001991",
+          "LVC-JV-002048",
+          "LVC-JV-002089",
+          "LVC-JV-002104",
+          "LVC-JV-002122",
+          "LVC-JV-002133",
+          "LVC-JV-002143",
+          "LVC-JV-002179",
+          "LVC-JV-002180",
+          "LVC-JV-002206",
+          "LVC-JV-002217",
+          "LVC-JV-002291",
+          "LVC-JV-002307",
+          "LVC-JV-002328",
+          "LVC-JV-002340",
+          "LVC-JV-002345",
+          "LVC-JV-002396",
+          "LVC-JV-002401",
+          "LVC-JV-002434",
+          "LVC-JV-002440",
+          "LVC-JV-002453",
+          "LVC-JV-002457",
+          "LVC-JV-002481",
+          "LVC-JV-002496",
+          "LVC-JV-002499",
+          "LVC-JV-002537",
+          "LVC-JV-002551",
+          "LVC-JV-002552",
+          "LVC-JV-002567",
+          "LVC-JV-002606",
+          "LVC-JV-002640",
+          "LVC-JV-002669",
+          "LVC-JV-002673",
+          "LVC-JV-002693",
+          "LVC-JV-002755",
+          "LVC-JV-002758",
+          "LVC-JV-002762",
+          "LVC-JV-002769",
+          "LVC-JV-002815",
+          "LVC-JV-002843",
+          "LVC-JV-002889",
+          "LVC-JV-002911",
+          "LVC-JV-002917",
+          "LVC-JV-002927",
+          "LVC-JV-002928",
+          "LVC-JV-002948",
+          "LVC-JV-002951",
+          "LVC-JV-002995",
+          "LVC-JV-002999",
+          "LVC-JV-003036",
+          "LVC-JV-003065",
+          "LVC-JV-003081",
+          "LVC-JV-003095",
+          "LVC-JV-003100",
+          "LVC-JV-003108",
+          "LVC-JV-003126",
+          "LVC-JV-003160",
+          "LVC-JV-003193",
+          "LVC-JV-003194",
+          "LVC-JV-003218",
+          "LVC-JV-003233",
+          "LVC-JV-003263",
+          "LVC-JV-003284",
+          "LVC-JV-003313",
+          "LVC-JV-003317",
+          "LVC-JV-003330",
+          "LVC-JV-003380",
+          "LVC-JV-003402",
+          "LVC-JV-003410",
+          "LVC-JV-003418",
+          "LVC-JV-003433",
+          "LVC-JV-003437",
+          "LVC-JV-003486",
+          "LVC-JV-003487",
+          "LVC-JV-003535",
+          "LVC-JV-003601",
+          "LVC-JV-003623",
+          "LVC-JV-003632",
+          "LVC-JV-003663",
+          "LVC-JV-003673",
+          "LVC-JV-003689",
+          "LVC-JV-003721",
+          "LVC-JV-003725",
+          "LVC-JV-003784",
+          "LVC-JV-003787",
+          "LVC-JV-003789",
+          "LVC-JV-003791",
+          "LVC-JV-003841",
+          "LVC-JV-003871",
+          "LVC-JV-003896",
+          "LVC-JV-003902",
+          "LVC-JV-003905",
+          "LVC-JV-003929",
+          "LVC-JV-003955",
+          "LVC-JV-004010",
+          "LVC-JV-004027",
+          "LVC-JV-004030",
+          "LVC-JV-004031",
+          "LVC-JV-004032",
+          "LVC-JV-004034",
+          "LVC-JV-004063",
+          "LVC-JV-004099",
+          "LVC-JV-004116",
+          "LVC-JV-004127",
+          "LVC-JV-004189",
+          "LVC-JV-004191",
+          "LVC-JV-004216",
+          "LVC-JV-004230",
+          "LVC-JV-004255",
+          "LVC-JV-004262",
+          "LVC-JV-004316",
+          "LVC-JV-004320",
+          "LVC-JV-004327",
+          "LVC-JV-004378",
+          "LVC-JV-004380",
+          "LVC-JV-004396",
+          "LVC-JV-004432",
+          "LVC-JV-004455",
+          "LVC-JV-004463",
+          "LVC-JV-004472",
+          "LVC-JV-004480",
+          "LVC-JV-004517",
+          "LVC-JV-004519",
+          "LVC-JV-004520",
+          "LVC-JV-004537",
+          "LVC-JV-004584",
+          "LVC-JV-004601",
+          "LVC-JV-004603",
+          "LVC-JV-004661",
+          "LVC-JV-004663",
+          "LVC-JV-004666",
+          "LVC-JV-004667",
+          "LVC-JV-004710",
+          "LVC-JV-004718",
+          "LVC-JV-004739",
+          "LVC-JV-004753",
+          "LVC-JV-004843",
+          "LVC-JV-004855",
+          "LVC-JV-004892",
+          "LVC-JV-004893",
+          "LVC-JV-004914",
+          "LVC-JV-004957",
+          "LVC-JV-004959",
+          "LVC-JV-004971",
+          "LVC-JV-004980",
+          "LVC-JV-004992",
+          "LVC-JV-005004",
+          "LVC-JV-005074",
+          "LVC-JV-005078",
+          "LVC-JV-005107",
+          "LVC-JV-005112",
+          "LVC-JV-005123",
+          "LVC-JV-005158",
+          "LVC-JV-005173",
+          "LVC-JV-005189",
+          "LVC-JV-005199",
+          "LVC-JV-005206",
+          "LVC-JV-005218",
+          "LVC-JV-005225",
+          "LVC-JV-005243",
+          "LVC-JV-005257",
+          "LVC-JV-005287",
+          "LVC-JV-005288",
+          "LVC-JV-005291",
+          "LVC-JV-005364",
+          "LVC-JV-005373",
+          "LVC-JV-005381",
+          "LVC-JV-005408",
+          "LVC-JV-005465",
+          "LVC-JV-005528",
+          "LVC-JV-005539",
+          "LVC-JV-005555",
+          "LVC-JV-005568",
+          "LVC-JV-005580",
+          "LVC-JV-005602",
+          "LVC-JV-005613",
+          "LVC-JV-005627",
+          "LVC-JV-005643",
+          "LVC-JV-005655",
+          "LVC-JV-005659",
+          "LVC-JV-005675",
+          "LVC-JV-005735",
+          "LVC-JV-005766",
+          "LVC-JV-005767",
+          "LVC-JV-005772",
+          "LVC-JV-005814",
+          "LVC-JV-005840",
+          "LVC-JV-005863",
+          "LVC-JV-005892",
+          "LVC-JV-005910",
+          "LVC-JV-005930",
+          "LVC-JV-005969",
+          "LVC-JV-006000",
+          "LVC-JV-006007",
+          "LVC-JV-006019",
+          "LVC-JV-006041",
+          "LVC-JV-006054",
+          "LVC-JV-006056",
+          "LVC-JV-006062",
+          "LVC-JV-006124",
+          "LVC-JV-006171",
+          "LVC-JV-006213",
+          "LVC-JV-006232",
+          "LVC-JV-006233",
+          "LVC-JV-006237",
+          "LVC-JV-006261",
+          "LVC-JV-006277",
+          "LVC-JV-006278",
+          "LVC-JV-006321",
+          "LVC-JV-006359",
+          "LVC-JV-006363",
+          "LVC-JV-006388",
+          "LVC-JV-006394",
+          "LVC-JV-006413",
+          "LVC-JV-006430",
+          "LVC-JV-006449",
+          "LVC-JV-006469",
+          "LVC-JV-006476"
+        ],
+        "bank_txn_ids": [],
+        "vendor_ids": [
+          "V0075"
+        ],
+        "employee_ids": [],
+        "customer_ids": [],
+        "group_entities": []
+      },
+      "stages": {},
+      "injection_parameters": {
+        "n": 324,
+        "range_rupees": [
+          7000,
+          9999.99
+        ]
+      },
+      "start_date": "2023-04-07",
+      "end_date": "2026-03-31",
+      "explanation_evidence": [],
+      "also_part_of": []
+    },
+    {
+      "scenario_id": "S-U-01",
+      "scenario_type": "legit_round_numbers",
+      "category": "U",
+      "is_control": true,
+      "severity": "none",
+      "description": "Monthly factory rent: exact round amount per lease (5% annual escalation, rounded to ₹500).",
+      "expected_detection": {
+        "targets": [
+          "should NOT be flagged as suspicious (false-positive check)"
+        ],
+        "phases": [
+          "P7",
+          "P8",
+          "P12",
+          "P13",
+          "P9"
+        ]
+      },
+      "affected": {
+        "ledger_txn_ids": [
+          "LVC-JV-000014",
+          "LVC-JV-000168",
+          "LVC-JV-000322",
+          "LVC-JV-000505",
+          "LVC-JV-000697",
+          "LVC-JV-000842",
+          "LVC-JV-000999",
+          "LVC-JV-001183",
+          "LVC-JV-001356",
+          "LVC-JV-001550",
+          "LVC-JV-001724",
+          "LVC-JV-001915",
+          "LVC-JV-002110",
+          "LVC-JV-002278",
+          "LVC-JV-002466",
+          "LVC-JV-002629",
+          "LVC-JV-002800",
+          "LVC-JV-002983",
+          "LVC-JV-003183",
+          "LVC-JV-003353",
+          "LVC-JV-003542",
+          "LVC-JV-003756",
+          "LVC-JV-003935",
+          "LVC-JV-004110",
+          "LVC-JV-004322",
+          "LVC-JV-004487",
+          "LVC-JV-004684",
+          "LVC-JV-004886",
+          "LVC-JV-005031",
+          "LVC-JV-005207",
+          "LVC-JV-005390",
+          "LVC-JV-005600",
+          "LVC-JV-005786",
+          "LVC-JV-005990",
+          "LVC-JV-006175",
+          "LVC-JV-006351"
+        ],
+        "bank_txn_ids": [],
+        "vendor_ids": [
+          "V0001"
+        ],
+        "employee_ids": [],
+        "customer_ids": [],
+        "group_entities": []
+      },
+      "stages": {},
+      "injection_parameters": {},
+      "start_date": "2023-04-05",
+      "end_date": "2026-03-05",
+      "explanation_evidence": [],
+      "also_part_of": []
+    },
+    {
+      "scenario_id": "S-U-02",
+      "scenario_type": "legit_round_numbers",
+      "category": "U",
+      "is_control": true,
+      "severity": "none",
+      "description": "Two advisers on fixed monthly retainers (round amounts by contract).",
+      "expected_detection": {
+        "targets": [
+          "should NOT be flagged as suspicious (false-positive check)"
+        ],
+        "phases": [
+          "P7",
+          "P8",
+          "P12",
+          "P13",
+          "P9"
+        ]
+      },
+      "affected": {
+        "ledger_txn_ids": [
+          "LVC-JV-000034",
+          "LVC-JV-000038",
+          "LVC-JV-000204",
+          "LVC-JV-000205",
+          "LVC-JV-000351",
+          "LVC-JV-000352",
+          "LVC-JV-000511",
+          "LVC-JV-000515",
+          "LVC-JV-000716",
+          "LVC-JV-000720",
+          "LVC-JV-000878",
+          "LVC-JV-000879",
+          "LVC-JV-001034",
+          "LVC-JV-001037",
+          "LVC-JV-001219",
+          "LVC-JV-001222",
+          "LVC-JV-001387",
+          "LVC-JV-001392",
+          "LVC-JV-001587",
+          "LVC-JV-001588",
+          "LVC-JV-001767",
+          "LVC-JV-001768",
+          "LVC-JV-001955",
+          "LVC-JV-001956",
+          "LVC-JV-002141",
+          "LVC-JV-002147",
+          "LVC-JV-002298",
+          "LVC-JV-002304",
+          "LVC-JV-002487",
+          "LVC-JV-002491",
+          "LVC-JV-002658",
+          "LVC-JV-002661",
+          "LVC-JV-002836",
+          "LVC-JV-002837",
+          "LVC-JV-003015",
+          "LVC-JV-003019",
+          "LVC-JV-003213",
+          "LVC-JV-003214",
+          "LVC-JV-003392",
+          "LVC-JV-003394",
+          "LVC-JV-003568",
+          "LVC-JV-003579",
+          "LVC-JV-003786",
+          "LVC-JV-003795",
+          "LVC-JV-003971",
+          "LVC-JV-003974",
+          "LVC-JV-004133",
+          "LVC-JV-004137",
+          "LVC-JV-004347",
+          "LVC-JV-004349",
+          "LVC-JV-004524",
+          "LVC-JV-004529",
+          "LVC-JV-004712",
+          "LVC-JV-004714",
+          "LVC-JV-004902",
+          "LVC-JV-004903",
+          "LVC-JV-005064",
+          "LVC-JV-005067",
+          "LVC-JV-005233",
+          "LVC-JV-005237",
+          "LVC-JV-005424",
+          "LVC-JV-005430",
+          "LVC-JV-005631",
+          "LVC-JV-005633",
+          "LVC-JV-005817",
+          "LVC-JV-005819",
+          "LVC-JV-006031",
+          "LVC-JV-006032",
+          "LVC-JV-006207",
+          "LVC-JV-006208",
+          "LVC-JV-006372",
+          "LVC-JV-006378"
+        ],
+        "bank_txn_ids": [],
+        "vendor_ids": [
+          "V0034",
+          "V0035"
+        ],
+        "employee_ids": [],
+        "customer_ids": [],
+        "group_entities": []
+      },
+      "stages": {},
+      "injection_parameters": {},
+      "start_date": "2023-04-10",
+      "end_date": "2026-03-10",
+      "explanation_evidence": [],
+      "also_part_of": []
+    },
+    {
+      "scenario_id": "S-U-03",
+      "scenario_type": "legit_similar_names",
+      "category": "U",
+      "is_control": true,
+      "severity": "none",
+      "description": "Two unrelated vendors share a word in their names but differ in trade, city, tax ID and bank account, with long independent histories.",
+      "expected_detection": {
+        "targets": [
+          "should NOT be flagged as suspicious (false-positive check)"
+        ],
+        "phases": [
+          "P7",
+          "P8",
+          "P12",
+          "P13",
+          "P9"
+        ]
+      },
+      "affected": {
+        "ledger_txn_ids": [],
+        "bank_txn_ids": [],
+        "vendor_ids": [
+          "V0019",
+          "V0061"
+        ],
+        "employee_ids": [],
+        "customer_ids": [],
+        "group_entities": []
+      },
+      "stages": {},
+      "injection_parameters": {},
+      "start_date": null,
+      "end_date": null,
+      "explanation_evidence": [],
+      "also_part_of": []
+    },
+    {
+      "scenario_id": "S-U-04",
+      "scenario_type": "legit_new_vendor",
+      "category": "U",
+      "is_control": true,
+      "severity": "none",
+      "description": "New logistics partner, onboarded mid-period, paid ordinary amounts at an ordinary cadence.",
+      "expected_detection": {
+        "targets": [
+          "should NOT be flagged as suspicious (false-positive check)"
+        ],
+        "phases": [
+          "P7",
+          "P8",
+          "P12",
+          "P13",
+          "P9"
+        ]
+      },
+      "affected": {
+        "ledger_txn_ids": [
+          "LVC-JV-002500",
+          "LVC-JV-002566",
+          "LVC-JV-002665",
+          "LVC-JV-002723",
+          "LVC-JV-002779",
+          "LVC-JV-002832",
+          "LVC-JV-002881",
+          "LVC-JV-002957",
+          "LVC-JV-003055",
+          "LVC-JV-003117",
+          "LVC-JV-003186",
+          "LVC-JV-003235",
+          "LVC-JV-003281",
+          "LVC-JV-003372",
+          "LVC-JV-003429",
+          "LVC-JV-003498",
+          "LVC-JV-003583",
+          "LVC-JV-003643",
+          "LVC-JV-003705",
+          "LVC-JV-003766",
+          "LVC-JV-003807",
+          "LVC-JV-003876",
+          "LVC-JV-003972",
+          "LVC-JV-004011",
+          "LVC-JV-004069",
+          "LVC-JV-004147",
+          "LVC-JV-004238",
+          "LVC-JV-004305",
+          "LVC-JV-004399",
+          "LVC-JV-004461",
+          "LVC-JV-004557",
+          "LVC-JV-004617",
+          "LVC-JV-004659",
+          "LVC-JV-004699",
+          "LVC-JV-004775",
+          "LVC-JV-004838",
+          "LVC-JV-004900",
+          "LVC-JV-004932",
+          "LVC-JV-005001",
+          "LVC-JV-005102",
+          "LVC-JV-005192",
+          "LVC-JV-005280",
+          "LVC-JV-005359",
+          "LVC-JV-005470",
+          "LVC-JV-005537",
+          "LVC-JV-005603",
+          "LVC-JV-005693",
+          "LVC-JV-005783",
+          "LVC-JV-005821",
+          "LVC-JV-005918",
+          "LVC-JV-005994",
+          "LVC-JV-006068",
+          "LVC-JV-006111",
+          "LVC-JV-006200",
+          "LVC-JV-006251",
+          "LVC-JV-006295",
+          "LVC-JV-006348",
+          "LVC-JV-006416"
+        ],
+        "bank_txn_ids": [],
+        "vendor_ids": [
+          "V0080"
+        ],
+        "employee_ids": [],
+        "customer_ids": [],
+        "group_entities": []
+      },
+      "stages": {},
+      "injection_parameters": {},
+      "start_date": "2024-06-11",
+      "end_date": "2026-03-18",
+      "explanation_evidence": [],
+      "also_part_of": []
+    },
+    {
+      "scenario_id": "S-U-05",
+      "scenario_type": "legit_large_payment_installments",
+      "category": "U",
+      "is_control": true,
+      "severity": "none",
+      "description": "₹48 lakh machine paid in three installments against one invoice, CFO-approved: large, round-ish and a repeated invoice number, all legitimate.",
+      "expected_detection": {
+        "targets": [
+          "should NOT be flagged as suspicious (false-positive check)"
+        ],
+        "phases": [
+          "P7",
+          "P8",
+          "P12",
+          "P13",
+          "P9"
+        ]
+      },
+      "affected": {
+        "ledger_txn_ids": [
+          "LVC-JV-002796",
+          "LVC-JV-003068",
+          "LVC-JV-003338"
+        ],
+        "bank_txn_ids": [],
+        "vendor_ids": [
+          "V0081"
+        ],
+        "employee_ids": [],
+        "customer_ids": [],
+        "group_entities": []
+      },
+      "stages": {},
+      "injection_parameters": {
+        "invoice": "AMT7/00101",
+        "total_minor": 480000000
+      },
+      "start_date": "2024-08-03",
+      "end_date": "2024-11-01",
+      "explanation_evidence": [],
+      "also_part_of": []
+    },
+    {
+      "scenario_id": "S-U-06",
+      "scenario_type": "legit_seasonal_velocity",
+      "category": "U",
+      "is_control": true,
+      "severity": "none",
+      "description": "Raw-material purchases rise every October–December (festive production): a recurring, personal seasonal pattern.",
+      "expected_detection": {
+        "targets": [
+          "should NOT be flagged as suspicious (false-positive check)"
+        ],
+        "phases": [
+          "P7",
+          "P8",
+          "P12",
+          "P13",
+          "P9"
+        ]
+      },
+      "affected": {
+        "ledger_txn_ids": [
+          "LVC-JV-001010",
+          "LVC-JV-001012",
+          "LVC-JV-001049",
+          "LVC-JV-001050",
+          "LVC-JV-001099",
+          "LVC-JV-001173",
+          "LVC-JV-001177",
+          "LVC-JV-001179",
+          "LVC-JV-001235",
+          "LVC-JV-001247",
+          "LVC-JV-001393",
+          "LVC-JV-001413",
+          "LVC-JV-001439",
+          "LVC-JV-001440",
+          "LVC-JV-001458",
+          "LVC-JV-003239",
+          "LVC-JV-003247",
+          "LVC-JV-003258",
+          "LVC-JV-003269",
+          "LVC-JV-003296",
+          "LVC-JV-003383",
+          "LVC-JV-003400",
+          "LVC-JV-003431",
+          "LVC-JV-003439",
+          "LVC-JV-003505",
+          "LVC-JV-003558",
+          "LVC-JV-003621",
+          "LVC-JV-003630",
+          "LVC-JV-003652",
+          "LVC-JV-003691",
+          "LVC-JV-005398",
+          "LVC-JV-005401",
+          "LVC-JV-005486",
+          "LVC-JV-005490",
+          "LVC-JV-005513",
+          "LVC-JV-005586",
+          "LVC-JV-005612",
+          "LVC-JV-005617",
+          "LVC-JV-005636",
+          "LVC-JV-005677",
+          "LVC-JV-005739",
+          "LVC-JV-005760",
+          "LVC-JV-005797",
+          "LVC-JV-005826",
+          "LVC-JV-005895",
+          "LVC-JV-005927"
+        ],
+        "bank_txn_ids": [],
+        "vendor_ids": [
+          "V0008"
+        ],
+        "employee_ids": [],
+        "customer_ids": [],
+        "group_entities": []
+      },
+      "stages": {},
+      "injection_parameters": {
+        "months": [
+          10,
+          11,
+          12
+        ],
+        "payments_per_month": {
+          "festive": [
+            5,
+            6
+          ],
+          "other": [
+            2,
+            3
+          ]
+        }
+      },
+      "start_date": "2023-10-06",
+      "end_date": "2025-12-26",
+      "explanation_evidence": [],
+      "also_part_of": []
+    },
+    {
+      "scenario_id": "S-U-07",
+      "scenario_type": "legit_near_threshold",
+      "category": "U",
+      "is_control": true,
+      "severity": "none",
+      "description": "Three different employees each file one claim at 97% of the limit, months apart (no splitting pattern).",
+      "expected_detection": {
+        "targets": [
+          "should NOT be flagged as suspicious (false-positive check)"
+        ],
+        "phases": [
+          "P7",
+          "P8",
+          "P12",
+          "P13",
+          "P9"
+        ]
+      },
+      "affected": {
+        "ledger_txn_ids": [
+          "LVC-JV-001200",
+          "LVC-JV-002908",
+          "LVC-JV-004405"
+        ],
+        "bank_txn_ids": [],
+        "vendor_ids": [],
+        "employee_ids": [
+          "E0017",
+          "E0019",
+          "E0030"
+        ],
+        "customer_ids": [],
+        "group_entities": []
+      },
+      "stages": {},
+      "injection_parameters": {},
+      "start_date": "2023-11-07",
+      "end_date": "2025-04-21",
+      "explanation_evidence": [],
+      "also_part_of": []
+    },
+    {
+      "scenario_id": "S-U-08",
+      "scenario_type": "legit_period_end_overtime",
+      "category": "U",
+      "is_control": true,
+      "severity": "none",
+      "description": "Finance posts quarter-end fees between 19:00 and 21:00 on the last working day of each quarter.",
+      "expected_detection": {
+        "targets": [
+          "should NOT be flagged as suspicious (false-positive check)"
+        ],
+        "phases": [
+          "P7",
+          "P8",
+          "P12",
+          "P13",
+          "P9"
+        ]
+      },
+      "affected": {
+        "ledger_txn_ids": [
+          "LVC-JV-000486",
+          "LVC-JV-000978",
+          "LVC-JV-001521",
+          "LVC-JV-002079",
+          "LVC-JV-002598",
+          "LVC-JV-003136",
+          "LVC-JV-003728",
+          "LVC-JV-004284",
+          "LVC-JV-004850",
+          "LVC-JV-005360",
+          "LVC-JV-005963",
+          "LVC-JV-006486"
+        ],
+        "bank_txn_ids": [],
+        "vendor_ids": [
+          "V0034"
+        ],
+        "employee_ids": [
+          "E0011"
+        ],
+        "customer_ids": [],
+        "group_entities": []
+      },
+      "stages": {},
+      "injection_parameters": {},
+      "start_date": "2023-06-30",
+      "end_date": "2026-03-31",
+      "explanation_evidence": [],
+      "also_part_of": []
+    },
+    {
+      "scenario_id": "S-U-09",
+      "scenario_type": "legit_multi_party_chain",
+      "category": "U",
+      "is_control": true,
+      "severity": "none",
+      "description": "Customers pay LVE, LVE repays LVC, LVC pays vendors: multi-hop flows that never return to their origin.",
+      "expected_detection": {
+        "targets": [
+          "should NOT be flagged as suspicious (false-positive check)"
+        ],
+        "phases": [
+          "P7",
+          "P8",
+          "P12",
+          "P13",
+          "P9"
+        ]
+      },
+      "affected": {
+        "ledger_txn_ids": [
+          "LVC-JV-000928",
+          "LVC-JV-002025",
+          "LVC-JV-003089",
+          "LVE-JV-000101",
+          "LVE-JV-000223",
+          "LVE-JV-000347"
+        ],
+        "bank_txn_ids": [],
+        "vendor_ids": [],
+        "employee_ids": [],
+        "customer_ids": [],
+        "group_entities": [
+          "LVC",
+          "LVE"
+        ]
+      },
+      "stages": {},
+      "injection_parameters": {},
+      "start_date": "2023-09-20",
+      "end_date": "2024-09-20",
+      "explanation_evidence": [],
+      "also_part_of": []
+    },
+    {
+      "scenario_id": "S-U-10",
+      "scenario_type": "legit_reciprocal_flows",
+      "category": "U",
+      "is_control": true,
+      "severity": "none",
+      "description": "A maintenance vendor also buys the plant's scrap: two-way flows with unrelated amounts and timing.",
+      "expected_detection": {
+        "targets": [
+          "should NOT be flagged as suspicious (false-positive check)"
+        ],
+        "phases": [
+          "P7",
+          "P8",
+          "P12",
+          "P13",
+          "P9"
+        ]
+      },
+      "affected": {
+        "ledger_txn_ids": [
+          "LVC-JV-000387",
+          "LVC-JV-000750",
+          "LVC-JV-000839",
+          "LVC-JV-001394",
+          "LVC-JV-001870",
+          "LVC-JV-001950",
+          "LVC-JV-002005",
+          "LVC-JV-002056",
+          "LVC-JV-002199",
+          "LVC-JV-002294",
+          "LVC-JV-002301",
+          "LVC-JV-002414",
+          "LVC-JV-002483",
+          "LVC-JV-002789",
+          "LVC-JV-002910",
+          "LVC-JV-002973",
+          "LVC-JV-002976",
+          "LVC-JV-002987",
+          "LVC-JV-002988",
+          "LVC-JV-003566",
+          "LVC-JV-003849",
+          "LVC-JV-004073",
+          "LVC-JV-004079",
+          "LVC-JV-004163",
+          "LVC-JV-004470",
+          "LVC-JV-004609",
+          "LVC-JV-004781",
+          "LVC-JV-004804",
+          "LVC-JV-004925",
+          "LVC-JV-005177",
+          "LVC-JV-005319",
+          "LVC-JV-005480",
+          "LVC-JV-005649",
+          "LVC-JV-005937",
+          "LVC-JV-006063",
+          "LVC-JV-006328",
+          "LVC-JV-006446"
+        ],
+        "bank_txn_ids": [],
+        "vendor_ids": [
+          "V0050"
+        ],
+        "employee_ids": [],
+        "customer_ids": [
+          "C0009"
+        ],
+        "group_entities": []
+      },
+      "stages": {},
+      "injection_parameters": {},
+      "start_date": "2023-06-14",
+      "end_date": "2026-03-24",
+      "explanation_evidence": [],
+      "also_part_of": []
+    },
+    {
+      "scenario_id": "S-U-11",
+      "scenario_type": "legit_fan_in",
+      "category": "U",
+      "is_control": true,
+      "severity": "none",
+      "description": "LVC receives from many customers: high fan-in that is ordinary.",
+      "expected_detection": {
+        "targets": [
+          "should NOT be flagged as suspicious (false-positive check)"
+        ],
+        "phases": [
+          "P7",
+          "P8",
+          "P12",
+          "P13",
+          "P9"
+        ]
+      },
+      "affected": {
+        "ledger_txn_ids": [],
+        "bank_txn_ids": [],
+        "vendor_ids": [],
+        "employee_ids": [],
+        "customer_ids": [
+          "C0001",
+          "C0003",
+          "C0004",
+          "C0007",
+          "C0008",
+          "C0011",
+          "C0013",
+          "C0014",
+          "C0015",
+          "C0016",
+          "C0017",
+          "C0019",
+          "C0020",
+          "C0021",
+          "C0022",
+          "C0023"
+        ],
+        "group_entities": []
+      },
+      "stages": {},
+      "injection_parameters": {},
+      "start_date": null,
+      "end_date": null,
+      "explanation_evidence": [],
+      "also_part_of": []
+    },
+    {
+      "scenario_id": "S-U-12",
+      "scenario_type": "legit_batch_payments",
+      "category": "U",
+      "is_control": true,
+      "severity": "none",
+      "description": "Monthly payroll is one bulk debit covering every employee.",
+      "expected_detection": {
+        "targets": [
+          "should NOT be flagged as suspicious (false-positive check)"
+        ],
+        "phases": [
+          "P7",
+          "P8",
+          "P12",
+          "P13",
+          "P9"
+        ]
+      },
+      "affected": {
+        "ledger_txn_ids": [
+          "LVC-JV-000150",
+          "LVC-JV-000302",
+          "LVC-JV-000482",
+          "LVC-JV-000653",
+          "LVC-JV-000825",
+          "LVC-JV-000976",
+          "LVC-JV-001158",
+          "LVC-JV-001335",
+          "LVC-JV-001518",
+          "LVC-JV-001704",
+          "LVC-JV-001895",
+          "LVC-JV-002077",
+          "LVC-JV-002250",
+          "LVC-JV-002442",
+          "LVC-JV-002596",
+          "LVC-JV-002775",
+          "LVC-JV-002954",
+          "LVC-JV-003133",
+          "LVC-JV-003326",
+          "LVC-JV-003516",
+          "LVC-JV-003723",
+          "LVC-JV-003903",
+          "LVC-JV-004090",
+          "LVC-JV-004281",
+          "LVC-JV-004462",
+          "LVC-JV-004655",
+          "LVC-JV-004847",
+          "LVC-JV-004997",
+          "LVC-JV-005188",
+          "LVC-JV-005356",
+          "LVC-JV-005566",
+          "LVC-JV-005750",
+          "LVC-JV-005960",
+          "LVC-JV-006140",
+          "LVC-JV-006337",
+          "LVC-JV-006481",
+          "LVE-JV-000019",
+          "LVE-JV-000040",
+          "LVE-JV-000053",
+          "LVE-JV-000067",
+          "LVE-JV-000081",
+          "LVE-JV-000107",
+          "LVE-JV-000130",
+          "LVE-JV-000152",
+          "LVE-JV-000165",
+          "LVE-JV-000188",
+          "LVE-JV-000213",
+          "LVE-JV-000231",
+          "LVE-JV-000252",
+          "LVE-JV-000272",
+          "LVE-JV-000291",
+          "LVE-JV-000312",
+          "LVE-JV-000328",
+          "LVE-JV-000354",
+          "LVE-JV-000382",
+          "LVE-JV-000399",
+          "LVE-JV-000421",
+          "LVE-JV-000440",
+          "LVE-JV-000463",
+          "LVE-JV-000488",
+          "LVE-JV-000509",
+          "LVE-JV-000528",
+          "LVE-JV-000547",
+          "LVE-JV-000576",
+          "LVE-JV-000596",
+          "LVE-JV-000626",
+          "LVE-JV-000663",
+          "LVE-JV-000696",
+          "LVE-JV-000721",
+          "LVE-JV-000747",
+          "LVE-JV-000764",
+          "LVE-JV-000784"
+        ],
+        "bank_txn_ids": [],
+        "vendor_ids": [],
+        "employee_ids": [],
+        "customer_ids": [],
+        "group_entities": []
+      },
+      "stages": {},
+      "injection_parameters": {},
+      "start_date": "2023-04-29",
+      "end_date": "2026-03-31",
+      "explanation_evidence": [],
+      "also_part_of": []
+    },
+    {
+      "scenario_id": "S-U-13",
+      "scenario_type": "legit_near_duplicate",
+      "category": "U",
+      "is_control": true,
+      "severity": "none",
+      "description": "Two electricity meters billed the same amount on the same day (two invoices): a near-duplicate that is genuine.",
+      "expected_detection": {
+        "targets": [
+          "should NOT be flagged as suspicious (false-positive check)"
+        ],
+        "phases": [
+          "P7",
+          "P8",
+          "P12",
+          "P13",
+          "P9"
+        ]
+      },
+      "affected": {
+        "ledger_txn_ids": [
+          "LVC-JV-002203",
+          "LVC-JV-002205"
+        ],
+        "bank_txn_ids": [],
+        "vendor_ids": [
+          "V0014"
+        ],
+        "employee_ids": [],
+        "customer_ids": [],
+        "group_entities": []
+      },
+      "stages": {},
+      "injection_parameters": {},
+      "start_date": "2024-04-23",
+      "end_date": "2024-04-23",
+      "explanation_evidence": [],
+      "also_part_of": []
+    },
+    {
+      "scenario_id": "S-U-14",
+      "scenario_type": "legit_sequential_invoices",
+      "category": "U",
+      "is_control": true,
+      "severity": "none",
+      "description": "Canteen contractor that serves only this plant: consecutive invoice numbers are normal for a single-client business.",
+      "expected_detection": {
+        "targets": [
+          "should NOT be flagged as suspicious (false-positive check)"
+        ],
+        "phases": [
+          "P7",
+          "P8",
+          "P12",
+          "P13",
+          "P9"
+        ]
+      },
+      "affected": {
+        "ledger_txn_ids": [
+          "LVC-JV-000054",
+          "LVC-JV-000222",
+          "LVC-JV-000355",
+          "LVC-JV-000535",
+          "LVC-JV-000732",
+          "LVC-JV-000890",
+          "LVC-JV-001046",
+          "LVC-JV-001227",
+          "LVC-JV-001402",
+          "LVC-JV-001603",
+          "LVC-JV-001775",
+          "LVC-JV-001963",
+          "LVC-JV-002152",
+          "LVC-JV-002310",
+          "LVC-JV-002512",
+          "LVC-JV-002675",
+          "LVC-JV-002847",
+          "LVC-JV-003028",
+          "LVC-JV-003229",
+          "LVC-JV-003403",
+          "LVC-JV-003588",
+          "LVC-JV-003801",
+          "LVC-JV-003989",
+          "LVC-JV-004157",
+          "LVC-JV-004364",
+          "LVC-JV-004532",
+          "LVC-JV-004727",
+          "LVC-JV-004912",
+          "LVC-JV-005076",
+          "LVC-JV-005251",
+          "LVC-JV-005451",
+          "LVC-JV-005648",
+          "LVC-JV-005824",
+          "LVC-JV-006033",
+          "LVC-JV-006219",
+          "LVC-JV-006387"
+        ],
+        "bank_txn_ids": [],
+        "vendor_ids": [
+          "V0059"
+        ],
+        "employee_ids": [],
+        "customer_ids": [],
+        "group_entities": []
+      },
+      "stages": {},
+      "injection_parameters": {},
+      "start_date": "2023-04-12",
+      "end_date": "2026-03-12",
+      "explanation_evidence": [],
+      "also_part_of": []
+    },
+    {
+      "scenario_id": "S-U-15",
+      "scenario_type": "legit_employee_vendor_relationship",
+      "category": "U",
+      "is_control": true,
+      "severity": "none",
+      "description": "See S-M-02: declared relationship with independent approvals.",
+      "expected_detection": {
+        "targets": [
+          "should NOT be flagged as suspicious (false-positive check)"
+        ],
+        "phases": [
+          "P7",
+          "P8",
+          "P12",
+          "P13",
+          "P9"
+        ]
+      },
+      "affected": {
+        "ledger_txn_ids": [],
+        "bank_txn_ids": [],
+        "vendor_ids": [
+          "V0047"
+        ],
+        "employee_ids": [
+          "E0013"
+        ],
+        "customer_ids": [],
+        "group_entities": []
+      },
+      "stages": {},
+      "injection_parameters": {},
+      "start_date": null,
+      "end_date": null,
+      "explanation_evidence": [],
+      "also_part_of": []
+    },
+    {
+      "scenario_id": "S-U-16",
+      "scenario_type": "legit_shared_attributes",
+      "category": "U",
+      "is_control": true,
+      "severity": "none",
+      "description": "See S-N-04: declared sister concerns sharing contact details and a collection account.",
+      "expected_detection": {
+        "targets": [
+          "should NOT be flagged as suspicious (false-positive check)"
+        ],
+        "phases": [
+          "P7",
+          "P8",
+          "P12",
+          "P13",
+          "P9"
+        ]
+      },
+      "affected": {
+        "ledger_txn_ids": [],
+        "bank_txn_ids": [],
+        "vendor_ids": [
+          "V0027",
+          "V0039"
+        ],
+        "employee_ids": [],
+        "customer_ids": [],
+        "group_entities": []
+      },
+      "stages": {},
+      "injection_parameters": {},
+      "start_date": null,
+      "end_date": null,
+      "explanation_evidence": [],
+      "also_part_of": []
+    },
+    {
+      "scenario_id": "S-V-01",
+      "scenario_type": "data_quality",
+      "category": "V",
+      "is_control": false,
+      "severity": "low",
+      "description": "Typing problems: three payee names with doubled spaces, one invoice number with a hidden zero-width character, one payment without a narration.",
+      "expected_detection": {
+        "targets": [
+          "P4 integrity: needs_normalization, malformed_identifier, missing_optional"
+        ],
+        "phases": [
+          "P4"
+        ]
+      },
+      "affected": {
+        "ledger_txn_ids": [
+          "LVC-JV-001160",
+          "LVC-JV-002063",
+          "LVC-JV-003122",
+          "LVC-JV-004072",
+          "LVC-JV-005178"
+        ],
+        "bank_txn_ids": [],
+        "vendor_ids": [
+          "V0010",
+          "V0018"
+        ],
+        "employee_ids": [],
+        "customer_ids": [],
+        "group_entities": []
+      },
+      "stages": {},
+      "injection_parameters": {},
+      "start_date": "2023-10-31",
+      "end_date": "2025-08-29",
+      "explanation_evidence": [],
+      "also_part_of": []
+    },
+    {
+      "scenario_id": "S-W-01",
+      "scenario_type": "inconsistent_combination",
+      "category": "W",
+      "is_control": false,
+      "severity": "low",
+      "description": "IT services booked to Raw Materials (twice), and RTGS used for amounts below the ₹2 lakh RTGS minimum (twice).",
+      "expected_detection": {
+        "targets": [
+          "GL account vs vendor category, payment mode vs amount (P7)"
+        ],
+        "phases": [
+          "P7"
+        ]
+      },
+      "affected": {
+        "ledger_txn_ids": [
+          "LVC-JV-001302",
+          "LVC-JV-003267",
+          "LVC-JV-003732",
+          "LVC-JV-005704"
+        ],
+        "bank_txn_ids": [],
+        "vendor_ids": [
+          "V0017",
+          "V0056",
+          "V0057"
+        ],
+        "employee_ids": [],
+        "customer_ids": [],
+        "group_entities": []
+      },
+      "stages": {},
+      "injection_parameters": {
+        "gl_mismatch": 2,
+        "rtgs_below_minimum": 2
+      },
+      "start_date": "2023-11-24",
+      "end_date": "2025-11-21",
+      "explanation_evidence": [],
+      "also_part_of": []
+    },
+    {
+      "scenario_id": "S-X-01",
+      "scenario_type": "composite_risk",
+      "category": "X",
+      "is_control": false,
+      "severity": "critical",
+      "description": "New housekeeping vendor in a city where the group has no other supplier, sharing an employee's phone, paid six times in ~18 days, once ~7x its other payments.",
+      "expected_detection": {
+        "targets": [
+          "combination of weak signals > any single signal (P9 fusion)",
+          "explanations (P9)"
+        ],
+        "phases": [
+          "P7",
+          "P8",
+          "P12",
+          "P9"
+        ]
+      },
+      "affected": {
+        "ledger_txn_ids": [
+          "LVC-JV-005713",
+          "LVC-JV-005729",
+          "LVC-JV-005753",
+          "LVC-JV-005777",
+          "LVC-JV-005792",
+          "LVC-JV-005805"
+        ],
+        "bank_txn_ids": [],
+        "vendor_ids": [
+          "V0099"
+        ],
+        "employee_ids": [
+          "E0023"
+        ],
+        "customer_ids": [],
+        "group_entities": []
+      },
+      "stages": {},
+      "injection_parameters": {
+        "components": [
+          "new vendor",
+          "velocity",
+          "amount spike",
+          "shared phone",
+          "remote city"
+        ]
+      },
+      "start_date": "2025-11-24",
+      "end_date": "2025-12-09",
+      "explanation_evidence": [
+        "vendor age < 30 days",
+        "6 payments in 18 days",
+        "one payment ~7x the others",
+        "phone shared with an employee",
+        "only supplier located in Morvik"
+      ],
+      "also_part_of": [
+        "S-G-02",
+        "S-H-02",
+        "S-A-02",
+        "S-N-05"
+      ]
+    }
+  ],
+  "expected_p4_row_issues": {
+    "ledger": {
+      "duplicate_source_id": [
+        {
+          "txn_id": "LVC-JV-002363",
+          "scenario_id": "S-C-01"
+        },
+        {
+          "txn_id": "LVC-JV-003068",
+          "scenario_id": "S-U-05"
+        },
+        {
+          "txn_id": "LVC-JV-003292",
+          "scenario_id": "S-C-02"
+        },
+        {
+          "txn_id": "LVC-JV-003338",
+          "scenario_id": "S-U-05"
+        }
+      ],
+      "exact_duplicate": [
+        {
+          "txn_id": "LVC-JV-002363",
+          "scenario_id": "S-C-01"
+        }
+      ],
+      "malformed_identifier": [
+        {
+          "txn_id": "LVC-JV-002063",
+          "scenario_id": "S-V-01"
+        }
+      ],
+      "missing_optional": [
+        {
+          "txn_id": "LVC-JV-004072",
+          "scenario_id": "S-V-01"
+        }
+      ],
+      "near_duplicate": [
+        {
+          "txn_id": "LVC-JV-001498",
+          "scenario_id": "S-D-01"
+        },
+        {
+          "txn_id": "LVC-JV-002205",
+          "scenario_id": "S-U-13"
+        }
+      ],
+      "needs_normalization": [
+        {
+          "txn_id": "LVC-JV-001160",
+          "scenario_id": "S-V-01"
+        },
+        {
+          "txn_id": "LVC-JV-003122",
+          "scenario_id": "S-V-01"
+        },
+        {
+          "txn_id": "LVC-JV-005178",
+          "scenario_id": "S-V-01"
+        }
+      ]
+    },
+    "bank": {}
+  }
+}

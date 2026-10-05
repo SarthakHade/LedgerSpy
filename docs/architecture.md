@@ -8,6 +8,10 @@ Status: **design**. Implemented so far:
 - **P4 (validation, cleaning, integrity dashboard):** 17 integrity checks, config-driven severity, a decomposed readiness
   score, row-traceable issues, analyst-decided fixes applied as logged and reversible transformations, and the
   backend panel in the Data Integrity tab (see [`p4-acceptance.md`](p4-acceptance.md)).
+- **P5 (synthetic scenario data):** `ledgerspy.synth` and `ledgerspy synth` produce a deterministic, fictional
+  two-company group (masters, ledger, bank statement, cash flow) with 63 scenarios (45 injected, 18 normal controls).
+  The ground truth is kept in a separate folder. A committed seed-42 reference set passes P3 and P4 with exactly the
+  planned issues (see [`p5-acceptance.md`](p5-acceptance.md), [`synthetic-scenario-matrix.md`](synthetic-scenario-matrix.md)).
 
 Everything else is not implemented yet unless stated.
 Requirement IDs (R1…R20) refer to [`requirements.md`](requirements.md).
@@ -240,7 +244,7 @@ P4 added `integrity_runs`, `integrity_issues`, `fix_proposals`, `fix_decisions`,
 - SQLite comfortably handles ~10⁶ rows on a laptop. Parquet or DuckDB can be added later **only** if profiling shows a need.
 
 ### Configuration
-- `config/default.yaml` (repository root) is the only place values are set; the schema (`ledgerspy/config/schema.py`) has no defaults, rejects unknown keys and is strict about types. `ledgerspy.config.load_config()` is the single interface. P2 defined `config_version`, `server` and `workspace`; P3 added `ingest` (size/row/column/cell limits, CSV encodings and delimiters, XLSX zip limits, minor units), `mapping` (aliases, label columns, date formats, thresholds) and `adapters`; P4 added `quality` (required/optional/expected fields, date bounds, near-duplicate window, identifier rules, balance, severity, readiness) and `normalize`; each later phase adds its own section.
+- `config/default.yaml` (repository root) is the only place values are set; the schema (`ledgerspy/config/schema.py`) has no defaults, rejects unknown keys and is strict about types. `ledgerspy.config.load_config()` is the single interface. P2 defined `config_version`, `server` and `workspace`; P3 added `ingest` (size/row/column/cell limits, CSV encodings and delimiters, XLSX zip limits, minor units), `mapping` (aliases, label columns, date formats, thresholds) and `adapters`; P4 added `quality` (required/optional/expected fields, date bounds, near-duplicate window, identifier rules, balance, severity, readiness) and `normalize`; P5 added `synth` (seed, start date, years, scale, currency, approval limits, business hours); each later phase adds its own section.
 - Sections planned: `ingest` (limits), `quality`, `features`, `rules` (one entry per rule: code, family, parameters, weight, severity, explanation template), `risk` (fusion and tier thresholds), `benford`, `entity_resolution`, `graph`, `reconciliation`, `cashflow_sim`.
 - A case may override values. The effective config is hashed and stored in the run manifest.
 
@@ -585,6 +589,7 @@ LedgerSpy/
 │   ├── explain/               # explanation objects, SHAP wrappers
 │   ├── cases/                 # sqlite store, evidence, audit log, findings
 │   ├── reports/               # report model, memo NLG, PDF renderer
+│   ├── synth/                 # P5 deterministic synthetic company + scenarios + separate ground truth
 │   ├── api/                   # FastAPI app, routes, schemas
 │   ├── hashing.py, paths.py   # canonical JSON + SHA-256; repository paths
 │   └── cli.py                 # ledgerspy serve | train | evaluate | audit verify | synth
@@ -593,7 +598,7 @@ LedgerSpy/
 ├── models/                    # artefacts + model cards (binaries git-ignored; cards committed)
 ├── data/
 │   ├── raw/                   # public/sample data (committed, small)
-│   └── synthetic/             # generated, explicitly marked SYNTHETIC
+│   └── synthetic/reference/   # generated (seed 42), explicitly marked SYNTHETIC; ground_truth/ kept apart
 ├── notebooks/                 # exploration only; never imported by the package
 ├── tests/
 ├── docs/

@@ -39,34 +39,68 @@ All are optional and must keep their source licences. None are in the repository
 3. Each candidate source must be checked for licence and personal data before use. Records naming private
    individuals are excluded or pseudonymised.
 
-## 4. Synthetic development data (to generate — Phase 5)
+## 4. Synthetic development data (built in Phase 5)
 
-A seeded, documented generator (`ledgerspy synth`) produces a coherent fictional company:
+`ledgerspy synth --out DIR [--seed N --start YYYY-MM-DD --years 2..5 --scale X --force]` generates a coherent,
+fictional two-company group ("Larkspur Vale Components Pvt Ltd" and its subsidiary "Larkspur Vale Exports Pvt Ltd").
+The generator is offline and deterministic: seeded sub-streams (SHA-256 of seed + component name) mean the same
+seed always gives byte-identical files, and a different seed gives different files. Parameters (seed, start date,
+years, scale, currency, approval limits, business hours) come from the `synth` section of `config/default.yaml`.
+The committed reference dataset (seed 42, 2023-04-01 → 2026-03-31) is in `data/synthetic/reference/`. The tests
+regenerate it and compare hashes. See `docs/synthetic-scenario-matrix.md` for the feature → scenario mapping.
 
 | Output file | Content |
 |---|---|
-| `SYNTHETIC_vendor_master.csv` | Fictional vendors (generated names, fake-format GST/PAN that pass syntax but are flagged synthetic, addresses from a fictional address generator, bank accounts) |
-| `SYNTHETIC_employee_master.csv` | Fictional employees with addresses, bank accounts, roles and approval limits |
-| `SYNTHETIC_ledger.csv` | 2–3 years of AP/GL payments with realistic seasonality, amount distributions (log-normal per vendor), approval thresholds and posting times |
-| `SYNTHETIC_bank_statement.csv` (+ optional rendered PDF) | Statement derived from ledger payments with realistic delays, fees, batching and narration formats |
-| `SYNTHETIC_cashflow_monthly.csv` | Monthly inflows/outflows for the simulation |
-| `SYNTHETIC_ground_truth.csv` | For every injected scenario: `scenario_id`, type, affected txn/entity ids |
+| `SYNTHETIC_group_entities.csv` | The 2 group companies, with addresses, bank accounts, approval limits from config, business hours and working days |
+| `SYNTHETIC_vendor_master.csv` | 99 fictional vendors across 10 categories (no two firms share a name up to its legal form, so no unplanned look-alikes or shared e-mail domains). Names come from invented stems, cities are fictional, phones are `+91-0…` (not valid Indian numbers), bank accounts are `SYN…`, bank codes `SYNB0…`, tax IDs `SYN-TX-…` (deliberately not the GSTIN/PAN format), emails use `.example` |
+| `SYNTHETIC_employee_master.csv` | 37 fictional employees with department, role, manager, approval limit, home address and bank account |
+| `SYNTHETIC_customer_master.csv` | 26 fictional customers of the two companies |
+| `SYNTHETIC_relationships.csv` | Declared relationships: parent/subsidiary, a declared employee–vendor interest, declared sister concerns |
+| `SYNTHETIC_holiday_calendar.csv` | Fictional holiday calendar for the period |
+| `SYNTHETIC_ledger.csv` | 3 years of AP, expense-claim, customer-receipt, payroll, statutory, bank-charge and intercompany postings. Per-vendor log-normal amounts, Oct–Dec seasonality, Tue/Fri payment runs, posting times within business hours, approval by threshold. 7,271 rows |
+| `SYNTHETIC_bank_statement.csv` | One statement per company bank account, derived from the ledger. Most lines match exactly or shift 0–2 working days; the rest are fees, batches, one-to-many lines, ledger-only and bank-only lines, and delays. Running balances are continuous per account. 7,267 rows |
+| `SYNTHETIC_cashflow_monthly.csv` | Monthly opening/inflow/outflow/closing per company, derived from the bank statement (72 rows) |
+| `ground_truth/SYNTHETIC_ground_truth.json` and `.csv` | **Separate folder.** One record per scenario: `scenario_id`, type, control flag, severity, description, expected detection targets and phases, affected ledger/bank/vendor/employee/customer/group IDs, stages, injection parameters, start/end dates, explanation evidence, `also_part_of` (shared transactions). Also includes the exact P4 row issues the data must produce |
+| `SYNTHETIC_manifest.json` | Parameters, per-file SHA-256/bytes/rows, and `dataset_sha256` over all files |
 
-Injected scenarios, each with ground truth so detectors can be measured:
+Every file has an `is_synthetic=true` column, or a top-level `synthetic: true` for the JSON files. The input files
+contain no labels: nothing in the ledger, bank statement or masters says which rows belong to a scenario, and
+entity IDs are assigned by onboarding/joining order, so IDs give nothing away either. A test scans every input file
+for label-like column names and words, and the P3 pipeline test imports the inputs with the ground-truth folder
+absent.
 
-- ghost vendor (no master data, paid via an employee-linked bank account)
-- look-alike vendor ("Stationery Ltd" / "Stationery L.T.D")
-- employee–vendor shared address or bank account
-- circular trading ring (k = 3–6, temporally ordered, value retained)
-- duplicate payments (exact and near)
-- split payments under an approval limit
-- round-amount fabrication by one vendor (Benford-distorting)
-- after-hours, weekend and period-end postings
-- ledger payments missing from the bank, and bank debits missing from the ledger
-- payee mismatch between ledger and bank
-- sudden spike for a dormant vendor
+The reference dataset has **63 scenarios: 45 injected and 18 normal controls** (A–X; U = controls). Some scenarios
+are isolated and some share transactions (`also_part_of`), for example the composite S-X-01. Injected behaviour
+includes:
 
-This **scenario benchmark** becomes the regression test suite for every detector (precision@k, recall per scenario).
+- amount anomalies and round-number fabrication, plus a Benford-distorting subgroup
+- exact duplicates, re-paid invoices and near-duplicates (next day with a suffix, transposed digits)
+- look-alike vendors
+- a ghost vendor created by a buyer, sharing that buyer's address and bank account, with sequential invoices just under the CFO limit
+- sudden new vendors, velocity spikes and **dormant-vendor reactivation (S-H-03)**
+- a first-time high-value payment
+- threshold splitting of claims and vendor payments
+- weekend/holiday/night postings and **year-end late-night clustering (S-K-03)**
+- small→large sequences
+- an undeclared employee–vendor relationship
+- shared attributes: address, phone, bank account
+- circular trading rings with k = 3 and k = 4
+- fan-in and fan-out concentration
+- gradual risk escalation
+- silent small fraud
+- seven kinds of bank mismatch
+- data-quality defects
+- inconsistent GL/payment-mode combinations
+- a composite geographic/new-vendor case
+
+Each has a control that looks similar but is legitimate (rent, retainers, installments, seasonal rises, quarter-end
+overtime, declared relationships, payroll batches and so on).
+
+Not built in P5: the rendered PDF bank statement (deferred to P14b, PDF/OCR statements), and a UI banner for synthetic
+datasets (the UI does not list synthetic datasets separately yet; every file and the P3 dataset name say SYNTHETIC).
+Circular rings are k = 3–4 (not up to 6).
+
+This **scenario benchmark** becomes the regression suite for every detector (precision@k, recall per scenario).
 
 ## 5. Optional real-world integrations (later)
 

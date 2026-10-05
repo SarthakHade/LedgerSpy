@@ -1,0 +1,27 @@
+customer_id,customer_name,sells_to_entity,address,city,phone,tax_id,credit_terms_days,onboarding_date,is_synthetic
+C0001,Larvane Automotive Pvt Ltd,LVC,"Plot 123, Riverside Industrial Estate, Veltara, MH 483279",Veltara,+91-03586-18079,SYN-TX-8657779F,60,2016-10-24,true
+C0002,Galvine Manufacturing Pvt Ltd,LVE,"Plot 41, Riverside Industrial Estate, Navelpur, MH 459764",Navelpur,+91-08480-26298,SYN-TX-6712438T,30,2017-03-28,true
+C0003,Norvane Automotive Private Limited,LVC,"Plot 159, Kanakpura Industrial Estate, Kesrigarh, RJ 705332",Kesrigarh,+91-09128-71421,SYN-TX-3381259N,45,2017-07-16,true
+C0004,Zorvane Engineering & Co,LVC,"Plot 83, Lotus Industrial Estate, Sunalpet, TS 784603",Sunalpet,+91-02522-67651,SYN-TX-8627965L,45,2018-11-12,true
+C0005,Navari Industries LLP,LVE,"Plot 26, Eastgate Industrial Estate, Veltara, MH 620433",Veltara,+91-09634-67411,SYN-TX-8844788H,45,2019-02-05,true
+C0006,Sorvane Appliances Pvt Ltd,LVE,"Plot 35, Silverline Industrial Estate, Sunalpet, TS 676927",Sunalpet,+91-05608-14823,SYN-TX-1661969J,30,2019-02-08,true
+C0007,Eskarel Manufacturing LLP,LVC,"Plot 59, Riverside Industrial Estate, Tamrisa, KA 669723",Tamrisa,+91-08681-93418,SYN-TX-6706363X,60,2019-05-16,true
+C0008,Fenmora Automotive Pvt Ltd,LVC,"Plot 71, Sahyadri Industrial Estate, Korhal, GJ 641190",Korhal,+91-03823-90175,SYN-TX-8324391Y,60,2019-07-05,true
+C0009,Brennick Scrap & Metals Pvt Ltd,LVC,"Plot 207, Kanakpura Industrial Estate, Ishvani Nagar, MP 426255",Sunalpet,+91-08547-82193,SYN-TX-7691138R,45,2019-12-18,true
+C0010,Prevane Enterprises LLP,LVE,"Plot 49, Navrang Industrial Estate, Sunalpet, TS 552527",Sunalpet,+91-09090-64106,SYN-TX-3764072C,45,2020-01-18,true
+C0011,Falcrest Manufacturing Pvt Ltd,LVC,"Plot 28, Greenfield Industrial Estate, Veltara, MH 607217",Veltara,+91-08868-72005,SYN-TX-5868210L,45,2020-04-07,true
+C0012,Orlesh Automotive LLP,LVE,"Plot 162, Greenfield Industrial Estate, Veltara, MH 667413",Veltara,+91-08253-38957,SYN-TX-3413701T,45,2020-05-13,true
+C0013,Celdon Enterprises Private Limited,LVC,"Plot 34, Kanakpura Industrial Estate, Delvapur, KA 457890",Delvapur,+91-02166-65989,SYN-TX-2743072G,45,2020-06-05,true
+C0014,Lumora Manufacturing Pvt Ltd,LVC,"Plot 191, Lotus Industrial Estate, Tamrisa, KA 785731",Tamrisa,+91-03556-82840,SYN-TX-9332160T,30,2020-06-21,true
+C0015,Javrel Appliances LLP,LVC,"Plot 139, Lotus Industrial Estate, Kesrigarh, RJ 411666",Kesrigarh,+91-08374-48005,SYN-TX-7431238N,30,2020-07-30,true
+C0016,Quillon Enterprises Pvt Ltd,LVC,"Plot 43, Navrang Industrial Estate, Tamrisa, KA 739675",Tamrisa,+91-05158-24504,SYN-TX-1756900P,30,2021-04-02,true
+C0017,Isolde Appliances Pvt Ltd,LVC,"Plot 198, Silverline Industrial Estate, Kesrigarh, RJ 426984",Kesrigarh,+91-05530-14826,SYN-TX-9672069J,45,2021-05-27,true
+C0018,Wyndel Automotive Pvt Ltd,LVE,"Plot 42, Lotus Industrial Estate, Navelpur, MH 754140",Navelpur,+91-02084-36234,SYN-TX-3258036N,30,2021-07-07,true
+C0019,Pemberline Enterprises & Co,LVC,"Plot 167, Lotus Industrial Estate, Tamrisa, KA 605836",Tamrisa,+91-05708-34455,SYN-TX-9096178D,45,2021-10-15,true
+C0020,Castrel Manufacturing & Co,LVC,"Plot 156, Kanakpura Industrial Estate, Delvapur, KA 411559",Delvapur,+91-03850-94079,SYN-TX-9145900D,30,2022-03-27,true
+C0021,Pemberline Industries Pvt Ltd,LVC,"Plot 104, Sahyadri Industrial Estate, Tamrisa, KA 751141",Tamrisa,+91-04228-68263,SYN-TX-6995515P,30,2022-09-16,true
+C0022,Celdon Appliances Pvt Ltd,LVC,"Plot 170, Sahyadri Industrial Estate, Navelpur, MH 604189",Navelpur,+91-08763-39370,SYN-TX-7867450C,30,2022-11-07,true
+C0023,Zorvane Enterprises LLP,LVC,"Plot 94, Eastgate Industrial Estate, Veltara, MH 489639",Veltara,+91-06171-77615,SYN-TX-1352666K,60,2022-12-06,true
+C0024,Delvane Commercial Agencies LLP,LVE,"Plot 165, Eastgate Industrial Estate, Veltara, MH 797104",Korhal,+91-08427-15263,SYN-TX-2122354Z,45,2024-04-18,true
+C0025,Falcrest Trade Links LLP,LVC,"Plot 127, Lotus Industrial Estate, Orvana, TN 723120",Korhal,+91-04510-13418,SYN-TX-2834069T,45,2025-03-12,true
+C0026,Isolde Trade Links & Co,LVE,"Plot 77, Kanakpura Industrial Estate, Orvana, TN 573266",Sunalpet,+91-05597-15784,SYN-TX-4355709B,45,2025-03-12,true

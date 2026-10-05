@@ -11,7 +11,7 @@ P0 Cleanup ✔
  └─ P1 Truthful baseline (existing UI)
      └─ P2 Foundation (package, config, schema, IDs, SQLite, audit log, API skeleton) ✔
          └─ P3 Ingestion + evidence ✔ ┬─ P4 Validation / cleaning / integrity dashboard ✔
-                                      └─ P5 Synthetic scenario data ◄─ (needs canonical schema from P2/P3)
+                                      └─ P5 Synthetic scenario data ✔ ◄─ (needs canonical schema from P2/P3)
                                           └─ P6 Feature registry
                                               ├─ P7 Forensic rules + Benford
                                               ├─ P8 Anomaly detection
@@ -96,7 +96,7 @@ See [`cleanup-log.md`](cleanup-log.md).
   - Every issue links to its rows.
   - "Auto-fix" performs a real, logged transformation.
 
-### P5 — Synthetic scenario data
+### P5 — Synthetic scenario data ✔ (done; see [`p5-acceptance.md`](p5-acceptance.md))
 - **Objective.** A seeded generator producing the fictional company (vendor and employee masters, ledger, bank statement, cash-flow) plus a ground-truth file for injected scenarios. Everything is marked SYNTHETIC.
 - **Why now.** ER, graph, reconciliation, anomaly evaluation and the risk engine all need data with known answers. The existing dataset cannot provide it.
 - **Files.** `ledgerspy/synth/` (or `cli synth`), `data/synthetic/` (generated, small reference set committed), `docs/data-strategy.md`.

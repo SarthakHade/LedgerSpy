@@ -1,0 +1,3 @@
+entity_code,legal_name,role,address,bank_account,bank_code,tax_id,expense_claim_approval_limit,vendor_payment_approval_limit,business_hours_start,business_hours_end,working_days,currency,is_synthetic
+LVC,Larkspur Vale Components Pvt Ltd,parent,"Plot 239, Kanakpura Industrial Estate, Veltara, MH 771185",SYN826770232401,SYNB0454916,SYN-TX-2218961K,5000.00,200000.00,09:30,18:30,Mon-Sat,INR,true
+LVE,Larkspur Vale Exports Pvt Ltd,subsidiary,"Plot 95, Eastgate Industrial Estate, Veltara, MH 588963",SYN608293236964,SYNB0293761,SYN-TX-6420243R,5000.00,200000.00,09:30,18:30,Mon-Sat,INR,true

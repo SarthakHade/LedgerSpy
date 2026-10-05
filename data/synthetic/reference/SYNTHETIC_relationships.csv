@@ -1,0 +1,4 @@
+relationship_id,entity_a,entity_b,relationship_type,declared_on,notes,is_synthetic
+R001,LVC,LVE,parent_subsidiary_100pct,2017-04-01,Wholly owned subsidiary,true
+R002,V0047,E0013,declared_conflict_of_interest,2019-06-01,Proprietor is the spouse of the employee; employee excluded from approving this vendor,true
+R003,V0027,V0039,same_corporate_group,2018-08-15,Sister concerns sharing office and collection account,true

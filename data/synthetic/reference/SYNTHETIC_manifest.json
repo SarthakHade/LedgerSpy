@@ -1,0 +1,97 @@
+{
+  "synthetic": true,
+  "notice": "SYNTHETIC: a fictional company. No real person, company, address, phone or account is used.",
+  "generator": "ledgerspy.synth",
+  "generator_version": "1",
+  "parameters": {
+    "seed": 42,
+    "start_date": "2023-04-01",
+    "end_date": "2026-03-31",
+    "years": 3,
+    "scale": 1.0,
+    "currency": "INR",
+    "approval_limits_minor": {
+      "expense_claim": 500000,
+      "vendor_payment": 20000000
+    },
+    "business_hours": [
+      "09:30",
+      "18:30"
+    ]
+  },
+  "python": "3.12.4",
+  "files": {
+    "SYNTHETIC_bank_statement.csv": {
+      "sha256": "f801b97cb84c6bf0cb977d6a73ac3be18f128c45c2282d37cf3abab93af6cd7b",
+      "bytes": 1146367,
+      "rows": 7267
+    },
+    "SYNTHETIC_cashflow_monthly.csv": {
+      "sha256": "1dd60f5faf9a7ec588767f1820172aa532fc5a2a880a1d5c4f360be6783d5726",
+      "bytes": 5036,
+      "rows": 72
+    },
+    "SYNTHETIC_customer_master.csv": {
+      "sha256": "10a99a68d62db8f69c7778ac395d0050e9bd3a97609f21d361c715ca970f94c5",
+      "bytes": 4166,
+      "rows": 26
+    },
+    "SYNTHETIC_employee_master.csv": {
+      "sha256": "caa363b9780f1689d5aa6259d97ea9f6de891c6aa863d3c3eb4005068e41594b",
+      "bytes": 9163,
+      "rows": 37
+    },
+    "SYNTHETIC_group_entities.csv": {
+      "sha256": "f32c51e83effa2f4ac41bb04e30c10ec4b23e04957f7d7498bc4641e986c294b",
+      "bytes": 589,
+      "rows": 2
+    },
+    "SYNTHETIC_holiday_calendar.csv": {
+      "sha256": "c29cef62201f630c2aeae989bbddfb45a582cb866dc1bf312fbd9c75d9323024",
+      "bytes": 581,
+      "rows": 18
+    },
+    "SYNTHETIC_ledger.csv": {
+      "sha256": "68fce3beb05d6c388a077afd7a9368f3a85623421afac7f009b47dd45eab9d4f",
+      "bytes": 1541582,
+      "rows": 7271
+    },
+    "SYNTHETIC_relationships.csv": {
+      "sha256": "bfbbc411c269a8c4dedac6d5d1400732ea03c6d36d3260e1bdc1128e9a135f9f",
+      "bytes": 419,
+      "rows": 3
+    },
+    "SYNTHETIC_vendor_master.csv": {
+      "sha256": "ac6695814e9c32a66f325a411561e9152809b35026d3fc6e540ea8ad753336fc",
+      "bytes": 24550,
+      "rows": 99
+    },
+    "ground_truth/SYNTHETIC_ground_truth.csv": {
+      "sha256": "8fcb757f703eb1a6da307cad449d5c0ff774136655d888383a9351964404e014",
+      "bytes": 95752,
+      "rows": 1653
+    },
+    "ground_truth/SYNTHETIC_ground_truth.json": {
+      "sha256": "d456d021ae87c10348602aa7dc5de418da53e876405de52fb60a9b49c40319e3",
+      "bytes": 111454,
+      "rows": null
+    }
+  },
+  "inputs": [
+    "SYNTHETIC_bank_statement.csv",
+    "SYNTHETIC_cashflow_monthly.csv",
+    "SYNTHETIC_customer_master.csv",
+    "SYNTHETIC_employee_master.csv",
+    "SYNTHETIC_group_entities.csv",
+    "SYNTHETIC_holiday_calendar.csv",
+    "SYNTHETIC_ledger.csv",
+    "SYNTHETIC_relationships.csv",
+    "SYNTHETIC_vendor_master.csv"
+  ],
+  "ground_truth": [
+    "ground_truth/SYNTHETIC_ground_truth.csv",
+    "ground_truth/SYNTHETIC_ground_truth.json"
+  ],
+  "dataset_sha256": "f62613fffb0b1e82f50d1e6ad08a1ac8942fb3832904d3209e93a57777f5d44f",
+  "scenario_count": 63
+}

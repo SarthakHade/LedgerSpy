@@ -1,2 +1,4 @@
 # Ingestion fixtures are byte-exact (BOMs, CRLF, cp1252): never normalise them.
 tests/backend/fixtures/** -text
+# The synthetic reference is hashed byte for byte (manifest, determinism tests): never normalise it.
+data/synthetic/** -text
