@@ -444,3 +444,100 @@ anomaly:
   # Diagnostic evaluation only (never in the detection path): top-k sizes = review capacity in rows.
   evaluation:
     review_capacity: [50, 100, 250]
+
+# ---------------------------------------------------------------------------------------------
+# P9 — risk engine v1 (architecture §5.4, docs/risk-engine.md). Fuses P7 rule signals and P8 anomaly signals into
+# a bounded 0–100 REVIEW-RISK SCORE: a forensic review priority, NOT a probability of fraud (nothing is calibrated
+# against outcomes; supervised calibration is P10/P11). Labels and ground truth never enter.
+#
+#   signal evidence      e = strength × weight (from the detector's own configuration, rules.* / anomaly.*)
+#   family evidence      F = min(cap, 1 − Π_k (1 − e_(k) · decay^k))    signals sorted strongest first
+#   group evidence       G = min(group cap, 1 − Π_f (1 − F_f))          independent evidence source
+#   risk score           100 × (1 − Π_g (1 − G_g))
+#   contributions        exact split of the score in log-survival space: group g gets score × L_g / Σ L,
+#                        L = −ln(1 − G); a group's share is split over its families and signals the same way.
+risk:
+  # Every detector belongs to exactly one family; an unknown detector is a configuration error. Caps keep one
+  # family (and its correlated signals) from dominating: no family alone can push the score above 100 × cap.
+  # A cap is at least the family's strongest single weight, so it only bites when signals accumulate.
+  families:
+    duplicate:            # exact / typo-style duplicate payments
+      detectors: [duplicate_exact, duplicate_near]
+      group: duplicate
+      cap: 0.6
+      scored: true
+      label: Duplicate payments
+    transaction_pattern:  # policy and behaviour rules on the transaction
+      detectors: [structuring, new_vendor_large, dormancy, velocity]
+      group: transaction_pattern
+      cap: 0.6
+      scored: true
+      label: Transaction-pattern rules
+    temporal:             # posting time and period-end timing
+      detectors: [temporal, period_end]
+      group: temporal
+      cap: 0.4
+      scored: true
+      label: Timing rules
+    entity_evidence:      # findings about the counterparty as a whole, applied to the rows they cite
+      detectors: [round_amount]
+      group: entity_evidence
+      cap: 0.3
+      scored: true
+      label: Counterparty-level evidence
+    benford:              # digit-distribution deviation of a subgroup: a sampling lead, never proof
+      detectors: [benford_subgroup]
+      group: benford
+      cap: 0.15
+      scored: true
+      label: Benford subgroup sample
+    statistical_anomaly:  # P8 Isolation Forest
+      detectors: [isolation_forest]
+      group: anomaly
+      cap: 0.4
+      scored: true
+      label: Statistical anomaly
+    peer_anomaly:         # P8 robust peer z
+      detectors: [robust_peer]
+      group: anomaly
+      cap: 0.4
+      scored: true
+      label: Peer-group deviation
+    tail_anomaly:         # P8 tail percentiles
+      detectors: [tail_percentile]
+      group: anomaly
+      cap: 0.2
+      scored: true
+      label: Extreme value (tail)
+    data_quality:         # P4 integrity issues: reported beside the risk, never fraud risk by themselves
+      detectors: [balance_continuity]
+      group: data_quality
+      cap: 0.0
+      scored: false
+      label: Data-quality issue (not scored)
+  # Group caps: the three P8 families measure "unusual" from overlapping features, so together they count as one
+  # independent source capped at 0.45 — anomaly evidence alone can never reach the high tier.
+  groups:
+    anomaly: {cap: 0.45}
+  within_family_decay: 0.5        # the 2nd signal of a family counts half, the 3rd a quarter, …
+  # Tiers need a score AND corroboration by independent sources (groups), so one detector — however strong — or a
+  # single large but otherwise ordinary payment never reaches high on its own.
+  tiers:
+    medium: 25
+    high: 50
+    critical: 75
+    min_sources_high: 2
+    min_sources_critical: 3
+  # Review-volume guard: high + critical should not exceed 2% of scored rows (critical 0.5%). Exceeding it raises
+  # a calibration warning; raw scores and tiers are never altered. The review queue is the `top_k` highest
+  # priorities (tier, score, independent sources, amount, transaction ID).
+  review:
+    max_high_share: 0.02
+    max_critical_share: 0.005
+    top_k: 250
+  # Entity (counterparty stream) risk: noisy-OR of its `top_k` riskiest transactions with the same diminishing
+  # returns; each transaction counts once (entity-level signals are already inside its transactions' scores).
+  entities:
+    top_k: 3
+    decay: 0.5
+  max_contributors: 5             # contributors listed in an explanation (all remain in the detail)

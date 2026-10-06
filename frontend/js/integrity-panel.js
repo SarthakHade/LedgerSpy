@@ -6,7 +6,8 @@
    computed or estimated here. It works only when the page is served by
    `ledgerspy serve` (session token in <meta name="ledgerspy-session-token">);
    opened as a plain file it says so. Datasets reach the backend through
-   the API (POST /api/cases/{id}/files); the full API-driven UI is P9.
+   the API (POST /api/cases/{id}/files). When the risk UI (js/risk-ui.js) analyses a
+   dataset it announces it ('ls:dataset') and this panel follows.
    All text is rendered with textContent via el() (no innerHTML).
    ============================================================ */
 (function(){
@@ -44,7 +45,7 @@
 
   if(!meta){
     show(na('Not available here: the backend integrity report (P4) needs LedgerSpy to be opened through `ledgerspy serve`. ' +
-            'The preliminary panel above is computed in the browser from the loaded CSV.'));
+            'Nothing is computed in the browser instead.'));
     return;
   }
   const token = meta.getAttribute('content');
@@ -79,6 +80,7 @@
     select.addEventListener('change', () => { state.datasetId = select.value; state.issuePage = 1; state.issueCheck = ''; loadReport(); });
     state.datasetId = state.datasetId || usable[0].dataset_id;
     select.value = state.datasetId;
+    state.select = select;
     state.picker = el('div', { class:'di-toolbar' }, [ el('span', { class:'di-muted' }, 'Dataset'), select,
       button('Run integrity check', runCheck, false) ]);
     loadReport();
@@ -240,6 +242,11 @@
     });
     return table(['When', 'Kind', 'Row', 'Field', 'Transform', 'Original', 'Normalised', 'By', 'Reason', ''], rows);
   }
+
+  document.addEventListener('ls:dataset', e => {
+    state.datasetId = e.detail.datasetId; state.issuePage = 1; state.issueCheck = '';
+    loadDatasets();  // refresh the picker (a new import may have arrived) and show this dataset's report
+  });
 
   loadDatasets();
 })();

@@ -15,7 +15,7 @@ P0 Cleanup ✔
                                           └─ P6 Feature registry ✔
                                               ├─ P7 Forensic rules + Benford ✔
                                               ├─ P8 Anomaly detection ✔
-                                              └─ P9 Risk engine v1 + Explainability v1 + UI wired to API  ◄── first end-to-end slice
+                                              └─ P9 Risk engine v1 + Explainability v1 + UI wired to API ✔  ◄── first end-to-end slice
                                                   ├─ P10 Supervised training/evaluation ─ P11 Model registry/inference
                                                   ├─ P12 Entity resolution ─ P13 Graph analysis
                                                   ├─ P14 Bank reconciliation (P14b PDF/OCR)  (uses P12 aliases)
@@ -134,7 +134,7 @@ See [`cleanup-log.md`](cleanup-log.md).
 - **Tests.** Fixed-seed determinism; precision@k / recall@k on synthetic scenarios against a recorded baseline; PaySim labels as a proxy (PR-AUC reported, not optimised).
 - **Acceptance.** Metrics recorded in a model card; the run completes on 100k synthetic rows in an acceptable time on a laptop (target < 60 s).
 
-### P9 — Risk engine v1, Explainability v1, and UI wired to the API (R10, R12, R7 UI) — first end-to-end slice
+### P9 — Risk engine v1, Explainability v1, and UI wired to the API (R10, R12, R7 UI) — first end-to-end slice ✔ (done; see [`p9-acceptance.md`](p9-acceptance.md) and [`risk-engine.md`](risk-engine.md))
 - **Objective.**
   - Signal fusion with family caps, tiers, entity risk, the volume guard and an exact contribution breakdown.
   - Explanation objects.

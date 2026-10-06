@@ -2,6 +2,10 @@
 
 Date: 2026-10-04 · Scope defined in [`roadmap.md`](roadmap.md) ("First implementation phase").
 
+> **Superseded in P9.** The in-browser heuristic scorer described here was deleted when the UI was wired to the
+> backend. `tests/frontend/harness.js` and `browser_check.py` were rewritten for the API-driven UI, keeping the P1
+> guarantees (no fabricated values, no labels, safe rendering, no network). See [`p9-acceptance.md`](p9-acceptance.md).
+
 P1 changes the **existing browser prototype only**. There is no backend, no new analytics and no new ML. The
 heuristic scorer is unchanged in its maths; the change is that it is labelled honestly, no longer reads labels,
 and explains itself exactly.

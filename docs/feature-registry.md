@@ -224,7 +224,7 @@ Which features each future detector uses is mapped in [`synthetic-scenario-matri
 
 ## Legacy feature code (not part of the registry)
 
-`frontend/js/ml-engine.js` (`engineerFeatures`) is the P1 prototype's in-browser heuristic, labelled as such in the UI. P6 does **not** duplicate it and does not wire the UI to the registry. Its removal belongs to P9, when the UI shows backend results. Until then it is **legacy**. Its columns map to the registry as follows:
+`frontend/js/ml-engine.js` (`engineerFeatures`) was the P1 prototype's in-browser heuristic, labelled as such in the UI. P6 did **not** duplicate it; it was **legacy** and was **deleted in P9**, when the UI started rendering backend results (`docs/risk-engine.md`). Its columns mapped to the registry as follows:
 
 | Legacy JS column | Replaced by |
 |---|---|

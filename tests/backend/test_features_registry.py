@@ -113,12 +113,14 @@ def test_no_feature_is_implemented_outside_the_registry():
         assert "features.history" not in text and "features.transaction" not in text, path
 
 
-def test_legacy_frontend_features_are_documented_not_duplicated():
-    """The P1 in-browser heuristic still exists; it is documented as legacy (removed when the UI uses P9)."""
+def test_legacy_frontend_features_are_documented_and_removed():
+    """The P1 in-browser heuristic was documented as legacy in P6 and deleted in P9 (the UI renders API
+    results); no feature code exists in the frontend."""
     doc = (ROOT / "docs" / "feature-registry.md").read_text(encoding="utf-8")
-    assert "frontend/js/ml-engine.js" in doc and "legacy" in doc.lower()
-    js = (ROOT / "frontend" / "js" / "ml-engine.js").read_text(encoding="utf-8")
-    assert "engineerFeatures" in js  # unchanged by P6 (no new JS feature code)
+    assert "frontend/js/ml-engine.js" in doc and "legacy" in doc.lower() and "deleted in P9" in doc
+    assert not (ROOT / "frontend" / "js" / "ml-engine.js").exists()
+    for js in (ROOT / "frontend" / "js").glob("*.js"):
+        assert "engineerFeatures" not in js.read_text(encoding="utf-8"), js
 
 
 def test_every_feature_named_in_the_docs_exists():

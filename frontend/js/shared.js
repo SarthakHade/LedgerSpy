@@ -1,53 +1,20 @@
 /* ============================================================
-   LedgerSpy — shared configuration + safe-rendering helpers
+   LedgerSpy — shared safe-rendering and display helpers
    ============================================================
-   P1 (Truthful Baseline). This is the ONE place in the frontend
-   where thresholds and label-column rules are defined. The scoring
-   engine, table, chatbot and memo all read from here.
-
-   NOTE: this is still a browser-side *heuristic preview*. From
-   roadmap phase P9 onward these values move to the Python
-   package's config/default.yaml and the frontend only renders
-   results returned by the local API.
+   P9: the browser renders results returned by the local LedgerSpy
+   API. It computes no risk, no tiers, no thresholds and no
+   statistics. These helpers only format values for display and
+   build DOM nodes safely (text is always set via textContent).
    ============================================================ */
 
-const LS_CONFIG = Object.freeze({
-  engineName: 'Heuristic preview (rule-based, not a trained model)',
-
-  // Risk tiers on the 0–100 heuristic score. Used by the engine AND the chatbot text.
-  thresholds: Object.freeze({ high: 70, suspicious: 40 }),
-
-  // If more than this share of rows lands in high+suspicious, the preview is
-  // considered uncalibrated and the UI says so (acceptance criterion A8).
-  reviewBudgetPct: 5,
-
-  // Ground-truth / label columns. They are NEVER used by mapping, features or scoring.
-  // Compared after lower-casing and removing spaces, '_' and '-'.
-  labelColumns: Object.freeze([
-    'isfraud', 'fraud', 'isflaggedfraud', 'flaggedfraud', 'flagged',
-    'label', 'target', 'groundtruth'
-  ]),
-
-  // Benford first-digit expectation (log10(1 + 1/d)), as percentages.
-  benfordExpectedPct: Object.freeze([30.1, 17.6, 12.5, 9.7, 7.9, 6.7, 5.8, 5.1, 4.6]),
-  // Heuristic: a digit counts as "over-represented" if observed − expected > this many
-  // percentage points. Descriptive only — no statistical test until roadmap P7.
-  benfordOverrepPP: 8,
-
-  // Row identity when the file has no usable ID column.
-  rowIdPrefix: 'ROW-',
-  addedRowIdPrefix: 'NEW-',
+/* Display names and badge styles for the tiers the BACKEND assigns. No thresholds live here. */
+const LS_TIER = Object.freeze({
+  critical:          Object.freeze({ cls: 'bg-crit',    txt: 'CRITICAL' }),
+  high:              Object.freeze({ cls: 'bg-red',     txt: 'HIGH' }),
+  medium:            Object.freeze({ cls: 'bg-amber',   txt: 'MEDIUM' }),
+  low:               Object.freeze({ cls: 'bg-green',   txt: 'LOW' }),
+  insufficient_data: Object.freeze({ cls: 'bg-neutral', txt: 'NOT ASSESSED' }),
 });
-
-/** Normalise a header for label-column comparison. */
-function lsNormHeader(h){
-  return String(h || '').toLowerCase().replace(/[\s_\-]/g, '');
-}
-/** True if a CSV header is a ground-truth/label column that must never be scored on. */
-function lsIsLabelColumn(h){
-  const n = lsNormHeader(h);
-  return n !== '' && LS_CONFIG.labelColumns.includes(n);
-}
 
 /** Escape a value for safe insertion into HTML. Use for EVERY data-derived string. */
 function escapeHtml(v){
@@ -94,16 +61,45 @@ function setText(id, text){
   if(n) n.textContent = text;
 }
 
-/** Compact currency formatter (₹ display convention; the source file's currency is not verified). */
-function formatAmtShort(v){
-  v = Math.abs(v || 0);
-  if(v >= 10000000) return '₹' + (v / 10000000).toFixed(2) + ' Cr';
-  if(v >= 100000)   return '₹' + (v / 100000).toFixed(2) + ' L';
-  if(v >= 1000)     return '₹' + (v / 1000).toFixed(1) + 'K';
-  return '₹' + Math.round(v).toLocaleString();
+/** Group the integer part of a decimal string with commas: '1234567.89' → '1,234,567.89'. Text in, text out. */
+function lsGroupDigits(text){
+  const s = String(text);
+  const neg = s.startsWith('-');
+  const [i, f] = (neg ? s.slice(1) : s).split('.');
+  const grouped = i.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  return (neg ? '-' : '') + grouped + (f !== undefined ? '.' + f : '');
 }
 
-/** Deterministic pseudo-random in [0,1) from an integer (used only for visual jitter). */
+/** An amount exactly as the backend returned it (decimal text), with its currency. Null → '—'. */
+function lsAmount(text, currency){
+  if(text === null || text === undefined) return '—';
+  const g = lsGroupDigits(text);
+  if(currency === 'INR') return '₹' + g;
+  return currency ? g + ' ' + currency : g;
+}
+
+/** Integer counts as returned by the API. */
+function lsInt(n){
+  return (n === null || n === undefined) ? '—' : Number(n).toLocaleString('en-US');
+}
+
+/** A share in [0, 1] returned by the API, as a percentage. */
+function lsShare(x, digits){
+  return (x === null || x === undefined) ? '—' : (x * 100).toFixed(digits === undefined ? 1 : digits) + '%';
+}
+
+/** A backend score (already rounded to hundredths) for display. */
+function lsScore(x){
+  return (x === null || x === undefined) ? '—' : Number(x).toFixed(2);
+}
+
+/** Badge node for a backend tier. */
+function lsTierBadge(tier, score){
+  const t = LS_TIER[tier] || LS_TIER.insufficient_data;
+  return el('span', { class: 'badge ' + t.cls }, t.txt + (score !== null && score !== undefined ? ' · ' + lsScore(score) : ''));
+}
+
+/** Deterministic pseudo-random in [0,1) from an integer (used only for the decorative background). */
 function lsHash01(i){
   let x = (i + 1) * 2654435761 >>> 0;
   x ^= x >>> 16; x = Math.imul(x, 2246822507) >>> 0;
@@ -112,14 +108,7 @@ function lsHash01(i){
   return (x >>> 0) / 4294967296;
 }
 
-/** Neutralise spreadsheet formula injection in exported CSV cells. */
-function lsCsvSafeCell(v){
-  const s = String(v === undefined || v === null ? '' : v);
-  if(/^[=+@\t\r]/.test(s) || /^-[^0-9.]/.test(s)) return "'" + s;
-  return s;
-}
-
 /* Node test-harness export (ignored in the browser). */
 if(typeof module !== 'undefined' && module.exports){
-  module.exports = { LS_CONFIG, lsIsLabelColumn, escapeHtml, formatAmtShort, lsHash01, lsCsvSafeCell };
+  module.exports = { LS_TIER, escapeHtml, lsGroupDigits, lsAmount, lsInt, lsShare, lsScore, lsHash01 };
 }

@@ -8,7 +8,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from ledgerspy import __version__
-from ledgerspy.api.routes import anomaly, cases, datasets, forensics, health, quality
+from ledgerspy.api.routes import anomaly, cases, datasets, forensics, health, quality, risk
 from ledgerspy.api.security import SESSION_COOKIE, LocalSecurityMiddleware, build_csp, token_matches
 from ledgerspy.cases.audit import local_actor
 from ledgerspy.config import EffectiveConfig
@@ -56,6 +56,7 @@ def create_app(
     app.include_router(datasets.router)
     app.include_router(forensics.router)
     app.include_router(anomaly.router)
+    app.include_router(risk.router)
 
     @app.get("/", include_in_schema=False)
     def index(request: Request) -> Response:

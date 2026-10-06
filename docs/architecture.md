@@ -331,6 +331,8 @@ Families: `amount`, `timing`, `duplication`, `structuring`, `digit`, `entity`, `
 **Tiers.**
 - `high` if `risk ≥ τ_high` **and** at least 2 independent families fire, or if a configured *critical* signal fires (e.g., a large payment with no bank evidence).
 - `review` if `risk ≥ τ_review`. Otherwise `low`.
+- **As built (P9).** Tiers are `critical` / `high` / `medium` / `low` with source-count corroboration; families sit in
+  independent *groups* (the three P8 families share one group cap); see [`risk-engine.md`](risk-engine.md).
 
 **Volume guard.**
 - Every run reports the flagged percentage.
@@ -602,8 +604,8 @@ LedgerSpy/
 │   ├── anomaly/               # P8: eligibility, isolation_forest, robust_stats, evaluation, models, service
 │   ├── forensics/             # models.py, duplicates.py, benford.py, service.py (P7); entity_resolution.py, graph.py,
 │   │                          #   reconciliation.py, cashflow_sim.py (later)
-│   ├── risk/                  # signal fusion, tiers, volume guard
-│   ├── explain/               # explanation objects, SHAP wrappers
+│   ├── risk/                  # P9: fusion, calibration (tiers + volume guard), entities, explain, service
+│   ├── explain/               # later: SHAP wrappers for supervised models (P10/P11); P9 explanations live in risk/
 │   ├── cases/                 # sqlite store, evidence, audit log, findings
 │   ├── reports/               # report model, memo NLG, PDF renderer
 │   ├── synth/                 # P5 deterministic synthetic company + scenarios + separate ground truth

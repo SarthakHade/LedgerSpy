@@ -1,10 +1,16 @@
 #!/usr/bin/env node
 /* ============================================================
-   LedgerSpy P1 test harness — Node.js, no dependencies.
+   LedgerSpy frontend test harness — Node.js, no dependencies.
    Usage (from repo root):  node tests/frontend/harness.js
-   Loads the real frontend scripts into a sandbox with a minimal
-   DOM stub and checks the P1 acceptance criteria that do not need
-   a browser (A1, A2, A3-logic, A5-logic, A6, A7-logic, A8).
+   P9: the page renders API results; it computes no risk. This harness
+   loads the real frontend scripts into a sandbox with a minimal DOM stub
+   and checks, without a browser:
+     A1  no fabricated literals, external URLs, alert() or randomness
+     A2  no label columns and no scoring engine in the frontend
+     A3  escaping: chatbot answers built from malicious API values stay inert
+     A5  display helpers pass backend values through exactly
+     A6  transaction IDs named in a question are looked up exactly
+     A8  without the local service nothing is shown as computed
    Browser-level checks live in tests/frontend/browser_check.py.
    ============================================================ */
 'use strict';
@@ -14,14 +20,12 @@ const vm = require('vm');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const FE = path.join(ROOT, 'frontend');
-const PAYSIM = path.join(ROOT, 'data', 'raw', 'paysim_sample_10k.csv');
-const MALICIOUS = path.join(__dirname, 'fixtures', 'malicious.csv');
 
 let passed = 0, failed = 0;
 const results = [];
-function check(id, name, fn){
+async function check(id, name, fn){
   try {
-    const detail = fn();
+    const detail = await fn();
     passed++; results.push({ id, name, ok: true, detail });
     console.log(`  PASS  [${id}] ${name}${detail ? ' — ' + detail : ''}`);
   } catch(e){
@@ -32,7 +36,7 @@ function check(id, name, fn){
 function assert(cond, msg){ if(!cond) throw new Error(msg); }
 
 /* ---------- sandbox ---------- */
-function makeSandbox(){
+function makeSandbox(source){
   const document = {
     getElementById: () => null,
     querySelector: () => null,
@@ -40,243 +44,176 @@ function makeSandbox(){
     addEventListener: () => {},
     createElement: () => { throw new Error('DOM not available in harness'); },
   };
-  const window = { addEventListener: () => {} };
-  const ctx = { window, document, console, setTimeout, clearTimeout, navigator: {} };
+  const window = { addEventListener: () => {}, LS_CHAT_SOURCE: source };
+  const ctx = { window, document, console, setTimeout, clearTimeout, navigator: {}, encodeURIComponent };
   ctx.globalThis = ctx;
   vm.createContext(ctx);
-  // Same load order as index.html (ui-core.js is DOM/canvas-only and is not loaded here).
-  for(const f of ['js/shared.js', 'js/data-pipeline.js', 'js/ml-engine.js', 'js/chatbot-ui.js']){
+  // Same load order as index.html (ui-core.js and integrity-panel.js need a real DOM and are not loaded here).
+  for(const f of ['js/shared.js', 'js/api.js', 'js/risk-ui.js', 'js/chatbot-ui.js']){
     vm.runInContext(fs.readFileSync(path.join(FE, f), 'utf8'), ctx, { filename: f });
   }
   return ctx;
 }
-function scan(csvText, name){
-  const ctx = makeSandbox();
-  vm.runInContext(`parseCsvText(${JSON.stringify(csvText)}, ${JSON.stringify(name)}); runMLOnData();`, ctx);
-  return ctx;
-}
 const run = (ctx, code) => vm.runInContext(code, ctx);
-const riskById = ctx => {
-  const m = new Map();
-  run(ctx, 'tableData').forEach(d => m.set(d.id, d._mlScore + '|' + d.r));
-  return m;
+
+/* ---------- API fixture with hostile values (as an attacker-controlled ledger could produce) ---------- */
+const BAD = '<img src=x onerror=alert(1)>';
+const SUMMARY = {
+  counts: { transactions: 12345, scored: 12000, insufficient_data: 345, tiers: { critical: 3, high: 41, medium: 210, low: 11746 },
+            high_or_critical: 44, medium_or_higher: 254 },
+  amounts: { currency: 'INR', high_or_critical: '1234567.89' },
+  entities: { with_high_or_critical_transactions: 17 },
+  volume_guard: { message: '44 high/critical rows are within the review budget of 240 ' + BAD },
+  method: { score: 'Score text ' + BAD, tiers: { medium: 25, high: 50, critical: 75, min_sources_high: 2, min_sources_critical: 3 },
+            families: [{ label: 'Duplicate ' + BAD, scored: true, cap: 0.6 }, { label: 'Data quality', scored: false, cap: 0 }] },
+  top_findings: [{ txn_id: 'T-' + BAD }],
+  detectors_unavailable: [{ detector: 'velocity', reason: 'no calendar time ' + BAD }],
 };
-
-/* ---------- CSV helpers ---------- */
-function dropColumn(text, colName){
-  const lines = text.replace(/^﻿/, '').trim().split(/\r?\n/);
-  const hdr = lines[0].split(',');
-  const i = hdr.indexOf(colName);
-  if(i < 0) throw new Error('column not found: ' + colName);
-  return lines.map(l => { const c = l.split(','); c.splice(i, 1); return c.join(','); }).join('\n');
+const DETECTORS = { benford: { dataset: { first: { status: 'analyzed', n: 7271, mad: 0.0075, band: 'acceptable ' + BAD,
+  chi2_p_value: 0, over_represented: [2, 3], note: 'A deviation is a lead ' + BAD } } } };
+const ROW = { txn_id: 'LVC-JV-000812', tier: 'critical', score: 79.31, amount: '100000.00', currency: 'INR', payee: 'Halvorn ' + BAD };
+function source(log){
+  return {
+    ready: true,
+    summary: () => SUMMARY,
+    detectors: () => DETECTORS,
+    transactions: async params => { log.push(['transactions', params]); return { items: [ROW, { ...ROW, txn_id: BAD, score: 12 }] }; },
+    detail: async id => {
+      log.push(['detail', id]);
+      if(id !== 'LVC-JV-000812') { const e = new Error('not found'); e.status = 404; throw e; }
+      return { transaction: { txn_id: id }, explanation: { headline: 'Review-risk score 79.31 ' + BAD,
+        contributors: [{ contribution: 34.89, detector_label: 'Large amount ' + BAD, explanation: 'Payment ' + BAD }],
+        limitations: ['Not a probability ' + BAD] } };
+    },
+    selected: () => null,
+  };
 }
-function setColumn(text, colName, value){
-  const lines = text.replace(/^﻿/, '').trim().split(/\r?\n/);
-  const hdr = lines[0].split(',');
-  const i = hdr.indexOf(colName);
-  return [lines[0]].concat(lines.slice(1).map(l => { const c = l.split(','); c[i] = value; return c.join(','); })).join('\n');
-}
 
-console.log('LedgerSpy P1 harness\n');
-const paysim = fs.readFileSync(PAYSIM, 'utf8');
-const base = scan(paysim, 'paysim_sample_10k.csv');
-const S = run(base, 'window._mlSummary');
+(async () => {
+  console.log('LedgerSpy frontend harness (P9: API-rendered UI)\n');
+  const feFiles = [];
+  (function walk(d){ for(const f of fs.readdirSync(d)){ const p = path.join(d, f); fs.statSync(p).isDirectory() ? walk(p) : feFiles.push(p); } })(FE);
+  const feText = feFiles.map(f => ({ f: path.relative(ROOT, f), t: fs.readFileSync(f, 'utf8') }));
+  const strip = t => t.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:'"\\])\/\/.*$/gm, '$1');
 
-/* ---------- A1: no fabricated literals / external URLs / randomness ---------- */
-const feFiles = [];
-(function walk(d){ for(const f of fs.readdirSync(d)){ const p = path.join(d, f); fs.statSync(p).isDirectory() ? walk(p) : feFiles.push(p); } })(FE);
-const feText = feFiles.map(f => ({ f: path.relative(ROOT, f), t: fs.readFileSync(f, 'utf8') }));
-
-const FORBIDDEN = ['2,45,00,000', '₹2.45 Cr', '93.7%', '3.4x', 'zero-knowledge', '68% chance', 'Stationery L.T.D',
-  'MG Road', 'PMLA', 'Cluster #4', 'Risk = 87%', '87% (SEVERE', 'Math.random', 'fonts.googleapis', 'fonts.gstatic',
-  '+128%', '2.28&times;', 'FY 2024', 'runMockBSR', 'court-ready', '100% Offline', 'SHAP-style', 'calibrated v2',
-  'Logistic regression weights', 'Insolvency Break', 'Co-Founder'];
-check('A1', 'No fabricated literals, mock functions or external font references in frontend/', () => {
-  const hits = [];
-  feText.forEach(({ f, t }) => FORBIDDEN.forEach(w => { if(t.includes(w)) hits.push(`${f}: "${w}"`); }));
-  assert(hits.length === 0, hits.join('; '));
-  return `${FORBIDDEN.length} patterns × ${feText.length} files`;
-});
-check('A1', 'No external http(s) URLs (except the SVG XML namespace)', () => {
-  const hits = [];
-  feText.forEach(({ f, t }) => (t.match(/https?:\/\/[^\s"'`)<>]+/g) || []).forEach(u => { if(!u.startsWith('http://www.w3.org/2000/svg')) hits.push(`${f}: ${u}`); }));
-  assert(hits.length === 0, hits.join('; '));
-});
-check('A1', 'No alert() dialogs used as fake actions', () => {
-  const hits = feText.filter(({ t }) => /\balert\(/.test(t)).map(x => x.f);
-  assert(hits.length === 0, hits.join(', '));
-});
-
-/* ---------- A2: label leakage ---------- */
-check('A2', 'Identical scores with vs without the isFraud column', () => {
-  const noLabel = scan(dropColumn(paysim, 'isFraud'), 'no_label.csv');
-  const a = riskById(base), b = riskById(noLabel);
-  assert(a.size === b.size && a.size === 10127, `row counts ${a.size} vs ${b.size}`);
-  let diff = 0; a.forEach((v, k) => { if(b.get(k) !== v) diff++; });
-  assert(diff === 0, `${diff} rows differ`);
-  return `${a.size} rows identical`;
-});
-check('A2', 'Identical scores when isFraud is set to all-1 and all-0', () => {
-  const a = riskById(base);
-  for(const v of ['1', '0']){
-    const b = riskById(scan(setColumn(paysim, 'isFraud', v), 'set.csv'));
-    let diff = 0; a.forEach((val, k) => { if(b.get(k) !== val) diff++; });
-    assert(diff === 0, `isFraud=${v}: ${diff} rows differ`);
-  }
-  return 'both variants identical';
-});
-check('A2', 'Label columns are never mapped to engine fields', () => {
-  const map = run(base, 'window._mlColMap');
-  const hdr = run(base, '_csvRawHeaders');
-  const used = Object.values(map).filter(i => i >= 0).map(i => hdr[i]);
-  assert(!used.some(h => /fraud|label|target/i.test(h)), 'mapped: ' + used.join(','));
-  return 'mapped columns: ' + used.join(', ');
-});
-check('A2', 'Engine source has no reference to isFraud', () => {
-  const src = fs.readFileSync(path.join(FE, 'js/ml-engine.js'), 'utf8');
-  assert(!/isFraud/i.test(src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '')), 'isFraud referenced in code');
-});
-
-/* ---------- A3: XSS (logic level) ---------- */
-check('A3', 'escapeHtml neutralises markup', () => {
-  const out = run(base, `escapeHtml('<img src=x onerror="alert(1)">&\\'')`);
-  assert(out === '&lt;img src=x onerror=&quot;alert(1)&quot;&gt;&amp;&#39;', out);
-});
-check('A3', 'Chatbot output escapes malicious CSV values in every branch', () => {
-  const mal = scan(fs.readFileSync(MALICIOUS, 'utf8'), 'malicious.csv');
-  const qs = ['show summary', 'high risk transactions', 'top anomalies', 'suspicious', 'why is ROW-1 flagged?',
-              'what action should I take?', 'benford', 'velocity', 'safe', 'why is <img src=x onerror=alert(1)> flagged'];
-  const bad = [];
-  qs.forEach(q => {
-    const out = run(mal, `processQuery(${JSON.stringify(q)})`);
-    // Escaped text such as '&lt;img … onerror=…' is harmless; only raw tags from the file are a failure.
-    if(/<(img|script|svg|b)[\s>]/i.test(out)) bad.push(q);
+  /* ---------- A1 ---------- */
+  const FORBIDDEN = ['2,45,00,000', '₹2.45 Cr', '93.7%', '3.4x', 'zero-knowledge', '68% chance', 'Stationery L.T.D',
+    'MG Road', 'PMLA', 'Cluster #4', 'Risk = 87%', '87% (SEVERE', 'Math.random', 'fonts.googleapis', 'fonts.gstatic',
+    '+128%', '2.28&times;', 'FY 2024', 'runMockBSR', 'court-ready', '100% Offline', 'SHAP-style', 'calibrated v2',
+    'Logistic regression weights', 'Insolvency Break', 'Co-Founder'];
+  await check('A1', 'No fabricated literals, mock functions or external font references in frontend/', () => {
+    const hits = [];
+    feText.forEach(({ f, t }) => FORBIDDEN.forEach(w => { if(t.includes(w)) hits.push(`${f}: "${w}"`); }));
+    assert(hits.length === 0, hits.join('; '));
+    return `${FORBIDDEN.length} patterns × ${feText.length} files`;
   });
-  assert(bad.length === 0, 'unescaped markup in: ' + bad.join(' | '));
-  return qs.length + ' queries';
-});
-check('A3', 'innerHTML is only used for static markup or escaped chatbot text', () => {
-  const offenders = [];
-  feText.filter(x => x.f.endsWith('.js')).forEach(({ f, t }) => {
-    t.split('\n').forEach((line, i) => {
-      if(/\.innerHTML\s*=/.test(line) || /insertAdjacentHTML|outerHTML\s*=|document\.write/.test(line)){
-        const allowed = f.endsWith('chatbot-ui.js') && (/msg-label">Assistant<\/div>' \+ html/.test(line) || /<span><\/span><span><\/span><span><\/span>/.test(line));
-        if(!allowed) offenders.push(`${f}:${i + 1}`);
-      }
+  await check('A1', 'No external http(s) URLs (except the SVG XML namespace)', () => {
+    const hits = [];
+    feText.forEach(({ f, t }) => (t.match(/https?:\/\/[^\s"'`)<>]+/g) || []).forEach(u => { if(!u.startsWith('http://www.w3.org/2000/svg')) hits.push(`${f}: ${u}`); }));
+    assert(hits.length === 0, hits.join('; '));
+  });
+  await check('A1', 'No alert() dialogs used as fake actions', () => {
+    const hits = feText.filter(({ f, t }) => f.endsWith('.js') && /\balert\(/.test(strip(t))).map(x => x.f);
+    assert(hits.length === 0, hits.join(', '));
+  });
+
+  /* ---------- A2: no labels, no scoring engine ---------- */
+  await check('A2', 'Frontend code never references label columns (isFraud …)', () => {
+    const hits = feText.filter(({ f, t }) => f.endsWith('.js') && /isfraud|isflaggedfraud|labelColumns/i.test(strip(t))).map(x => x.f);
+    assert(hits.length === 0, hits.join(', '));
+  });
+  await check('A2', 'No client-side scoring engine, weights, thresholds or score comparisons', () => {
+    assert(!fs.existsSync(path.join(FE, 'js', 'ml-engine.js')), 'ml-engine.js still present');
+    const bad = [];
+    feText.filter(x => x.f.endsWith('.js')).forEach(({ f, t }) => {
+      const s = strip(t);
+      [/sigmoid/, /HEURISTIC_/, /riskScore/, /predictTransaction|engineerFeatures/, /\bthresholds\s*:/, /score\w*\s*(>=|<=|>|<)\s*\d/i, /Math\.exp\(/]
+        .forEach(re => { if(re.test(s)) bad.push(f + ' ' + re); });
     });
+    assert(bad.length === 0, bad.join('; '));
+    return 'risk values come only from API responses';
   });
-  assert(offenders.length === 0, offenders.join(', '));
-});
 
-/* ---------- A5 / A8: computed values ---------- */
-check('A5', 'Tier counts are internally consistent', () => {
-  assert(S.high + S.susp + S.safe === S.total && S.total === 10127, JSON.stringify(S));
-  const rows = run(base, 'tableData');
-  const c = { high: 0, suspicious: 0, safe: 0 };
-  rows.forEach(d => c[d.r]++);
-  assert(c.high === S.high && c.suspicious === S.susp && c.safe === S.safe, 'table tiers ≠ summary');
-  return `high ${S.high}, suspicious ${S.susp}, below ${S.safe}`;
-});
-check('A5', 'Every score equals its clamped breakdown (exact explanation)', () => {
-  const R = run(base, 'window._mlResults');
-  let bad = 0;
-  R.forEach(d => {
-    const sum = d.mlResult.components.reduce((s, c) => s + c.pts, 0);
-    if(Math.min(100, Math.max(0, Math.round(sum))) !== d.mlResult.riskScore) bad++;
+  /* ---------- A3: escaping ---------- */
+  await check('A3', 'escapeHtml neutralises markup', () => {
+    const ctx = makeSandbox(null);
+    const out = run(ctx, `escapeHtml('<img src=x onerror="alert(1)">&\\'')`);
+    assert(out === '&lt;img src=x onerror=&quot;alert(1)&quot;&gt;&amp;&#39;', out);
   });
-  assert(bad === 0, bad + ' rows mismatch');
-  return R.length + ' rows';
-});
-check('A5', 'Benford chart data is computed from the file', () => {
-  const b = run(base, 'window._mlBenford');
-  assert(b.n > 0 && b.counts.reduce((s, c) => s + c, 0) === b.n, 'counts');
-  assert(Math.abs(b.observedPct.reduce((s, p) => s + p, 0) - 100) < 1e-6, 'pct sum');
-  return `n=${b.n}, digit 1 observed ${b.observedPct[0].toFixed(1)}%`;
-});
-check('A5', 'Thresholds shared by engine and chatbot (single source)', () => {
-  const T = run(base, 'LS_CONFIG.thresholds');
-  const txt = run(base, `processQuery('explain risk score')`);
-  assert(txt.includes('≥' + T.high) && txt.includes(T.suspicious + '–' + (T.high - 1)), 'chatbot text does not reflect LS_CONFIG');
-  const eng = fs.readFileSync(path.join(FE, 'js/ml-engine.js'), 'utf8');
-  const bot = fs.readFileSync(path.join(FE, 'js/chatbot-ui.js'), 'utf8');
-  assert(!/>=\s*(70|50|40)\b/.test(eng + bot) && !/≥\s*(70|50|40)\b/.test(bot), 'hard-coded threshold literal found');
-  return `high ≥ ${T.high}, suspicious ≥ ${T.suspicious}`;
-});
-check('A8', 'Flag rate is reported and calibration warning raised when above budget', () => {
-  const budget = run(base, 'LS_CONFIG.reviewBudgetPct');
-  assert(typeof S.flaggedPct === 'number', 'no flaggedPct');
-  assert(S.calibrationWarning === (S.flaggedPct > budget), 'warning flag inconsistent');
-  const memoSrc = fs.readFileSync(path.join(FE, 'js/ml-engine.js'), 'utf8');
-  assert(memoSrc.includes('NOT calibrated'), 'banner text missing');
-  return `flag rate ${S.flaggedPct.toFixed(1)}% vs budget ${budget}% → warning ${S.calibrationWarning}`;
-});
-
-/* ---------- A6: IDs ---------- */
-check('A6', 'No TX-??? IDs; IDs are unique ROW-n when the file has no ID column', () => {
-  const ids = run(base, 'tableData').map(d => d.id);
-  assert(!ids.some(i => i.includes('???')), 'TX-??? present');
-  assert(new Set(ids).size === ids.length, 'duplicate IDs');
-  assert(ids.every(i => /^ROW-\d+$/.test(i)), 'unexpected ID format');
-  return `${ids.length} unique IDs`;
-});
-check('A6', 'ROW-n maps to data row n of the original file', () => {
-  const rows = run(base, 'tableData');
-  const raw = run(base, '_csvRawRows');
-  const r123 = rows.find(d => d.id === 'ROW-123');
-  assert(r123 && r123._raw === raw[122], 'ROW-123 does not point at data row 123');
-  return 'ROW-123 → index column value ' + raw[122][0];
-});
-check('A6', 'IDs are stable across repeated scans (deterministic)', () => {
-  const a = riskById(base), b = riskById(scan(paysim, 'again.csv'));
-  let diff = 0; a.forEach((v, k) => { if(b.get(k) !== v) diff++; });
-  assert(diff === 0, diff + ' differ');
-});
-check('A6', 'Chatbot "why is ROW-123 flagged?" resolves exactly ROW-123', () => {
-  const out = run(base, `processQuery('why is ROW-123 flagged?')`);
-  assert(out.includes('<strong>ROW-123</strong>'), out.slice(0, 120));
-  const out2 = run(base, `processQuery('why is row 12 flagged?')`);
-  assert(out2.includes('<strong>ROW-12</strong>'), 'row 12 not resolved exactly');
-  const out3 = run(base, `processQuery('why is ROW-999999 flagged?')`);
-  assert(/not found/i.test(out3), 'unknown ID should say not found');
-});
-check('A6', 'Uses the file\'s own ID column when present', () => {
-  const mal = scan(fs.readFileSync(MALICIOUS, 'utf8'), 'malicious.csv');
-  const ids = run(mal, 'tableData').map(d => d.id);
-  assert(ids.includes('INV-0001'), ids.join(','));
-});
-
-/* ---------- A7: regression (logic level) ---------- */
-check('A7', 'CSV export round-trips the original rows and neutralises formulas', () => {
-  const mal = scan(fs.readFileSync(MALICIOUS, 'utf8'), 'malicious.csv');
-  const csv = run(mal, 'ltBuildCsv()');
-  assert(csv.split('\n').length === 1 + run(mal, '_csvRawRows').length, 'row count');
-  assert(csv.includes("'=HYPERLINK") && !/(^|,)=HYPERLINK/m.test(csv), 'formula not neutralised');
-  const pcsv = run(base, 'ltBuildCsv()');
-  assert(pcsv.split('\n').length === 10128, 'paysim export rows');
-  return 'export rows = header + data rows';
-});
-check('A7', 'Chatbot answers every suggestion chip', () => {
-  ['Show summary', 'High risk transactions', 'Explain risk score', 'Top anomalies'].forEach(q => {
-    const out = run(base, `processQuery(${JSON.stringify(q)})`);
-    assert(out && !/No data loaded/.test(out), q);
+  await check('A3', 'Chatbot answers built from hostile API values contain no live markup, in every branch', async () => {
+    const log = [];
+    const ctx = makeSandbox(source(log));
+    const qs = ['show summary', 'explain risk score', 'why is LVC-JV-000812 flagged?', 'why is ' + BAD + ' flagged',
+                'high risk transactions', 'benford', 'unavailable detectors', 'hello'];
+    const bad = [];
+    for(const q of qs){
+      const out = await run(ctx, `processQuery(${JSON.stringify(q)})`);
+      if(/<(img|script|svg)[\s>]/i.test(out)) bad.push(q);
+    }
+    assert(bad.length === 0, 'unescaped markup in: ' + bad.join(' | '));
+    return qs.length + ' queries';
   });
-});
-check('A7', 'Parser handles quoted commas, escaped quotes and BOM', () => {
-  const ctx = makeSandbox();
-  run(ctx, `parseCsvText('\\uFEFFid,vendor,amount\\n1,"Acme, Inc ""East""",100\\n', 'q.csv')`);
-  const h = run(ctx, '_csvRawHeaders'), r = run(ctx, '_csvRawRows');
-  assert(h[0] === 'id' && r[0][1] === 'Acme, Inc "East"' && r[0][2] === '100', JSON.stringify(r));
-});
+  await check('A3', 'innerHTML is only used for static markup or escaped chatbot text', () => {
+    const offenders = [];
+    feText.filter(x => x.f.endsWith('.js')).forEach(({ f, t }) => {
+      t.split('\n').forEach((line, i) => {
+        if(/\.innerHTML\s*=/.test(line) || /insertAdjacentHTML|outerHTML\s*=|document\.write/.test(line)){
+          const allowed = f.endsWith('chatbot-ui.js') && (/msg-label">Assistant<\/div>' \+ html/.test(line) || /<span><\/span><span><\/span><span><\/span>/.test(line));
+          if(!allowed) offenders.push(`${f}:${i + 1}`);
+        }
+      });
+    });
+    assert(offenders.length === 0, offenders.join(', '));
+  });
 
-check('A5', 'Readiness score is computed over all rows and never shows 100% when issues exist', () => {
-  const r = run(base, 'runDataIntegrityCheck(autoMapIdx())');
-  assert(r.total === 10127, 'not all rows checked');
-  assert(r.issues > 0 ? r.score < 100 : r.score === 100, JSON.stringify(r));
-  return `score ${r.score}% with ${r.issues} issues`;
-});
+  /* ---------- A5: values pass through exactly ---------- */
+  await check('A5', 'Amounts are the backend decimal text, grouped, never re-rounded', () => {
+    const ctx = makeSandbox(null);
+    const cases = [['1234567.89', 'INR', '₹1,234,567.89'], ['-1000.05', 'INR', '₹-1,000.05'], ['999', 'JPY', '999 JPY'],
+                   ['12345678901234567.01', 'INR', '₹12,345,678,901,234,567.01'], [null, 'INR', '—']];
+    cases.forEach(([v, c, want]) => {
+      const got = run(ctx, `lsAmount(${JSON.stringify(v)}, ${JSON.stringify(c)})`);
+      assert(got === want, `${v} → ${got} (want ${want})`);
+    });
+    assert(run(ctx, 'lsScore(79.3)') === '79.30' && run(ctx, 'lsScore(null)') === '—', 'score display');
+    assert(run(ctx, 'lsInt(12345)') === '12,345' && run(ctx, 'lsShare(0.0076, 2)') === '0.76%', 'int/share display');
+  });
+  await check('A5', 'Chatbot summary quotes the API numbers unchanged', async () => {
+    const ctx = makeSandbox(source([]));
+    const out = await run(ctx, `processQuery('show summary')`);
+    ['12,345', '12,000', '345', '<code>3</code>', '<code>41</code>', '<code>210</code>', '11,746', '₹1,234,567.89', '17']
+      .forEach(v => assert(out.includes(v), 'missing ' + v));
+  });
 
-console.log(`\n${passed} passed, ${failed} failed`);
-fs.mkdirSync(path.join(__dirname, 'out'), { recursive: true });
-fs.writeFileSync(path.join(__dirname, 'out', 'harness-results.json'), JSON.stringify({ passed, failed, summary: S && {
-  total: S.total, high: S.high, susp: S.susp, safe: S.safe, avgRisk: S.avgRisk, flaggedPct: S.flaggedPct, calibrationWarning: S.calibrationWarning }, results }, null, 2));
-process.exit(failed ? 1 : 0);
+  /* ---------- A6: exact ID lookup ---------- */
+  await check('A6', 'A transaction ID in a question is looked up exactly; unknown IDs say "not found"', async () => {
+    const log = [];
+    const ctx = makeSandbox(source(log));
+    const ok = await run(ctx, `processQuery('why is LVC-JV-000812 flagged?')`);
+    assert(log.some(([k, v]) => k === 'detail' && v === 'LVC-JV-000812'), 'detail not requested for the exact ID');
+    assert(ok.includes('LVC-JV-000812') && ok.includes('34.89'), ok.slice(0, 120));
+    const missing = await run(ctx, `processQuery('why is LVC-JV-999999 flagged?')`);
+    assert(/not found/i.test(missing), missing);
+  });
+  await check('A6', 'Review-queue answer asks the API for its ranking (no client-side sorting by score)', async () => {
+    const log = [];
+    const ctx = makeSandbox(source(log));
+    await run(ctx, `processQuery('high risk transactions')`);
+    const call = log.find(([k]) => k === 'transactions');
+    assert(call && call[1].sort === 'priority', JSON.stringify(log));
+  });
+
+  /* ---------- A8: no backend → nothing computed ---------- */
+  await check('A8', 'Without the session token the API client is unavailable and the assistant says so', async () => {
+    const ctx = makeSandbox(null);
+    assert(run(ctx, 'LS_API.available') === false, 'LS_API.available should be false without the token meta');
+    const out = await run(ctx, `processQuery('show summary')`);
+    assert(/No analysis loaded/.test(out) && /ledgerspy serve/.test(out), out);
+    assert(run(ctx, `LS_API.qs({ q: 'a&b', page: 2, tier: '', x: null })`) === '?q=a%26b&page=2', 'query encoding');
+  });
+
+  console.log(`\n${passed} passed, ${failed} failed`);
+  fs.mkdirSync(path.join(__dirname, 'out'), { recursive: true });
+  fs.writeFileSync(path.join(__dirname, 'out', 'harness-results.json'), JSON.stringify({ passed, failed, results }, null, 2));
+  process.exit(failed ? 1 : 0);
+})();

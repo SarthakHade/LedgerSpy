@@ -1,31 +1,39 @@
 """
-LedgerSpy P1 browser check (optional dev tool).
+LedgerSpy browser check (P1 criteria, rewritten for the P9 API-driven UI). Optional dev tool.
 
-Drives the real page in headless Chromium and verifies the browser-level
-P1 acceptance criteria:
-  A3  malicious CSV content renders as text (no dialogs, no injected elements)
-  A4  zero non-local requests; page renders with all network blocked
-  A5  displayed numbers match computed results; unavailable modules say so
-  A6  table shows ROW-n IDs (no TX-???)
-  A7  upload → scan → filter → search → expand → add row → re-scan → export → chatbot
-  A8  heuristic banner shows the flag rate
+Starts `ledgerspy serve` on a temporary workspace, imports the PaySim sample and the synthetic ledger through the
+API, then drives the real page in headless Chromium:
+  A3  a hostile CSV imported through the UI renders as text (no dialogs, no injected elements)
+  A4  only loopback requests; no CSP violations
+  A5  displayed numbers equal the API (hero tiers, donut, table rows, explanation contributions)
+  A5  unavailable modules and unsupported detectors are labelled, not simulated
+  A6  transaction IDs are the backend IDs; detail = the API explanation for that ID
+  A7  tier filter, search, pagination, row detail, chatbot and every tab work
+  A8  opened as a plain file the page computes nothing and names the requirement
+  A9  no JavaScript errors and no dialogs during the run
 
-Requires: pip install playwright  (Chromium must be available; no download at runtime)
+Requires: playwright + Chromium (no download at runtime).
 Usage (from repo root):  python tests/frontend/browser_check.py [--screenshots DIR]
 """
+
 from __future__ import annotations
 
 import json
+import re
+import socket
+import subprocess
 import sys
+import tempfile
+import time
+import urllib.request
 from pathlib import Path
 
 from playwright.sync_api import sync_playwright
 
 ROOT = Path(__file__).resolve().parents[2]
-PAGE = (ROOT / "frontend" / "index.html").as_uri()
 PAYSIM = ROOT / "data" / "raw" / "paysim_sample_10k.csv"
+SYNTHETIC = ROOT / "data" / "synthetic" / "reference" / "SYNTHETIC_ledger.csv"
 MALICIOUS = ROOT / "tests" / "frontend" / "fixtures" / "malicious.csv"
-
 results: list[dict] = []
 
 
@@ -34,11 +42,51 @@ def check(cid: str, name: str, cond: bool, detail: str = "") -> None:
     print(f"  {'PASS' if cond else 'FAIL'}  [{cid}] {name}{' — ' + detail if detail else ''}")
 
 
-def scan(page, csv_path: Path) -> None:
-    page.set_input_files("#file-input", str(csv_path))
-    page.wait_for_function("() => /rows detected/.test(document.getElementById('main-status-text').textContent)")
+def free_port() -> int:
+    with socket.socket() as s:
+        s.bind(("127.0.0.1", 0))
+        return s.getsockname()[1]
+
+
+def api(base: str, token: str, method: str, path: str, body=None, raw: bool = False):
+    headers = {"Authorization": f"Bearer {token}"}
+    data = None
+    if body is not None:
+        data = body if raw else json.dumps(body).encode()
+        headers["Content-Type"] = "application/octet-stream" if raw else "application/json"
+    req = urllib.request.Request(base + path, data=data, method=method, headers=headers)  # noqa: S310 — loopback
+    with urllib.request.urlopen(req, timeout=120) as r:  # noqa: S310
+        return json.loads(r.read())
+
+
+def imported(base: str, token: str, path: Path, name: str) -> str:
+    case = api(base, token, "POST", "/api/cases", {"name": name})
+    ds = api(
+        base,
+        token,
+        "POST",
+        f"/api/cases/{case['case_id']}/files?filename={path.name}",
+        path.read_bytes(),
+        raw=True,
+    )
+    api(
+        base,
+        token,
+        "PUT",
+        f"/api/datasets/{ds['dataset_id']}/mapping",
+        ds["mapping_suggestion"]["proposed_mapping"],
+    )
+    api(base, token, "POST", f"/api/datasets/{ds['dataset_id']}/integrity")
+    return ds["dataset_id"]
+
+
+def analyse(page, dataset_id: str) -> None:
+    page.select_option("#dataset-select", dataset_id)
     page.click("#run-btn")
-    page.wait_for_function("() => /Scan Complete/.test(document.getElementById('run-btn').textContent)", timeout=60000)
+    page.wait_for_function(
+        "() => /Analysis finished/.test(document.getElementById('main-status-text').textContent)",
+        timeout=120000,
+    )
 
 
 def main() -> int:
@@ -46,193 +94,302 @@ def main() -> int:
     if "--screenshots" in sys.argv:
         shots = Path(sys.argv[sys.argv.index("--screenshots") + 1])
         shots.mkdir(parents=True, exist_ok=True)
+    port = free_port()
+    ws = Path(tempfile.mkdtemp()) / "ws"
+    proc = subprocess.Popen(
+        [
+            sys.executable,
+            "-u",
+            "-m",
+            "ledgerspy",
+            "serve",
+            "--no-browser",
+            "--port",
+            str(port),
+            "--workspace",
+            str(ws),
+        ],
+        cwd=ROOT,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+    )
+    errors: list[str] = []
+    dialogs: list[str] = []
+    try:
+        url = token = None
+        while url is None:
+            m = re.search(r"Open: (http://127\.0\.0\.1:\d+/\?token=(\S+))", proc.stdout.readline())
+            if m:
+                url, token = m.group(1), m.group(2)
+        base = f"http://127.0.0.1:{port}"
+        for _ in range(50):
+            try:
+                urllib.request.urlopen(base + "/api/health", timeout=2)  # noqa: S310
+                break
+            except OSError:
+                time.sleep(0.1)
+        pay_id = imported(base, token, PAYSIM, "PaySim sample")
+        syn_id = imported(base, token, SYNTHETIC, "Synthetic company")
 
-    with sync_playwright() as p:
-        browser = p.chromium.launch()
+        with sync_playwright() as p:
+            browser = p.chromium.launch()
 
-        # ---------------- A4: network ----------------
-        ctx = browser.new_context(viewport={"width": 1440, "height": 900}, accept_downloads=True)
-        page = ctx.new_page()
-        requests: list[str] = []
-        page.on("request", lambda r: requests.append(r.url))
-        dialogs: list[str] = []
-        page.on("dialog", lambda d: (dialogs.append(d.message), d.dismiss()))
-        errors: list[str] = []
-        page.on("pageerror", lambda e: errors.append(str(e)))
+            # ---------------- A8: plain file, no backend ----------------
+            plain = browser.new_page()
+            plain.on("pageerror", lambda e: errors.append("file: " + str(e)))
+            plain.goto((ROOT / "frontend" / "index.html").as_uri())
+            plain.wait_for_timeout(300)
+            st = plain.text_content("#main-status-text")
+            hero = [plain.text_content(f"#hero-n-{t}") for t in ("critical", "high", "medium", "low")]
+            check(
+                "A8",
+                "Opened as a file the page computes nothing and names `ledgerspy serve`",
+                "ledgerspy serve" in st
+                and hero == ["—"] * 4
+                and plain.text_content("#tx-body").strip() == "",
+                st[:80],
+            )
+            plain.close()
 
-        page.goto(PAGE)
-        page.wait_for_load_state("load")
-        external = [u for u in requests if not (u.startswith("file://") or u.startswith("data:") or u.startswith("blob:"))]
-        check("A4", "Page load makes zero non-local requests", not external, f"{len(requests)} requests, external: {external}")
+            # ---------------- served page ----------------
+            ctx = browser.new_context(viewport={"width": 1440, "height": 900}, accept_downloads=True)
+            page = ctx.new_page()
+            requests: list[str] = []
+            page.on("request", lambda r: requests.append(r.url))
+            page.on("dialog", lambda d: (dialogs.append(d.message), d.dismiss()))
+            page.on("pageerror", lambda e: errors.append(str(e)))
+            page.add_init_script(
+                "window.__csp=[];document.addEventListener('securitypolicyviolation',"
+                "e=>window.__csp.push(e.violatedDirective));"
+            )
+            page.goto(url)
+            page.wait_for_function("() => document.getElementById('dataset-select').options.length >= 2")
 
-        # ---------------- A3: malicious CSV ----------------
-        scan(page, MALICIOUS)
-        for tab in ["tab-ov", "tab-di", "tab-bsr", "tab-tr", "tab-an", "tab-re", "tab-ex"]:
-            page.click(f"button.tab-btn[onclick*=\"{tab}\"]")
-            page.wait_for_timeout(150)
-        page.click("#tx-body tr.main-row")  # expand first row
-        page.click("#ai-mascot")
-        for q in ["High risk transactions", "Top anomalies", "why is INV-0001 flagged?", "suspicious", "show summary"]:
-            page.fill("#chat-input", q)
+            # ---------------- A3: hostile CSV through the UI import ----------------
+            page.set_input_files("#file-input", str(MALICIOUS))
+            page.wait_for_selector("#mapping-card button.btn-primary")
+            page.select_option("#mapping-body select", "debit")
+            page.click("#mapping-card button.btn-primary")
+            page.wait_for_function(
+                "() => /Analysis finished/.test(document.getElementById('main-status-text').textContent)",
+                timeout=120000,
+            )
+            for tab in ["tab-ov", "tab-di", "tab-fi", "tab-bsr", "tab-tr", "tab-an", "tab-re", "tab-ex"]:
+                page.click(f'button.tab-btn[onclick*="{tab}"]')
+                page.wait_for_timeout(100)
+            page.click("#tx-body tr.main-row >> nth=0")
+            page.wait_for_function(
+                "() => !/Loading explanation/.test(document.querySelector('#tx-body tr.detail-row').textContent)"
+            )
+            page.click("#ai-mascot")
+            for q in [
+                "High risk transactions",
+                "show summary",
+                "why is INV-0001 flagged?",
+                "unavailable detectors",
+            ]:
+                page.fill("#chat-input", q)
+                page.press("#chat-input", "Enter")
+                page.wait_for_timeout(500)
+            page.click("#ai-mascot")
+            injected = page.evaluate("""() => ({
+                img: document.querySelectorAll('img[src="x"]').length,
+                script: [...document.scripts].filter(s => /alert\\(/.test(s.textContent)).length,
+                svg: document.querySelectorAll('svg[onload]').length,
+                bold: [...document.querySelectorAll('b')].filter(b => b.textContent === 'bold sender').length,
+                textShown: document.getElementById('tx-body').innerText.includes("<img src=x onerror=alert('vendor')>"),
+            })""")
+            check("A3", "No dialogs fired from hostile CSV content", not dialogs, f"dialogs: {dialogs}")
+            check(
+                "A3",
+                "No elements injected from CSV values",
+                injected["img"] == 0
+                and injected["script"] == 0
+                and injected["svg"] == 0
+                and injected["bold"] == 0,
+                json.dumps(injected),
+            )
+            check("A3", "Hostile values are displayed as literal text", injected["textShown"])
+
+            # ---------------- A5: PaySim, DOM = API ----------------
+            analyse(page, pay_id)
+            s = page.evaluate(f"() => LS_API.get('/api/datasets/{pay_id}/risk')")
+            first = page.evaluate(
+                f"() => LS_API.get('/api/datasets/{pay_id}/risk/transactions?size=50&sort=priority')"
+            )
+            hero = {t: page.text_content(f"#hero-n-{t}") for t in ("critical", "high", "medium", "low")}
+            check(
+                "A5",
+                "Hero tier counts equal the API summary",
+                hero == {t: f"{s['counts']['tiers'][t]:,}" for t in hero},
+                json.dumps(hero),
+            )
+            donut = page.evaluate(
+                """() => ['critical','high','medium','low','insufficient'].map(id => +document.getElementById('donut-' + id).getAttribute('data-count'))"""
+            )
+            check(
+                "A5",
+                "Donut segments equal the API tier counts",
+                donut
+                == [s["counts"]["tiers"][t] for t in ("critical", "high", "medium", "low")]
+                + [s["counts"]["insufficient_data"]],
+                json.dumps(donut),
+            )
+            ids = page.evaluate(
+                "() => [...document.querySelectorAll('#tx-body .tx-id')].map(n => n.textContent)"
+            )
+            check(
+                "A6",
+                "Table rows are the API's first page in review order (backend IDs)",
+                ids == [r["txn_id"] for r in first["items"]],
+                f"{len(ids)} rows, first {ids[:2]}",
+            )
+            page.click("#tx-body tr.main-row >> nth=0")
+            page.wait_for_function(
+                "() => !/Loading explanation/.test(document.querySelector('#tx-body tr.detail-row').textContent)"
+            )
+            detail = page.evaluate(
+                f"() => LS_API.get('/api/datasets/{pay_id}/risk/transactions/' + encodeURIComponent({json.dumps(ids[0])}))"
+            )
+            shown = page.text_content("#tx-body tr.detail-row")
+            contribs_ok = all(
+                f"+{c['contribution']:.2f} pts" in shown for c in detail["explanation"]["contributors"]
+            )
+            check(
+                "A5",
+                "Row detail shows the API explanation and its exact contributions",
+                detail["explanation"]["headline"] in shown
+                and contribs_ok
+                and detail["explanation"]["limitations"][0] in shown,
+                detail["explanation"]["headline"][:90],
+            )
+            na = page.evaluate("""() => ({
+                recon: !!document.querySelector('#tab-bsr .na-card'),
+                montecarlo: [...document.querySelectorAll('#tab-tr .na-card')].some(n => /going-concern/.test(n.textContent)),
+                benchmark: [...document.querySelectorAll('#tab-ov .na-card')].some(n => /benchmark/i.test(n.textContent)),
+                graph: [...document.querySelectorAll('#tab-re .na-card')].some(n => /Entity graph not available/.test(n.textContent)),
+                monthly: /Not available/.test(document.getElementById('trends-monthly-bars').textContent),
+                unavailable: [...document.querySelectorAll('#fi-detectors tbody tr')].filter(tr => /NOT AVAILABLE|NOT APPLICABLE/.test(tr.textContent)).length,
+            })""")
+            check(
+                "A5",
+                "Unavailable modules and unsupported PaySim detectors are labelled",
+                na["recon"]
+                and na["montecarlo"]
+                and na["benchmark"]
+                and na["graph"]
+                and na["monthly"]
+                and na["unavailable"] == s["counts"]["detectors_unavailable"],
+                json.dumps(na),
+            )
+
+            # ---------------- A7: synthetic ledger interactions ----------------
+            analyse(page, syn_id)
+            s = page.evaluate(f"() => LS_API.get('/api/datasets/{syn_id}/risk')")
+            page.click("#risk-filters .t-filter[data-tier='high']")
+            page.wait_for_function(
+                "() => [...document.querySelectorAll('#tx-body tr.main-row')].every(r => r.dataset.tier === 'high')"
+            )
+            tiers = page.evaluate(
+                "() => [...document.querySelectorAll('#tx-body tr.main-row')].map(r => r.dataset.tier)"
+            )
+            filt_ok = len(tiers) == min(50, s["counts"]["tiers"]["high"]) and set(tiers) == {"high"}
+            page.click("#risk-filters .t-filter[data-tier='']")
+            api_total = page.evaluate(
+                f"() => LS_API.get('/api/datasets/{syn_id}/risk/transactions?q=LVC-JV-0008').then(r => r.total)"
+            )
+            page.fill("#search-in", "LVC-JV-0008")
+            page.wait_for_function(
+                "n => document.getElementById('search-count-pill').textContent.startsWith(n)", arg=f"{api_total:,} match"
+            )
+            pill = page.text_content("#search-count-pill")
+            page.fill("#search-in", "")
+            page.wait_for_function(
+                "() => document.getElementById('search-count-pill').style.display === 'none'"
+            )
+            page.click("#tx-pager button:has-text('Next')")
+            page.wait_for_function(
+                "() => /Page 2 of/.test(document.getElementById('tx-page-label').textContent)"
+            )
+            page.click("#ai-mascot")
+            answers = []
+            for chip in page.query_selector_all(".chat-sug"):
+                chip.click()
+                page.wait_for_timeout(700)
+                answers.append(
+                    page.evaluate(
+                        "() => document.querySelector('#chat-messages .chat-msg.bot:last-child').innerText.slice(0, 50)"
+                    )
+                )
+            top = s["top_findings"][0]["txn_id"]
+            page.fill("#chat-input", f"why is {top} flagged?")
             page.press("#chat-input", "Enter")
-            page.wait_for_timeout(600)
-        page.click("#ai-mascot")
-        injected = page.evaluate("""() => ({
-            img: document.querySelectorAll('img[src="x"]').length,
-            script: [...document.scripts].filter(s => /alert\\(/.test(s.textContent)).length,
-            svg: document.querySelectorAll('svg[onload]').length,
-            bold: [...document.querySelectorAll('b')].filter(b => b.textContent === 'bold sender').length,
-            textShown: document.body.innerText.includes("<img src=x onerror=alert('vendor')>"),
-        })""")
-        check("A3", "No dialogs fired from malicious CSV content", not dialogs, f"dialogs: {dialogs}")
-        check("A3", "No elements injected from CSV values",
-              injected["img"] == 0 and injected["script"] == 0 and injected["svg"] == 0 and injected["bold"] == 0, json.dumps(injected))
-        check("A3", "Malicious values are displayed as literal text", injected["textShown"])
-        ctx.close()
+            page.wait_for_timeout(900)
+            why = page.evaluate(
+                "() => document.querySelector('#chat-messages .chat-msg.bot:last-child').innerText"
+            )
+            page.click("#ai-mascot")
+            heights = {}
+            for tab in ["tab-ov", "tab-di", "tab-fi", "tab-bsr", "tab-tr", "tab-an", "tab-re", "tab-ex"]:
+                page.click(f'button.tab-btn[onclick*="{tab}"]')
+                page.wait_for_timeout(120)
+                heights[tab] = page.evaluate(
+                    f"() => document.getElementById('{tab}').getBoundingClientRect().height"
+                )
+                if shots:
+                    page.locator("#analysis").screenshot(path=str(shots / f"03-{tab}.png"))
+            flow = {
+                "filter_high": filt_ok,
+                "search": [pill, api_total],
+                "chips": len(answers),
+                "why_top": top in why,
+            }
+            check(
+                "A7",
+                "Tier filter, search, pagination, chatbot and every tab work on API data",
+                filt_ok
+                and pill.startswith(f"{api_total:,} match")
+                and len(answers) == 4
+                and top in why
+                and all(h > 100 for h in heights.values()),
+                json.dumps(flow | {"heights": heights}),
+            )
+            if shots:
+                page.click('button.tab-btn[onclick*="tab-ov"]')
+                page.screenshot(path=str(shots / "02-hero.png"))
+                page.locator("#insights").screenshot(path=str(shots / "04-insights.png"))
 
-        # ---------------- A4b: offline rendering ----------------
-        ctx = browser.new_context(viewport={"width": 1440, "height": 900}, offline=True)
-        page = ctx.new_page()
-        page.route("**/*", lambda route: route.continue_() if route.request.url.startswith("file://") else route.abort())
-        page.goto(PAGE)
-        ok = page.evaluate("() => !!document.getElementById('upload-zone') && getComputedStyle(document.body).backgroundColor !== ''")
-        css_loaded = page.evaluate("() => getComputedStyle(document.documentElement).getPropertyValue('--amber').trim() === '#f59e0b'")
-        check("A4", "Page renders with network blocked (CSS + scripts are local)", ok and css_loaded)
-        ctx.close()
+            csp = page.evaluate("window.__csp")
+            external = [u for u in requests if not u.startswith(base)]
+            check(
+                "A4",
+                "Only loopback requests and no CSP violations",
+                not external and not csp,
+                f"{len(requests)} requests, external {external[:2]}, csp {csp}",
+            )
+            ctx.close()
+            browser.close()
+    finally:
+        proc.terminate()
+        try:
+            proc.wait(timeout=10)
+        except subprocess.TimeoutExpired:
+            proc.kill()
 
-        # ---------------- A5 / A6 / A7 / A8 on the PaySim sample ----------------
-        ctx = browser.new_context(viewport={"width": 1440, "height": 900}, accept_downloads=True)
-        page = ctx.new_page()
-        page.on("dialog", lambda d: (dialogs.append(d.message), d.dismiss()))
-        page.on("pageerror", lambda e: errors.append(str(e)))
-        page.goto(PAGE)
-        if shots:
-            page.screenshot(path=str(shots / "01-before-scan.png"), full_page=False)
-        scan(page, PAYSIM)
-        s = page.evaluate("() => window._mlSummary")
-
-        # Donut
-        donut = page.evaluate("""() => ['donut-high','donut-susp','donut-safe'].map(id => {
-            const c = document.getElementById(id);
-            return { n: +c.getAttribute('data-count'), len: parseFloat(c.getAttribute('stroke-dasharray')) };
-        })""")
-        C = 2 * 3.141592653589793 * 80
-        donut_ok = [d["n"] for d in donut] == [s["high"], s["susp"], s["safe"]] and all(
-            abs(d["len"] - C * d["n"] / s["total"]) < 0.01 for d in donut)
-        check("A5", "Donut segments equal tier counts", donut_ok, json.dumps(donut))
-
-        texts = page.evaluate("""() => Object.fromEntries(['hero-n-high','hero-n-susp','hero-n-safe','fg-n','qs-avg-high','qs-high-amt',
-            'qs-flag-rate','qs-payees','exp-val','tier-high-txt','rel-stat-payees','rel-stat-recip','insights-total-fraud','insights-vendors']
-            .map(id => [id, document.getElementById(id).textContent.trim()]))""")
-        check("A5", "Hero / overview / insights values are computed (no placeholders)",
-              texts["hero-n-high"] == f"{s['high']:,}" and texts["fg-n"] == str(s["avgRisk"]) and "—" not in "".join(texts.values()),
-              json.dumps(texts, ensure_ascii=False))
-        na = page.evaluate("""() => ({
-            recon: !!document.querySelector('#tab-bsr .na-card'),
-            montecarlo: [...document.querySelectorAll('#tab-tr .na-card')].some(n => /going-concern/.test(n.textContent)),
-            benchmark: [...document.querySelectorAll('#tab-ov .na-card')].some(n => /benchmark/i.test(n.textContent)),
-            graph: [...document.querySelectorAll('#tab-re .na-card')].some(n => /Entity graph not available/.test(n.textContent)),
-            benfordBars: document.querySelectorAll('#benford-bars > div').length,
-            exBars: document.querySelectorAll('#ex-bars .fac-row').length,
-            memoHasFile: document.getElementById('print-doc').innerText.includes('paysim_sample_10k.csv'),
-            memoHasCounts: document.getElementById('print-doc').innerText.includes(window._mlSummary.high.toLocaleString() + ' rows'),
-        })""")
-        check("A5", "Unavailable modules show explicit 'Not available' states",
-              na["recon"] and na["montecarlo"] and na["benchmark"] and na["graph"], json.dumps(na))
-        check("A5", "Benford chart, rule summary and memo are rendered from data",
-              na["benfordBars"] == 9 and na["exBars"] > 0 and na["memoHasFile"] and na["memoHasCounts"], json.dumps(na))
-
-        ids = page.evaluate("() => [...document.querySelectorAll('#tx-body .tx-id')].map(n => n.textContent)")
-        check("A6", "Table shows ROW-n IDs, no TX-???",
-              ids and all(i.startswith("ROW-") for i in ids) and not any("???" in i for i in ids), f"{len(ids)} rendered, first {ids[:3]}")
-
-        notice = page.evaluate("() => { const n = document.getElementById('heuristic-notice'); return { shown: getComputedStyle(n).display !== 'none', text: n.textContent } }")
-        check("A8", "Heuristic banner visible with flag rate and calibration warning",
-              notice["shown"] and f"{s['flaggedPct']:.1f}%" in notice["text"] and "NOT calibrated" in notice["text"], notice["text"].strip())
-
-        heights = {}
-        for tab in ["tab-ov", "tab-di", "tab-bsr", "tab-tr", "tab-an", "tab-re", "tab-ex"]:
-            page.click(f"button.tab-btn[onclick*=\"{tab}\"]")
-            page.wait_for_timeout(120)
-            heights[tab] = page.evaluate(f"() => document.getElementById('{tab}').getBoundingClientRect().height")
-        check("A7", "Every analysis tab shows visible content when selected", all(h > 100 for h in heights.values()), json.dumps(heights))
-        page.click("button.tab-btn[onclick*=\"tab-ov\"]")
-
-        if shots:
-            page.screenshot(path=str(shots / "02-hero-after-scan.png"))
-            for tab in ["tab-ov", "tab-di", "tab-bsr", "tab-tr", "tab-an", "tab-re", "tab-ex"]:
-                page.click(f"button.tab-btn[onclick*=\"{tab}\"]")
-                page.wait_for_timeout(300)
-                page.locator("#analysis").screenshot(path=str(shots / f"03-{tab}.png"))
-            page.locator("#insights").screenshot(path=str(shots / "04-insights.png"))
-
-        # ---- A7 regression flow ----
-        page.click("button.t-filter[onclick*=\"'high'\"]")
-        vis = page.evaluate("() => [...document.querySelectorAll('#tx-body tr.main-row')].filter(r => r.style.display !== 'none').map(r => r.dataset.r)")
-        filt_ok = len(vis) > 0 and all(v == "high" for v in vis)
-        page.click("button.t-filter[onclick*=\"'all'\"]")
-        page.fill("#search-in", "ROW-12")
-        page.dispatch_event("#search-in", "input")
-        pill = page.text_content("#search-count-pill")
-        page.fill("#search-in", "")
-        page.dispatch_event("#search-in", "input")
-        page.click("#tx-body tr.main-row >> nth=0")
-        expanded = page.evaluate("() => document.getElementById('det-0').style.display === 'table-row'")
-        detail = page.text_content("#det-0")
-
-        page.click("#open-add-tx")
-        page.fill("#ltf-2", "TRANSFER")
-        page.fill("#ltf-4", "123456")
-        page.fill("#ltf-5", "C_TEST_SENDER")
-        page.fill("#ltf-8", "C_TEST_PAYEE")
-        page.click("button[onclick='ltAddRow()']")
-        first = page.evaluate("() => ({ id: document.querySelector('#tx-body .tx-id').textContent, badge: document.querySelector('#tx-body .badge').textContent })")
-        rerun_label = page.text_content("#run-btn")
-        page.click("#run-btn")
-        page.wait_for_function("() => /Scan Complete/.test(document.getElementById('run-btn').textContent)", timeout=60000)
-        rescored = page.evaluate("() => { const d = tableData.find(x => x.id === 'NEW-10128'); return d ? { r: d.r, score: d._mlScore } : null }")
-
-        page.click("#open-add-tx")
-        with page.expect_download() as dl:
-            page.click("button[onclick='ltDownloadCsv()']")
-        export_lines = Path(dl.value.path()).read_text(encoding="utf-8").strip().split("\n")
-        page.click("button[onclick='closeAddTx()']")
-
-        page.click("#ai-mascot")
-        answers = []
-        for chip in page.query_selector_all(".chat-sug"):
-            chip.click()
-            page.wait_for_timeout(600)
-            answers.append(page.evaluate("() => document.querySelector('#chat-messages .chat-msg.bot:last-child').innerText.slice(0, 60)"))
-        page.fill("#chat-input", "why is ROW-123 flagged?")
-        page.press("#chat-input", "Enter")
-        page.wait_for_timeout(600)
-        why = page.evaluate("() => document.querySelector('#chat-messages .chat-msg.bot:last-child').innerText")
-        memo_btn = page.evaluate("() => !document.getElementById('memo-copy-btn').disabled")
-
-        flow = {
-            "filter_high_only": filt_ok, "search_pill": pill, "row_expanded": expanded,
-            "detail_has_breakdown": "pts" in (detail or ""), "added_row": first, "rerun_label": rerun_label,
-            "rescored_new_row": rescored, "export_lines": len(export_lines), "chat_answers": len(answers),
-            "why_row_123": "ROW-123" in why, "memo_copy_enabled": memo_btn,
-        }
-        check("A7", "Regression flow: filter, search, expand, add row, re-scan, export, chatbot, memo",
-              filt_ok and pill and expanded and "pts" in detail and first["id"] == "NEW-10128" and "NOT SCORED" in first["badge"]
-              and "Re-run" in rerun_label and rescored and rescored["r"] in ("high", "suspicious", "safe")
-              and len(export_lines) == 10129 and len(answers) == 4 and "ROW-123" in why and memo_btn,
-              json.dumps(flow))
-        if shots:
-            page.screenshot(path=str(shots / "05-chatbot.png"))
-        ctx.close()
-        browser.close()
-
-    check("A7", "No JavaScript errors and no dialogs during the whole run", not errors and not dialogs, f"errors: {errors[:3]}, dialogs: {dialogs}")
-
+    check(
+        "A9",
+        "No JavaScript errors and no dialogs during the whole run",
+        not errors and not dialogs,
+        f"errors: {errors[:3]}, dialogs: {dialogs}",
+    )
     failed = [r for r in results if not r["ok"]]
     print(f"\n{len(results) - len(failed)} passed, {len(failed)} failed")
     out = ROOT / "tests" / "frontend" / "out"
     out.mkdir(parents=True, exist_ok=True)
-    (out / "browser-results.json").write_text(json.dumps(results, indent=2, ensure_ascii=False), encoding="utf-8")
+    (out / "browser-results.json").write_text(
+        json.dumps(results, indent=2, ensure_ascii=False), encoding="utf-8"
+    )
     return 1 if failed else 0
 
 

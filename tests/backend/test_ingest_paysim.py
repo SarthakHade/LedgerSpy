@@ -202,11 +202,23 @@ def test_user_declared_label_column_is_also_separated(ingest):
     assert {r[0] for r in stored} == {"isFraud", "Cost Centre"}
 
 
+# The label columns the P1 browser prototype ignored (deleted in P9: labels never reach the browser).
+P1_FRONTEND_LABELS = {
+    "isfraud",
+    "fraud",
+    "isflaggedfraud",
+    "flaggedfraud",
+    "flagged",
+    "label",
+    "target",
+    "groundtruth",
+}
+
+
 def test_backend_label_list_covers_the_p1_frontend_list():
     shared = (Path(__file__).resolve().parents[2] / "frontend" / "js" / "shared.js").read_text(
         encoding="utf-8"
     )
-    block = shared[shared.index("labelColumns") : shared.index("])", shared.index("labelColumns"))]
-    frontend = set(re.findall(r"'([a-z]+)'", block))
+    assert "labelColumns" not in shared  # the browser no longer handles label columns at all
     backend = {normalize_header(n) for n in load_config().settings.mapping.label_columns}
-    assert frontend and frontend <= backend
+    assert backend >= P1_FRONTEND_LABELS

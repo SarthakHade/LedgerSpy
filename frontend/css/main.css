@@ -340,3 +340,24 @@ tr.expanded .exp-icon{transform:rotate(90deg)}
 .di-btn{padding:6px 12px;font-size:0.68rem}
 .di-reason{min-width:140px;padding:6px 8px}
 .di-list{margin:0 0 0 18px;color:var(--txt2);font-size:0.8rem;line-height:1.6}
+
+/* P9 — API-driven risk UI (js/risk-ui.js) */
+.fp-summary{grid-template-columns:repeat(4,1fr)}
+.ls-picker{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin:20px 0}
+.bg-crit{background:rgba(239,68,68,0.22);color:#fecaca;border:1px solid rgba(239,68,68,0.6)}
+.ls-kv{display:grid;grid-template-columns:minmax(120px,max-content) 1fr;gap:4px 14px;font-size:0.78rem;color:var(--txt2);margin:6px 0}
+.ls-kv dt{font-family:var(--mono);color:var(--txt3)}
+.ls-kv dd{margin:0;word-break:break-word}
+.ls-contrib{border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:10px;background:var(--bg1)}
+.ls-contrib-h{display:flex;justify-content:space-between;gap:12px;font-size:0.85rem;color:var(--txt);margin-bottom:6px}
+.ls-contrib-pts{font-family:var(--mono);color:var(--amber);white-space:nowrap}
+.ls-muted{font-size:0.78rem;color:var(--txt3);line-height:1.5}
+.ls-headline{font-size:0.9rem;color:var(--txt);line-height:1.6;margin-bottom:12px}
+.ls-list{margin:4px 0 0 18px;color:var(--txt2);font-size:0.8rem;line-height:1.6}
+.ls-bar{display:flex;align-items:center;gap:10px;margin-bottom:8px;font-size:0.78rem;color:var(--txt2)}
+.ls-bar-l{width:90px;font-family:var(--mono);color:var(--txt3)}
+.ls-bar-bg{flex:1;height:6px;background:var(--bg3);border-radius:3px;overflow:hidden}
+.ls-bar-fill{height:100%;background:var(--cyan)}
+.ls-bar-v{width:60px;text-align:right;font-family:var(--mono)}
+.ls-mapping td,.ls-mapping th{padding:6px 10px;font-size:0.78rem}
+.detail-content.ls-detail{grid-template-columns:1fr}

@@ -55,8 +55,11 @@ class SignalFamily(StrEnum):
 
 
 class Tier(StrEnum):
+    """Review-risk tiers (P9, config `risk.tiers`). A tier is review priority, not a probability of fraud."""
+
+    CRITICAL = "critical"
     HIGH = "high"
-    REVIEW = "review"
+    MEDIUM = "medium"
     LOW = "low"
 
 

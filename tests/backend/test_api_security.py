@@ -188,7 +188,7 @@ def test_csp_is_strict_for_scripts(client):
     )
     page = (FRONTEND_DIR / "index.html").read_text(encoding="utf-8")
     hashes = inline_handler_hashes(page)
-    assert len(hashes) >= 20  # the existing UI's onclick= handlers, allowed one by one
+    assert len(hashes) >= 10  # the remaining inline onclick= handlers (tabs, chat, about), allowed one by one
     assert all(h in csp["script-src"] for h in hashes)
 
 
@@ -227,15 +227,13 @@ def test_served_ui_is_the_unmodified_frontend_plus_token_meta(client, token):
     original = (FRONTEND_DIR / "index.html").read_text(encoding="utf-8")
     served = client.get("/").text
     assert served.replace(f'\n<meta name="{TOKEN_META}" content="{token}">', "", 1) == original
-    for asset in (
+    assets = [
         "css/main.css",
         "css/chatbot.css",
-        "js/shared.js",
-        "js/data-pipeline.js",
-        "js/ui-core.js",
-        "js/ml-engine.js",
-        "js/chatbot-ui.js",
-    ):
+        *(f"js/{p.name}" for p in sorted((FRONTEND_DIR / "js").glob("*.js"))),
+    ]
+    assert "js/risk-ui.js" in assets and "js/ml-engine.js" not in assets  # P9: the scorer is deleted
+    for asset in assets:
         r = client.get(f"/{asset}")
         assert r.status_code == 200 and r.content == (FRONTEND_DIR / asset).read_bytes(), asset
 

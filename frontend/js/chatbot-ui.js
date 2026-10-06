@@ -1,10 +1,10 @@
 /* ============================================================
    LedgerSpy Assistant (rule-based, keyword routing)
    ============================================================
-   Answers only from the current scan's in-memory results.
-   P1: every value that originates from the uploaded file is passed
-   through escapeHtml(); thresholds come from LS_CONFIG (the same
-   values the scoring engine uses); row lookup is exact by ID.
+   P9: answers only from the backend analysis (API responses). It
+   computes nothing: counts, scores, tiers and explanations are the
+   API's values, quoted. Every API value is passed through escapeHtml()
+   before it is placed in the (otherwise static) answer markup.
    ============================================================ */
 
 let _chatbotOpen = false;
@@ -65,174 +65,115 @@ function sendChat(){
   addChatMsg(query, 'user');
   input.value = '';
   showTyping();
-  setTimeout(() => {
-    hideTyping();
-    addChatMsg(processQuery(query), 'bot');
-  }, 450);
+  processQuery(query).then(html => { hideTyping(); addChatMsg(html, 'bot'); },
+                           err => { hideTyping(); addChatMsgText('Could not answer: ' + err.message); });
 }
 
-/* ---- Helpers ---- */
+/* ---- Data source: the backend analysis (replaceable in the Node harness) ---- */
 const E = escapeHtml;
-const fmtAmt = v => E(formatAmtShort(v));
-const tierLabel = r => r === 'high' ? 'HIGH RISK' : r === 'suspicious' ? 'SUSPICIOUS' : r === 'safe' ? 'BELOW THRESHOLD' : 'NOT SCORED';
+function lsChatSource(){
+  if(typeof window !== 'undefined' && window.LS_CHAT_SOURCE) return window.LS_CHAT_SOURCE;
+  const ready = typeof LS_STATE !== 'undefined' && LS_STATE.summary && LS_STATE.datasetId;
+  const base = () => '/api/datasets/' + LS_STATE.datasetId + '/risk';
+  return {
+    ready: !!ready,
+    summary: () => LS_STATE.summary,
+    detectors: () => LS_STATE.detectors,
+    transactions: params => LS_API.get(base() + '/transactions' + LS_API.qs(params)),
+    detail: id => LS_API.get(base() + '/transactions/' + encodeURIComponent(id)),
+    selected: () => (typeof window !== 'undefined' ? window._selectedTxn : null),
+  };
+}
 
-/** Find a table row by an ID mentioned in the query (exact, case-insensitive). Accepts "ROW-12", "row 12", "tx-12" or a raw ID. */
-function findRowInQuery(q){
-  const norm = s => String(s).toLowerCase().replace(/\s+/g, '-');
-  const ids = new Map(tableData.map((d, i) => [norm(d.id), i]));
-  const m = q.match(/\b(row|new|tx)[-\s]?(\d+)\b/i);
-  if(m){
-    const k = norm(m[1] + '-' + m[2]);
-    if(ids.has(k)) return ids.get(k);
-    const alt = norm(LS_CONFIG.rowIdPrefix + m[2]);          // "tx-12" → "row-12"
-    if(m[1].toLowerCase() === 'tx' && ids.has(alt)) return ids.get(alt);
-  }
-  for(const tok of q.split(/[\s,?!.;:"']+/)){
-    if(tok && ids.has(norm(tok))) return ids.get(norm(tok));
-  }
-  return -1;
+/** The transaction ID the user named: the token after "is"/"transaction", else any token with a digit. */
+function idInQuery(query){
+  const m = query.match(/(?:why\s+is|explain|transaction|txn|row)\s+([^\s?!,;"']+)/i);
+  if(m && /\d/.test(m[1])) return m[1];
+  const tok = query.split(/[\s,?!;"']+/).find(t => /\d/.test(t) && t.length >= 3);
+  return tok || null;
+}
+
+function txnLine(r, i){
+  return '<strong>' + (i + 1) + '.</strong> <code>' + E(r.txn_id) + '</code> — ' + E(r.tier) + ' ' + E(lsScore(r.score)) +
+    ' — ' + E(lsAmount(r.amount, r.currency)) + ' — ' + E(r.payee || '—');
 }
 
 /* ============================================================
-   QUERY PROCESSOR
+   QUERY PROCESSOR (async: may read the API)
    ============================================================ */
-function processQuery(query){
+async function processQuery(query){
   const q = query.toLowerCase();
-  const s = window._mlSummary;
-  const results = window._mlResults;
-  const hasData = s && s.total > 0;
-  const T = LS_CONFIG.thresholds;
-
-  if(!hasData){
-    return '⚠️ No data loaded yet. Please <strong>upload a CSV file</strong> and click <strong>"Execute Deep Scan"</strong> first.';
+  const src = lsChatSource();
+  if(!src.ready){
+    return '⚠️ No analysis loaded. Choose a dataset and click <strong>Analyse dataset</strong> first (the page must be opened through <code>ledgerspy serve</code>).';
   }
+  const s = src.summary();
 
   /* ---- Summary ---- */
   if(q.includes('summary') || q.includes('overview') || q.includes('dashboard')){
-    return '📊 <strong>Heuristic preview summary</strong><br><br>'
-      + '📁 Rows scored: <code>' + s.total.toLocaleString() + '</code><br>'
-      + '🔴 High risk (≥' + T.high + '): <code>' + s.high.toLocaleString() + '</code> (' + ((s.high/s.total)*100).toFixed(1) + '%)<br>'
-      + '🟡 Suspicious (' + T.suspicious + '–' + (T.high - 1) + '): <code>' + s.susp.toLocaleString() + '</code> (' + ((s.susp/s.total)*100).toFixed(1) + '%)<br>'
-      + '🟢 Below thresholds: <code>' + s.safe.toLocaleString() + '</code><br><br>'
-      + '📈 Average score: <strong>' + s.avgRisk + '/100</strong><br>'
-      + '💰 Amount in high-risk rows: <strong>' + fmtAmt(s.highAmt) + '</strong><br><br>'
-      + '<em>Rule-based indicators for review — not fraud findings.</em>'
-      + (s.calibrationWarning ? '<br>⚠️ Flag rate ' + s.flaggedPct.toFixed(1) + '% exceeds the ' + LS_CONFIG.reviewBudgetPct + '% review budget: this preview is not calibrated for this file.' : '');
+    const t = s.counts.tiers;
+    return '📊 <strong>Backend analysis summary</strong><br><br>'
+      + '📁 Transactions: <code>' + E(lsInt(s.counts.transactions)) + '</code> (' + E(lsInt(s.counts.scored)) + ' scored, ' + E(lsInt(s.counts.insufficient_data)) + ' not assessed)<br>'
+      + '⛔ Critical: <code>' + E(lsInt(t.critical)) + '</code> · 🔴 High: <code>' + E(lsInt(t.high)) + '</code> · 🟡 Medium: <code>' + E(lsInt(t.medium)) + '</code> · 🟢 Low: <code>' + E(lsInt(t.low)) + '</code><br>'
+      + '💰 Amount in high/critical rows: <strong>' + E(lsAmount(s.amounts.high_or_critical, s.amounts.currency)) + '</strong><br>'
+      + '🏢 Counterparties with high/critical rows: <strong>' + E(lsInt(s.entities.with_high_or_critical_transactions)) + '</strong><br><br>'
+      + E(s.volume_guard.message) + '.<br><em>' + E(s.method.score) + '</em>';
   }
 
-  /* ---- Methodology (must precede the "why/explain" branch) ---- */
-  if(q.includes('risk score') || q.includes('explain risk') || q.includes('explain score') || q.includes('how') && q.includes('score') || q.includes('methodology')){
-    return '🔍 <strong>How the heuristic preview scores rows</strong><br><br>'
-      + '1. About 30 features per row are computed from the file (amount ratios, balance change, name similarity, sender/receiver counts, leading digit, step value).<br>'
-      + '2. A sigmoid of <em>hand-set</em> weights gives a base of 0–100 points.<br>'
-      + '3. Fixed rule points are added (e.g. reciprocity, balance drain, round amount).<br>'
-      + '4. The total is capped to 0–100.<br><br>'
-      + '<strong>Tiers:</strong><br>'
-      + '&nbsp;&nbsp;🔴 ≥' + T.high + ' → High risk (prioritise for vouching)<br>'
-      + '&nbsp;&nbsp;🟡 ' + T.suspicious + '–' + (T.high - 1) + ' → Suspicious (review sample)<br>'
-      + '&nbsp;&nbsp;🟢 <' + T.suspicious + ' → Below thresholds<br><br>'
-      + 'This is <strong>not a trained model</strong>. Weights were not learned from data and are not calibrated. Label columns such as isFraud are ignored.<br>'
-      + 'Current average: <strong>' + s.avgRisk + '/100</strong>';
+  /* ---- Methodology ---- */
+  if(q.includes('risk score') || q.includes('explain risk') || q.includes('explain score') || (q.includes('how') && q.includes('score')) || q.includes('methodology')){
+    const t = s.method.tiers;
+    const fams = s.method.families.map(f => E(f.label) + (f.scored ? ' (cap ' + E(f.cap) + ')' : ' (not scored)')).join(', ');
+    return '🔍 <strong>How the review-risk score is built</strong><br><br>' + E(s.method.score) + '<br><br>'
+      + '<strong>Evidence families:</strong> ' + fams + '<br><br>'
+      + '<strong>Tiers (backend configuration):</strong> medium from ' + E(t.medium) + '; high from ' + E(t.high) + ' with ' + E(t.min_sources_high)
+      + ' independent sources; critical from ' + E(t.critical) + ' with ' + E(t.min_sources_critical) + '.';
   }
 
-  /* ---- Why is a row flagged (context-aware) ---- */
+  /* ---- Why is a transaction flagged ---- */
   if(q.includes('why') || q.includes('explain') || q.includes('flagged') || q.includes('reason')){
-    let idx = findRowInQuery(query);
-    if(idx < 0 && window._selectedTxIdx >= 0 && window._selectedTxIdx < tableData.length) idx = window._selectedTxIdx;
-    if(idx < 0 && /\b(row|tx|new)[-\s]?\d+/i.test(query)){
-      return '🔎 That row ID was not found. IDs look like <code>' + E(tableData[0] ? tableData[0].id : LS_CONFIG.rowIdPrefix + '1') + '</code>.';
-    }
-    if(idx < 0){
-      idx = tableData.reduce((best, d, i) => (best < 0 || (d._mlScore || 0) > (tableData[best]._mlScore || 0)) ? i : best, -1);
-    }
-    const target = tableData[idx];
-    if(target && target._mlIdx !== undefined && results[target._mlIdx]){
-      const ml = results[target._mlIdx].mlResult;
-      const lines = ml.components.map(c => '&nbsp;&nbsp;• +' + c.pts.toFixed(1) + ' pts — ' + E(c.text)).join('<br>');
-      return '🔎 <strong>' + E(target.id) + '</strong> — ' + E(tierLabel(ml.tier)) + '<br><br>'
-        + '📊 Heuristic score: <strong>' + ml.riskScore + '/100</strong> (raw ' + ml.rawTotal.toFixed(1) + ' pts)<br>'
-        + '💰 Amount: <strong>₹' + E(target.amt) + '</strong><br>'
-        + '🏢 Payee: ' + E(target.v) + '<br><br>'
-        + '<strong>Score breakdown:</strong><br>' + lines + '<br><br>'
-        + '📋 ' + E(ml.action);
-    }
-    if(target) return '🔎 <strong>' + E(target.id) + '</strong> has not been scored yet (added after the scan). Re-run the scan.';
-    return '🔎 Row not found. Try: <em>"Why is ' + E(LS_CONFIG.rowIdPrefix) + '12 flagged?"</em> or select a row in the table first.';
+    const id = idInQuery(query) || src.selected();
+    if(!id) return '🔎 Name a transaction, e.g. <em>"why is ' + E(s.top_findings.length ? s.top_findings[0].txn_id : 'T-…') + ' flagged?"</em>, or open a row in the table first.';
+    let d;
+    try { d = await src.detail(id); }
+    catch(e){ return '🔎 Transaction <code>' + E(id) + '</code> was not found in this dataset.'; }
+    const ex = d.explanation;
+    const lines = ex.contributors.map(c => '&nbsp;&nbsp;• +' + E(c.contribution.toFixed(2)) + ' pts — ' + E(c.detector_label) + ': ' + E(c.explanation)).join('<br>');
+    return '🔎 <strong>' + E(d.transaction.txn_id) + '</strong><br><br>' + E(ex.headline) + (lines ? '<br><br>' + lines : '')
+      + '<br><br><em>' + E(ex.limitations[0]) + '</em>';
   }
 
-  /* ---- High risk list ---- */
-  if(q.includes('high risk') || q.includes('fraud') || q.includes('dangerous') || q.includes('blocked')){
-    const hTx = tableData.filter(d => d.r === 'high').slice(0, 5);
-    if(hTx.length === 0) return '✅ No rows scored ≥ ' + T.high + ' in this file.';
-    const list = hTx.map((d, i) =>
-      '<strong>' + (i + 1) + '.</strong> <code>' + E(d.id) + '</code> — ' + E(d.v) + ' — ₹' + E(d.amt) + ' — score ' + E(d._mlScore)
-    ).join('<br>');
-    return '🔴 <strong>High-risk rows (heuristic)</strong> — ' + s.high.toLocaleString() + ' total<br><br>' + list
-      + '<br><br>💡 Ask <em>"why is ' + E(hTx[0].id) + ' flagged?"</em> for its score breakdown.';
-  }
-
-  /* ---- Top anomalies ---- */
-  if(q.includes('anomal') || q.includes('outlier') || q.includes('unusual') || q.includes('top')){
-    const sorted = [...tableData].filter(d => d._mlScore !== undefined)
-      .sort((a, b) => (b._mlScore || 0) - (a._mlScore || 0)).slice(0, 5);
-    if(sorted.length === 0) return '📊 No scored rows.';
-    const list = sorted.map((d, i) =>
-      '<strong>' + (i + 1) + '.</strong> <code>' + E(d.id) + '</code> — score <strong>' + E(d._mlScore) + '</strong> — ₹' + E(d.amt) + ' — ' + E(d.v)
-    ).join('<br>');
-    return '💡 <strong>Highest heuristic scores</strong><br><br>' + list;
-  }
-
-  /* ---- Action ---- */
-  if(q.includes('action') || q.includes('what should') || q.includes('recommend') || q.includes('what do')){
-    return '📋 <strong>Suggested handling (heuristic preview)</strong><br><br>'
-      + '🔴 <strong>' + s.high + '</strong> rows ≥' + T.high + ' → prioritise for manual vouching<br>'
-      + '🟡 <strong>' + s.susp + '</strong> rows ' + T.suspicious + '–' + (T.high - 1) + ' → consider for a review sample<br>'
-      + '🟢 <strong>' + s.safe + '</strong> rows → no heuristic rule exceeded the thresholds<br><br>'
-      + 'No row should be treated as fraudulent on the basis of this preview alone.';
-  }
-
-  /* ---- Below thresholds ---- */
-  if(q.includes('safe') || q.includes('clean') || q.includes('legit')){
-    return '🟢 <strong>' + s.safe.toLocaleString() + '</strong> of <strong>' + s.total.toLocaleString()
-      + '</strong> rows (' + ((s.safe/s.total)*100).toFixed(1) + '%) scored below ' + T.suspicious + '.<br><br>'
-      + 'Below threshold does not mean verified — it only means no heuristic rule pushed the score up.';
-  }
-
-  /* ---- Suspicious ---- */
-  if(q.includes('suspicious') || q.includes('warning') || q.includes('review')){
-    const sTx = tableData.filter(d => d.r === 'suspicious').slice(0, 5);
-    const list = sTx.map((d, i) => '<strong>' + (i + 1) + '.</strong> <code>' + E(d.id) + '</code> — ' + E(d.v) + ' — ₹' + E(d.amt)).join('<br>');
-    return '🟡 <strong>' + s.susp.toLocaleString() + ' suspicious rows</strong> (score ' + T.suspicious + '–' + (T.high - 1) + ')<br><br>' + (list || 'None found.');
+  /* ---- High risk / review queue ---- */
+  if(q.includes('high risk') || q.includes('critical') || q.includes('queue') || q.includes('top') || q.includes('anomal') || q.includes('fraud')){
+    const page = await src.transactions({ sort: 'priority', size: 5 });
+    const rows = page.items.filter(r => r.score);
+    if(!rows.length) return '✅ No transaction has a positive review-risk score in this dataset.';
+    return '🔴 <strong>Top of the review queue</strong> (backend ranking)<br><br>' + rows.map(txnLine).join('<br>')
+      + '<br><br>💡 Ask <em>"why is ' + E(rows[0].txn_id) + ' flagged?"</em> for its explanation. High priority is a reason to review, not a finding of fraud.';
   }
 
   /* ---- Benford ---- */
   if(q.includes('benford') || q.includes('digit')){
-    const b = window._mlBenford;
-    const bFlags = results.filter(d => d.features.benford_flag).length;
-    const over = b && b.overrepDigits.length ? b.overrepDigits.join(', ') : 'none';
-    return '📐 <strong>Leading-digit profile (descriptive)</strong><br><br>'
-      + 'Amounts analysed: <code>' + (b ? b.n.toLocaleString() : 0) + '</code><br>'
-      + 'Digits more than ' + LS_CONFIG.benfordOverrepPP + ' pp above Benford expectation: <strong>' + E(over) + '</strong><br>'
-      + 'Rows starting with those digits: <code>' + bFlags.toLocaleString() + '</code><br><br>'
-      + 'No statistical test is applied yet (roadmap P7). A deviation is a prompt to look closer, not evidence of fabrication.';
+    const b = src.detectors().benford.dataset.first;
+    if(!b || b.status !== 'analyzed') return '📐 The backend Benford first-digit test did not run on this data: ' + E(b ? (b.reason || b.status) : 'no result') + '.';
+    return '📐 <strong>Benford first-digit test (backend)</strong><br><br>n = <code>' + E(lsInt(b.n)) + '</code> · MAD <code>' + E(b.mad) + '</code> (' + E(b.band)
+      + ') · χ² p-value <code>' + E(b.chi2_p_value) + '</code><br>Over-represented digits: <strong>' + E((b.over_represented || []).join(', ') || 'none') + '</strong><br><br>' + E(b.note);
   }
 
-  /* ---- Velocity ---- */
-  if(q.includes('velocity') || q.includes('rapid') || q.includes('speed') || q.includes('fast')){
-    const rapid = results.filter(d => d.features.rapid_txn_flag).length;
-    return '⚡ <strong>Rapid succession</strong><br><br>'
-      + '<strong>' + rapid.toLocaleString() + '</strong> rows have another transaction by the same sender within 1 step.<br><br>'
-      + 'If senders rarely repeat in this file, this indicator carries little information.';
+  /* ---- Unavailable detectors ---- */
+  if(q.includes('unavailable') || q.includes('missing') || q.includes('not available') || q.includes('limitation')){
+    const u = s.detectors_unavailable;
+    return '🧩 <strong>Detectors that cannot run on this data</strong><br><br>' + (u.length ? u.map(d => '• <code>' + E(d.detector) + '</code> — ' + E(d.reason)).join('<br>') : 'None.');
   }
 
   /* ---- Help ---- */
-  return '🤖 I answer from the current scan only. Try:<br><br>'
+  return '🤖 I answer from the backend analysis only. Try:<br><br>'
     + '• "<strong>Show summary</strong>"<br>'
-    + '• "<strong>High risk transactions</strong>"<br>'
+    + '• "<strong>High risk transactions</strong>" — top of the review queue<br>'
     + '• "<strong>Explain risk score</strong>" — how scoring works<br>'
-    + '• "<strong>Why is ' + E(LS_CONFIG.rowIdPrefix) + '12 flagged?</strong>" — row breakdown<br>'
-    + '• "<strong>Top anomalies</strong>"<br>'
-    + '• "<strong>What action should I take?</strong>"<br>'
-    + '• "<strong>Benford</strong>" — leading-digit profile<br>'
-    + '• "<strong>Velocity</strong>"';
+    + '• "<strong>Why is &lt;transaction ID&gt; flagged?</strong>" — its explanation<br>'
+    + '• "<strong>Benford</strong>" — the digit test<br>'
+    + '• "<strong>Unavailable detectors</strong>"';
 }
+
+if(typeof module !== 'undefined' && module.exports){ module.exports = { processQuery, idInQuery }; }

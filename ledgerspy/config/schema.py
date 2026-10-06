@@ -597,6 +597,75 @@ class AnomalyConfig(_Section):
     evaluation: AnomalyEvaluation
 
 
+# ------------------------------------------------------------------------------------------- P9 risk engine
+
+
+class RiskFamily(_Section):
+    detectors: list[str] = Field(min_length=1)  # P7 rule IDs / P8 detector IDs whose signals form the family
+    group: str = Field(pattern=r"^[a-z_]+$")  # independent evidence source the family belongs to
+    cap: float = Field(ge=0.0, lt=1.0)  # maximum family evidence (0–1)
+    scored: bool  # false: reported beside the risk, never part of it (data quality)
+    label: str = Field(min_length=1, max_length=60)
+
+
+class RiskGroup(_Section):
+    cap: float = Field(gt=0.0, lt=1.0)
+
+
+class RiskTiers(_Section):
+    medium: float = Field(gt=0.0, lt=100.0)
+    high: float = Field(gt=0.0, lt=100.0)
+    critical: float = Field(gt=0.0, lt=100.0)
+    min_sources_high: int = Field(ge=1)
+    min_sources_critical: int = Field(ge=1)
+
+    @model_validator(mode="after")
+    def _ordered(self) -> "RiskTiers":
+        if not self.medium < self.high < self.critical:
+            raise ValueError("risk tiers must increase: medium < high < critical")
+        if self.min_sources_critical < self.min_sources_high:
+            raise ValueError("critical needs at least as many independent sources as high")
+        return self
+
+
+class RiskReview(_Section):
+    max_high_share: float = Field(gt=0.0, le=1.0)  # high + critical rows as a share of scored rows
+    max_critical_share: float = Field(gt=0.0, le=1.0)
+    top_k: int = Field(ge=1)  # review queue length
+
+
+class RiskEntities(_Section):
+    top_k: int = Field(ge=1)
+    decay: float = Field(gt=0.0, le=1.0)
+
+
+class RiskConfig(_Section):
+    families: dict[str, RiskFamily] = Field(min_length=1)
+    groups: dict[str, RiskGroup]
+    within_family_decay: float = Field(gt=0.0, le=1.0)
+    tiers: RiskTiers
+    review: RiskReview
+    entities: RiskEntities
+    max_contributors: int = Field(ge=1)
+
+    @model_validator(mode="after")
+    def _valid(self) -> "RiskConfig":
+        seen: dict[str, str] = {}
+        for name, fam in self.families.items():
+            if not re.match(r"^[a-z_]+$", name):
+                raise ValueError(f"risk family names are lower_snake_case: {name}")
+            for d in fam.detectors:
+                if d in seen:
+                    raise ValueError(f"detector {d} is in two risk families ({seen[d]}, {name})")
+                seen[d] = name
+            if not fam.scored and fam.cap != 0.0:
+                raise ValueError(f"unscored family {name} must have cap 0")
+        unknown = set(self.groups) - {f.group for f in self.families.values()}
+        if unknown:
+            raise ValueError(f"risk groups without a family: {sorted(unknown)}")
+        return self
+
+
 class LedgerSpyConfig(_Section):
     config_version: Literal[1]
     server: ServerConfig
@@ -611,3 +680,4 @@ class LedgerSpyConfig(_Section):
     rules: RulesConfig
     benford: BenfordConfig
     anomaly: AnomalyConfig
+    risk: RiskConfig

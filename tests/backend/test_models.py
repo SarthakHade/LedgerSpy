@@ -106,7 +106,7 @@ def test_explanation_attribution_methods_are_named_honestly():
         subject="txn",
         subject_id="T-1",
         risk=0.5,
-        tier="review",
+        tier="medium",
         contributions=[Contribution(family="amount", signal_code="amount.x", share=1.0, sentence="s")],
         attributions=[{"method": "shap", "feature": "log_amount", "value": 0.2}],
     )
@@ -116,7 +116,7 @@ def test_explanation_attribution_methods_are_named_honestly():
             subject="txn",
             subject_id="T-1",
             risk=0.5,
-            tier="review",
+            tier="medium",
             attributions=[{"method": "shap-style", "feature": "f", "value": 1}],
         )
 

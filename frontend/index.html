@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>LedgerSpy — Deep Interactive Audit</title>
 <!-- Offline: no external fonts/CDNs. Fonts fall back to locally installed/system fonts (see css/main.css). -->
+<!-- P9: every score, tier, count, chart and explanation on this page comes from the local LedgerSpy API.
+     The browser renders; it never computes risk. -->
 <link rel="stylesheet" href="css/main.css">
 <link rel="stylesheet" href="css/chatbot.css">
 </head>
@@ -20,17 +22,17 @@
     <button class="about-close" onclick="document.getElementById('about-overlay').classList.remove('show')">&times;</button>
     <div class="about-tag">🔍 Forensic Intelligence Platform</div>
     <h1 class="about-h1">What is <span>LedgerSpy</span>?</h1>
-    <p class="about-lead">LedgerSpy is a forensic audit tool for company ledgers, intended for internal auditors, fraud investigators and compliance teams. It is being rebuilt from a hackathon prototype. This version runs entirely in your browser: the CSV you load is processed on this machine and is not uploaded anywhere.</p>
+    <p class="about-lead">LedgerSpy is a forensic audit tool for company ledgers, intended for internal auditors, fraud investigators and compliance teams. It runs entirely on this machine: the page talks only to the local LedgerSpy service started with <code>ledgerspy serve</code>, which stores evidence, runs every analysis and returns the results this page displays.</p>
 
     <div class="about-section">
       <h4>What this version actually does</h4>
       <div class="about-feature-grid">
-        <div class="about-feature"><div class="af-icon">📂</div><div class="af-title">CSV Ledger Tools — working</div><div class="af-desc">Import a CSV, search, filter, add rows and export the updated ledger.</div></div>
-        <div class="about-feature"><div class="af-icon">🧮</div><div class="af-title">Heuristic Risk Preview — working</div><div class="af-desc">Hand-set rules and weights score each row 0–100 with an exact points breakdown. Not a trained model; not calibrated.</div></div>
-        <div class="about-feature"><div class="af-icon">📊</div><div class="af-title">Leading-Digit Profile — descriptive</div><div class="af-desc">Observed vs Benford-expected first digits. No statistical test yet.</div></div>
-        <div class="about-feature"><div class="af-icon">🧹</div><div class="af-title">Data Readiness — preliminary</div><div class="af-desc">Checks empty/non-numeric amounts, empty vendors and column counts.</div></div>
+        <div class="about-feature"><div class="af-icon">📂</div><div class="af-title">Evidence-preserving import — working</div><div class="af-desc">CSV/XLSX files are hashed and kept unchanged; you confirm how columns map to the canonical schema.</div></div>
+        <div class="about-feature"><div class="af-icon">🧹</div><div class="af-title">Data integrity — working</div><div class="af-desc">Missing values, duplicates, format and balance checks with a readiness score; fixes are proposed, logged and reversible.</div></div>
+        <div class="about-feature"><div class="af-icon">📏</div><div class="af-title">Forensic rules + Benford — working</div><div class="af-desc">Ten explainable rules (duplicates, splitting, timing, dormancy, velocity…) and Benford tests with minimum-sample gating.</div></div>
+        <div class="about-feature"><div class="af-icon">📈</div><div class="af-title">Statistical anomalies — working</div><div class="af-desc">Isolation Forest, peer-group robust z-scores and tail percentiles. "Unusual" is never "fraudulent".</div></div>
+        <div class="about-feature"><div class="af-icon">🧮</div><div class="af-title">Review-risk score — working</div><div class="af-desc">A 0–100 review priority with an exact breakdown by signal. Not a probability of fraud: nothing is calibrated against confirmed outcomes yet.</div></div>
         <div class="about-feature"><div class="af-icon">🕸️</div><div class="af-title">Graph, Bank Recon, Benchmarks — not yet</div><div class="af-desc">Entity resolution, relationship graph, bank reconciliation, Monte Carlo and benchmarking are on the roadmap and show "Not available" until built.</div></div>
-        <div class="about-feature"><div class="af-icon">🔒</div><div class="af-title">Local processing</div><div class="af-desc">No external fonts, scripts or API calls are loaded by this page.</div></div>
       </div>
     </div>
 
@@ -38,7 +40,7 @@
       <h4>The scenario LedgerSpy is built for</h4>
       <div class="piyush-box">
         <div class="ps-label">📌 From the original problem statement (fictional scenario)</div>
-        <p>Piyush, a young Chartered Accountant, starts a high-stakes audit with a warning from the senior partner: one data leak could cost the firm its licence. With Wi-Fi disabled, he runs LedgerSpy on his laptop against the client's ledger while his teammates scroll through thousands of Excel rows — and uncovers a circular trading network of ghost vendors that had been draining funds for three years.<br><br>That scenario is the target. This page is an early step towards it; the roadmap in <code>docs/roadmap.md</code> tracks what is real and what is still to be built.</p>
+        <p>Piyush, a young Chartered Accountant, starts a high-stakes audit with a warning from the senior partner: one data leak could cost the firm its licence. With Wi-Fi disabled, he runs LedgerSpy on his laptop against the client's ledger while his teammates scroll through thousands of Excel rows — and uncovers a circular trading network of ghost vendors that had been draining funds for three years.<br><br>That scenario is the target. The roadmap in <code>docs/roadmap.md</code> tracks what is real and what is still to be built.</p>
       </div>
     </div>
   </div>
@@ -91,6 +93,7 @@
   </div>
 </nav>
 
+
 <!-- 2 & 3. HERO -> RIGHT PANEL -->
 <section id="hero" class="hero">
   <div class="hero-content">
@@ -98,78 +101,88 @@
       <span class="line1">LedgerSpy</span>
       <span class="line2">Advanced Forensic System</span>
     </h1>
-    
+
     <div class="hero-status">
       <div class="status-dot" id="main-status-dot"></div>
-      <span id="main-status-text">System ready. Awaiting ledger matrix.</span>
+      <span id="main-status-text">Connecting to the local LedgerSpy service…</span>
     </div>
 
-    <!-- Upload Box -->
-    <div class="upload-zone" id="upload-zone" onclick="document.getElementById('file-input').click()">
+    <!-- Dataset picker (datasets already imported into this workspace) -->
+    <div class="ls-picker" id="dataset-picker" style="display:none">
+      <label for="dataset-select" class="filter-label">Dataset</label>
+      <select class="col-filter-select" id="dataset-select"></select>
+      <button class="btn btn-primary" id="run-btn" type="button" style="padding:14px 30px;font-size:0.85rem">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:8px"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M15 3v18M3 9h18M3 15h18"/></svg>
+        Analyse dataset
+      </button>
+    </div>
+
+    <!-- Upload: the file goes to the local service (evidence store), never processed in the browser -->
+    <div class="upload-zone" id="upload-zone" style="display:none">
       <div style="font-size:24px; margin-bottom:12px">📂</div>
       <div style="font-family:var(--mono); font-size:0.85rem; color:var(--txt2)">
-        Drop <strong style="color:var(--amber)">.csv</strong> ledger here<br>
-        <span style="font-size:0.7rem; color:var(--txt3)">Processed locally in your browser · XLSX support arrives in a later version</span>
+        Import a <strong style="color:var(--amber)">.csv / .xlsx</strong> ledger<br>
+        <span style="font-size:0.7rem; color:var(--txt3)">Sent to the local LedgerSpy service on this machine · stored as immutable evidence</span>
       </div>
-      <input type="file" id="file-input" style="display:none" accept=".csv,.txt,text/csv" onchange="fileLoaded(this)">
+      <input type="file" id="file-input" style="display:none" accept=".csv,.txt,.xlsx,text/csv">
     </div>
 
-    <div id="file-info" style="display:none; margin:20px 0 32px 0;">
-      <div style="font-family:var(--mono); font-size:0.85rem; color:var(--cyan); margin-bottom:16px; display:flex; align-items:center; gap:8px">
-         📄 <span id="file-name">Waiting for file...</span>
-      </div>
-      <button class="btn btn-primary" onclick="launchAudit()" id="run-btn" style="padding:16px 36px;font-size:0.9rem">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:8px"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M15 3v18M3 9h18M3 15h18"/></svg>
-        Execute Deep Scan
-      </button>
+    <!-- Mapping confirmation (proposed by the backend; the analyst confirms) -->
+    <div class="t-card" id="mapping-card" style="display:none;margin-top:18px">
+      <h3>Confirm column mapping <span id="mapping-file"></span></h3>
+      <div id="mapping-body"></div>
     </div>
   </div>
 
-  <!-- Live Fraud Intelligence Panel -->
+  <!-- Live risk panel -->
   <div class="f-panel">
     <div class="fp-header">
-      <div class="fp-title">Risk Preview Status</div>
+      <div class="fp-title">Review-Risk Summary</div>
       <div class="fp-scan-status" id="fp-status">Standby</div>
     </div>
 
-    <div class="heuristic-notice" id="heuristic-notice" style="display:none">
-      <strong>⚠ Heuristic preview</strong> — <span id="heuristic-notice-text"></span>
+    <div class="heuristic-notice" id="risk-notice" style="display:none">
+      <strong id="risk-notice-title">Review priority, not probability</strong> — <span id="risk-notice-text"></span>
     </div>
 
     <div class="fp-body lock-blur" id="fpanel-lock">
       <div class="fp-summary">
         <div class="f-card card-r">
-          <div class="fc-val"><span class="sim-n" id="hero-n-high">—</span> <span class="pct bg-red" id="hero-pct-high">—</span></div>
-          <div class="fc-label">High Risk</div>
+          <div class="fc-val"><span class="sim-n" id="hero-n-critical">—</span></div>
+          <div class="fc-label">Critical</div>
+        </div>
+        <div class="f-card card-r">
+          <div class="fc-val"><span class="sim-n" id="hero-n-high">—</span></div>
+          <div class="fc-label">High</div>
         </div>
         <div class="f-card card-a">
-          <div class="fc-val"><span class="sim-n" id="hero-n-susp">—</span> <span class="pct bg-amber" id="hero-pct-susp">—</span></div>
-          <div class="fc-label">Suspicious</div>
+          <div class="fc-val"><span class="sim-n" id="hero-n-medium">—</span></div>
+          <div class="fc-label">Medium</div>
         </div>
         <div class="f-card card-g">
-          <div class="fc-val"><span class="sim-n" id="hero-n-safe">—</span></div>
-          <div class="fc-label">Below Thresholds</div>
+          <div class="fc-val"><span class="sim-n" id="hero-n-low">—</span></div>
+          <div class="fc-label">Low</div>
         </div>
       </div>
 
       <div class="fp-middle">
-        <div class="fraud-gauge">
+        <div class="fraud-gauge" title="High + critical rows against the configured review budget">
           <svg class="fg-svg" viewBox="0 0 120 120">
             <circle class="fg-bg" cx="60" cy="60" r="54"></circle>
             <circle class="fg-fill" id="fg-ring" cx="60" cy="60" r="54"></circle>
           </svg>
           <div class="fg-text">
             <div class="fg-score"><span id="fg-n">—</span></div>
-            <div style="font-size:0.55rem;color:var(--txt2);text-transform:uppercase;letter-spacing:0.1em;margin-top:4px">Avg Score /100</div>
+            <div style="font-size:0.55rem;color:var(--txt2);text-transform:uppercase;letter-spacing:0.1em;margin-top:4px" id="fg-label">High+ / budget</div>
           </div>
         </div>
 
         <div style="flex:1">
-          <div style="font-size:1.1rem;font-weight:600;margin-bottom:8px">Preview Result</div>
+          <div style="font-size:1.1rem;font-weight:600;margin-bottom:8px">Result</div>
           <div style="font-size:0.85rem;color:var(--txt2);line-height:1.6;margin-bottom:12px" id="hero-findings">
-            No scan yet. Upload a CSV and run the scan to compute results.
+            No analysis yet. Choose or import a dataset and run the analysis.
           </div>
-          <div style="height:2px;background:var(--border);width:100%;position:relative" title="Share of rows flagged (high + suspicious)">
+          <div style="height:2px;background:var(--border);width:100%;position:relative" title="Share of scored rows in the medium tier or above">
             <div style="position:absolute;left:0;top:0;height:100%;background:var(--red);width:0%;animation:slide 1.5s ease" id="mini-loader"></div>
           </div>
         </div>
@@ -182,12 +195,13 @@
 <section id="analysis" class="analysis-section">
   <div class="label">Forensic Matrices</div>
   <div class="h2">Analysis <span>Engine</span></div>
-  
+
   <div id="ae-lock">
     <!-- Tabs Nav -->
     <div class="tab-list">
       <button class="tab-btn active" onclick="switchTab('tab-ov', this)">Overview</button>
       <button class="tab-btn" onclick="switchTab('tab-di', this)">Data Integrity</button>
+      <button class="tab-btn" onclick="switchTab('tab-fi', this)">Findings</button>
       <button class="tab-btn" onclick="switchTab('tab-bsr', this)">Bank Recon</button>
       <button class="tab-btn" onclick="switchTab('tab-tr', this)">Trends</button>
       <button class="tab-btn" onclick="switchTab('tab-an', this)">Anomalies</button>
@@ -195,34 +209,33 @@
       <button class="tab-btn" onclick="switchTab('tab-ex', this)">Explainability</button>
     </div>
 
-    <!-- TAB: DATA INTEGRITY -->
+    <!-- TAB: DATA INTEGRITY (P4, backend) -->
     <div class="tab-content" id="tab-di">
-       <div class="t-grid-2">
-         <div class="t-card" style="text-align:center">
-           <h3>Dataset Readiness <span>Pre-Scan Analysis</span></h3>
-           <div style="position:relative;width:200px;height:200px;margin:30px auto 20px">
-             <svg viewBox="0 0 100 100" style="display:block;width:100%;height:100%">
-               <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="8"/>
-               <circle cx="50" cy="50" r="42" fill="none" stroke="var(--cyan)" stroke-width="8" stroke-dasharray="263.89" stroke-dashoffset="0" style="transform:rotate(-90deg);transform-origin:50px 50px;transition:stroke-dashoffset 1s ease" id="di-ring"/>
-               <text x="50" y="44" font-family="DM Mono, monospace" font-size="24" fill="#e2e8f0" text-anchor="middle" dominant-baseline="middle" font-weight="bold" id="di-score-txt">--%</text>
-               <text x="50" y="64" font-family="DM Mono, monospace" font-size="7" fill="#94a3b8" text-anchor="middle" dominant-baseline="middle">CLEAN</text>
-             </svg>
-           </div>
-           <p style="font-size:0.85rem;color:var(--txt2);margin-top:20px" id="di-status-desc">Awaiting CSV upload to calculate data readiness score.</p>
-         </div>
-         <div class="t-card" style="display:flex;flex-direction:column">
-           <h3>Quality Issues <span>Preliminary checks</span></h3>
-           <div style="display:flex;flex-direction:column;gap:12px;margin-top:10px;flex:1" id="di-issue-list">
-             <div style="padding:16px;background:var(--bg2);border-radius:8px;border:1px solid var(--border);color:var(--txt3);font-size:0.85rem;text-align:center">Waiting for upload...</div>
-           </div>
-           <button class="btn btn-secondary" style="margin-top:20px;width:100%" id="di-clean-btn" disabled title="Fixes for this in-browser preview are not applied here. Logged, reversible fixes run in the backend report below (P4).">✨ Auto-Fix — see backend report below</button>
-         </div>
+       <div class="t-card" id="di-summary-card">
+         <h3>Data Readiness <span>reported separately from risk</span></h3>
+         <div id="di-summary"><div class="na-inline">Run the analysis to show the readiness of the analysed dataset.</div></div>
        </div>
        <!-- P4: integrity report computed by the ledgerspy backend. Filled by js/integrity-panel.js from API data only. -->
        <div class="t-card" id="di-backend" style="margin-top:24px">
          <h3>Backend Integrity Report <span>P4 · computed by ledgerspy</span></h3>
          <div id="di-backend-body"><div class="na-inline">Loading backend report…</div></div>
        </div>
+    </div>
+
+    <!-- TAB: FINDINGS (P7 rules + Benford + P8 detectors, backend) -->
+    <div class="tab-content" id="tab-fi">
+      <div class="t-card">
+        <h3>Detectors <span>status, coverage and signals</span></h3>
+        <div id="fi-detectors"><div class="na-inline">Run the analysis to list the detectors.</div></div>
+      </div>
+      <div class="t-card" style="margin-top:24px">
+        <h3>Dataset-level findings <span>counterparty and subgroup evidence</span></h3>
+        <div id="fi-dataset"><div class="na-inline">Run the analysis to list findings.</div></div>
+      </div>
+      <div class="t-card" style="margin-top:24px">
+        <h3>Benford analysis <span>investigative lead, never proof</span></h3>
+        <div id="fi-benford"><div class="na-inline">Run the analysis to show the Benford tests.</div></div>
+      </div>
     </div>
 
     <!-- TAB: BANK RECONCILIATION -->
@@ -233,39 +246,7 @@
            <button class="btn btn-secondary" id="btn-run-recon" style="padding:6px 16px;font-size:0.75rem" disabled title="Not yet implemented (roadmap P14)">Recon — not yet available</button>
          </div>
          <div class="na-card" style="margin-top:12px">
-           <strong>Not available yet.</strong> Bank statement reconciliation needs a bank statement file (date, description, debit/credit, reference), which this version cannot load. When built (roadmap P14) it will match ledger entries to statement lines by amount, date tolerance, reference and payee: green = matched, yellow = partial match, red = missing evidence. No simulated matches are shown.
-         </div>
-       </div>
-       <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px" id="bsr-tables">
-         <!-- Left: Ledger -->
-         <div style="background:var(--bg0);border:1px solid var(--border);border-radius:8px;overflow:hidden">
-           <div style="padding:12px 16px;background:var(--bg2);border-bottom:1px solid var(--border);font-family:var(--mono);font-size:0.75rem;color:var(--txt3);display:flex;justify-content:space-between">
-             <span>INTERNAL LEDGER</span>
-             <span id="bsr-l-count">0 items</span>
-           </div>
-           <div style="max-height:400px;overflow-y:auto">
-             <table class="tx-table" style="margin:0">
-               <thead><tr><th>ID</th><th>VENDOR</th><th>AMT</th></tr></thead>
-               <tbody id="bsr-ledger-body">
-                 <tr><td colspan="3" style="text-align:center;padding:20px;color:var(--txt3)">Not available yet — reconciliation not implemented.</td></tr>
-               </tbody>
-             </table>
-           </div>
-         </div>
-         <!-- Right: Bank -->
-         <div style="background:var(--bg0);border:1px solid var(--border);border-radius:8px;overflow:hidden">
-           <div style="padding:12px 16px;background:var(--bg2);border-bottom:1px solid var(--border);font-family:var(--mono);font-size:0.75rem;color:var(--txt3);display:flex;justify-content:space-between">
-             <span>BANK STATEMENT</span>
-             <span id="bsr-b-count">0 items</span>
-           </div>
-           <div style="max-height:400px;overflow-y:auto">
-             <table class="tx-table" style="margin:0">
-               <thead><tr><th>MATCH STATUS</th><th>VENDOR</th><th>AMT</th></tr></thead>
-               <tbody id="bsr-bank-body">
-                 <tr><td colspan="3" style="text-align:center;padding:20px;color:var(--txt3)">No bank statement loaded.</td></tr>
-               </tbody>
-             </table>
-           </div>
+           <strong>Not available yet.</strong> Bank statement reconciliation needs a bank statement file (date, description, debit/credit, reference) and matching logic, which arrive in roadmap P14. It will match ledger entries to statement lines by amount, date tolerance, reference and payee. No simulated matches are shown.
          </div>
        </div>
     </div>
@@ -273,87 +254,60 @@
     <!-- TAB A: OVERVIEW -->
     <div class="tab-content active" id="tab-ov">
       <div class="t-grid-2">
-        <!-- Donut Chart: built correctly with single circumference circle -->
         <div class="t-card" style="text-align:center">
-          <h3>Risk Distribution <span id="ov-total">No scan yet</span></h3>
+          <h3>Risk Distribution <span id="ov-total">No analysis yet</span></h3>
           <svg width="220" height="220" viewBox="0 0 220 220" style="display:block;margin:0 auto">
-            <!-- bg track -->
             <circle cx="110" cy="110" r="80" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="28"/>
-            <!-- Segments are set from computed tier counts by updateOverviewTab() (order: high → suspicious → below) -->
-            <circle id="donut-high" cx="110" cy="110" r="80" fill="none" stroke="#f87171" stroke-width="28"
-              stroke-dasharray="0 503" stroke-dashoffset="0"
-              style="transform:rotate(-90deg);transform-origin:110px 110px"/>
-            <circle id="donut-susp" cx="110" cy="110" r="80" fill="none" stroke="#f59e0b" stroke-width="28"
-              stroke-dasharray="0 503" stroke-dashoffset="0"
-              style="transform:rotate(-90deg);transform-origin:110px 110px"/>
-            <circle id="donut-safe" cx="110" cy="110" r="80" fill="none" stroke="#34d399" stroke-width="28"
-              stroke-dasharray="0 503" stroke-dashoffset="0"
-              style="transform:rotate(-90deg);transform-origin:110px 110px"/>
-            <!-- center -->
+            <!-- Segments are sized from the API tier counts (order: critical → high → medium → low → not assessed) -->
+            <circle id="donut-critical" cx="110" cy="110" r="80" fill="none" stroke="#ef4444" stroke-width="28" stroke-dasharray="0 503" style="transform:rotate(-90deg);transform-origin:110px 110px"/>
+            <circle id="donut-high" cx="110" cy="110" r="80" fill="none" stroke="#f87171" stroke-width="28" stroke-dasharray="0 503" style="transform:rotate(-90deg);transform-origin:110px 110px"/>
+            <circle id="donut-medium" cx="110" cy="110" r="80" fill="none" stroke="#f59e0b" stroke-width="28" stroke-dasharray="0 503" style="transform:rotate(-90deg);transform-origin:110px 110px"/>
+            <circle id="donut-low" cx="110" cy="110" r="80" fill="none" stroke="#34d399" stroke-width="28" stroke-dasharray="0 503" style="transform:rotate(-90deg);transform-origin:110px 110px"/>
+            <circle id="donut-insufficient" cx="110" cy="110" r="80" fill="none" stroke="#64748b" stroke-width="28" stroke-dasharray="0 503" style="transform:rotate(-90deg);transform-origin:110px 110px"/>
             <circle cx="110" cy="110" r="64" fill="#0d1427"/>
             <text id="donut-total" x="110" y="104" font-family="DM Mono, monospace" font-size="22" fill="#e2e8f0" text-anchor="middle" font-weight="bold">—</text>
             <text x="110" y="122" font-family="DM Mono, monospace" font-size="10" fill="#94a3b8" text-anchor="middle">TRANSACTIONS</text>
           </svg>
-          <div style="display:flex;justify-content:center;gap:20px;margin-top:20px;font-size:0.82rem;font-family:var(--mono)">
+          <div style="display:flex;justify-content:center;flex-wrap:wrap;gap:14px;margin-top:20px;font-size:0.78rem;font-family:var(--mono)">
+            <span style="color:#ef4444" id="leg-critical">&#9632; Critical —</span>
             <span style="color:var(--red)" id="leg-high">&#9632; High —</span>
-            <span style="color:var(--amber)" id="leg-susp">&#9632; Susp —</span>
-            <span style="color:var(--green)" id="leg-safe">&#9632; Below —</span>
+            <span style="color:var(--amber)" id="leg-medium">&#9632; Medium —</span>
+            <span style="color:var(--green)" id="leg-low">&#9632; Low —</span>
+            <span style="color:var(--txt3)" id="leg-insufficient">&#9632; Not assessed —</span>
           </div>
 
-          <!-- Quick stats row (all computed after scan) -->
           <div style="margin-top:24px;display:grid;grid-template-columns:1fr 1fr;gap:12px;text-align:left">
             <div style="background:var(--bg3);border-radius:10px;padding:14px">
-              <div style="font-family:var(--mono);font-size:0.65rem;color:var(--txt3);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px">Avg High-Risk Amount</div>
+              <div style="font-family:var(--mono);font-size:0.65rem;color:var(--txt3);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px">Avg High/Critical Amount</div>
               <div style="font-size:1.1rem;font-weight:700;color:var(--red)" id="qs-avg-high">—</div>
             </div>
             <div style="background:var(--bg3);border-radius:10px;padding:14px">
-              <div style="font-family:var(--mono);font-size:0.65rem;color:var(--txt3);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px">Amount in High-Risk Rows</div>
+              <div style="font-family:var(--mono);font-size:0.65rem;color:var(--txt3);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px">Amount in Medium+ Rows</div>
               <div style="font-size:1.1rem;font-weight:700;color:var(--amber)" id="qs-high-amt">—</div>
             </div>
-            <div style="background:var(--bg3);border-radius:10px;padding:14px" title="Share of rows scored high or suspicious. Not a precision/accuracy measure.">
-              <div style="font-family:var(--mono);font-size:0.65rem;color:var(--txt3);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px">Flag Rate (High + Susp)</div>
+            <div style="background:var(--bg3);border-radius:10px;padding:14px" title="High + critical share of scored rows, against the configured review budget. Not a precision/accuracy measure.">
+              <div style="font-family:var(--mono);font-size:0.65rem;color:var(--txt3);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px">High+ Share / Budget</div>
               <div style="font-size:1.1rem;font-weight:700;color:var(--cyan)" id="qs-flag-rate">—</div>
             </div>
             <div style="background:var(--bg3);border-radius:10px;padding:14px">
-              <div style="font-family:var(--mono);font-size:0.65rem;color:var(--txt3);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px">Payees with High-Risk Rows</div>
+              <div style="font-family:var(--mono);font-size:0.65rem;color:var(--txt3);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px">Counterparties with High+ Rows</div>
               <div style="font-size:1.1rem;font-weight:700;color:var(--txt)" id="qs-payees">—</div>
             </div>
           </div>
         </div>
 
         <div class="t-card" style="display:flex;flex-direction:column;gap:24px">
-          <!-- KPI metrics -->
           <div class="t-card exposure-card">
-            <div style="font-family:var(--mono);font-size:0.75rem;color:var(--txt3);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:12px">Amount in High-Risk Rows (Heuristic)</div>
+            <div style="font-family:var(--mono);font-size:0.75rem;color:var(--txt3);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:12px">Amount in High / Critical Rows</div>
             <div style="font-size:3rem;font-weight:800;color:var(--amber);line-height:1;margin-bottom:12px;text-shadow:0 0 20px rgba(245,158,11,0.2)" id="exp-val">—</div>
-            <div style="font-size:0.85rem;color:var(--txt2);margin-bottom:24px" id="exp-desc">Run a scan to compute.</div>
+            <div style="font-size:0.85rem;color:var(--txt2);margin-bottom:24px" id="exp-desc">Run the analysis to compute.</div>
           </div>
           <div style="height:1px;background:var(--border);"></div>
-          <!-- Risk breakdown bars -->
           <div>
-            <div style="font-family:var(--mono);font-size:0.72rem;color:var(--txt3);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:14px">Risk Tier Breakdown</div>
-            <div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:0.8rem">
-              <span style="color:var(--red)">High Risk</span><span style="font-family:var(--mono)"><span id="tier-high-txt">— TX</span> <span style="color:var(--txt3);margin-left:8px" id="tier-high-pct">—</span></span>
-            </div>
-            <div style="width:100%;height:4px;background:var(--bg3);border-radius:2px;overflow:hidden;margin-bottom:16px">
-              <div id="tier-high-bar" style="width:0%;height:100%;background:var(--red)"></div>
-            </div>
-            <div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:0.8rem">
-              <span style="color:var(--amber)">Suspicious</span><span style="font-family:var(--mono)"><span id="tier-susp-txt">— TX</span> <span style="color:var(--txt3);margin-left:8px" id="tier-susp-pct">—</span></span>
-            </div>
-            <div style="width:100%;height:4px;background:var(--bg3);border-radius:2px;overflow:hidden;margin-bottom:16px">
-              <div id="tier-susp-bar" style="width:0%;height:100%;background:var(--amber)"></div>
-            </div>
-            <div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:0.8rem">
-              <span style="color:var(--green)">Below Thresholds</span><span style="font-family:var(--mono)"><span id="tier-safe-txt">— TX</span> <span style="color:var(--txt3);margin-left:8px" id="tier-safe-pct">—</span></span>
-            </div>
-            <div style="width:100%;height:4px;background:var(--bg3);border-radius:2px;overflow:hidden">
-              <div id="tier-safe-bar" style="width:0%;height:100%;background:var(--green)"></div>
-            </div>
+            <div style="font-family:var(--mono);font-size:0.72rem;color:var(--txt3);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:14px">Score Distribution <span style="text-transform:none">(scored rows per 10-point band)</span></div>
+            <div id="ov-histogram"><div class="na-inline">Run the analysis to compute.</div></div>
           </div>
           <div style="height:1px;background:var(--border);"></div>
-
-          <!-- Industry benchmark: not available (no genuine benchmark data) -->
           <div style="padding-top:8px">
             <div style="font-family:var(--mono);font-size:0.72rem;color:var(--cyan);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:14px;display:flex;align-items:center;gap:6px">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
@@ -361,58 +315,55 @@
             </div>
             <div class="na-card"><strong>Not available.</strong> Comparing this ledger with a sector rate needs a genuine, definition-matched benchmark source, which LedgerSpy does not have. No comparison is shown rather than an invented one (roadmap P19, data-dependent).</div>
           </div>
-
           <div style="height:1px;background:var(--border);"></div>
-          <button class="btn btn-secondary" style="align-self:flex-start" onclick="document.getElementById('insights').scrollIntoView({behavior:'smooth'})">Jump to Report &darr;</button>
+          <button class="btn btn-secondary" style="align-self:flex-start" onclick="document.getElementById('insights').scrollIntoView({behavior:'smooth'})">Jump to Findings Summary &darr;</button>
         </div>
       </div>
     </div>
 
     <!-- TAB B: TRENDS -->
     <div class="tab-content" id="tab-tr">
-      <!-- Monthly Bar Chart -->
       <div class="t-card" style="margin-bottom:24px">
-        <h3>Transaction Volume &amp; Heuristic Tiers over Time <span>by step value in the file</span></h3>
+        <h3>Transactions per Month by Tier <span>posting date</span></h3>
         <div style="display:flex;gap:16px;margin-bottom:14px">
-          <span style="font-family:var(--mono);font-size:0.72rem;display:flex;align-items:center;gap:6px"><span style="width:12px;height:3px;background:var(--cyan);opacity:0.65;display:inline-block;border-radius:2px"></span>Below thresholds</span>
-          <span style="font-family:var(--mono);font-size:0.72rem;display:flex;align-items:center;gap:6px"><span style="width:12px;height:3px;background:var(--amber);display:inline-block;border-radius:2px"></span>Suspicious</span>
-          <span style="font-family:var(--mono);font-size:0.72rem;display:flex;align-items:center;gap:6px"><span style="width:12px;height:3px;background:var(--red);display:inline-block;border-radius:2px"></span>High-Risk</span>
+          <span style="font-family:var(--mono);font-size:0.72rem;display:flex;align-items:center;gap:6px"><span style="width:12px;height:3px;background:var(--cyan);opacity:0.65;display:inline-block;border-radius:2px"></span>Low</span>
+          <span style="font-family:var(--mono);font-size:0.72rem;display:flex;align-items:center;gap:6px"><span style="width:12px;height:3px;background:var(--amber);display:inline-block;border-radius:2px"></span>Medium</span>
+          <span style="font-family:var(--mono);font-size:0.72rem;display:flex;align-items:center;gap:6px"><span style="width:12px;height:3px;background:var(--red);display:inline-block;border-radius:2px"></span>High + critical</span>
         </div>
         <div id="trends-monthly-bars" style="height:260px;padding:24px 16px 40px;display:flex;align-items:flex-end;gap:5px;background:var(--bg0);border-radius:8px;border:1px solid var(--border);overflow:visible;position:relative">
-          <div style="width:100%;text-align:center;color:var(--txt3);font-size:0.8rem;margin-bottom:100px;">Awaiting Deep Scan to compute time-series trends...</div>
+          <div style="width:100%;text-align:center;color:var(--txt3);font-size:0.8rem;margin-bottom:100px;">Run the analysis to compute monthly volumes.</div>
         </div>
-        <p id="trends-monthly-alert" style="margin-top:14px;font-size:0.84rem;color:var(--txt2);line-height:1.6">Run the scan to bucket rows by the file's time/step column.</p>
+        <p id="trends-monthly-alert" style="margin-top:14px;font-size:0.84rem;color:var(--txt2);line-height:1.6">Monthly series need real calendar dates; simulation steps are not grouped into months.</p>
       </div>
       <div class="t-grid-2">
         <div class="t-card">
-          <h3>Benford's Law &mdash; First Digit <span>Descriptive profile</span></h3>
+          <h3>Benford's Law &mdash; First Digit <span>P7 test</span></h3>
           <div class="graph-wrap">
-          <div style="font-size:0.78rem;color:var(--txt3);margin-bottom:14px">Expected (Benford) vs observed first-digit frequency, computed from this file's amounts.</div>
+          <div style="font-size:0.78rem;color:var(--txt3);margin-bottom:14px">Expected (Benford) vs observed first-digit frequency of this dataset's amounts, from the backend Benford test.</div>
           <div id="benford-bars" style="display:flex;align-items:flex-end;gap:5px;height:150px">
-            <div class="na-inline" style="align-self:center;width:100%">Run the scan to compute the digit distribution.</div>
+            <div class="na-inline" style="align-self:center;width:100%">Run the analysis to show the digit distribution.</div>
           </div>
           <div style="display:flex;gap:12px;margin-top:10px">
             <span style="font-family:var(--mono);font-size:0.68rem;display:flex;align-items:center;gap:5px"><span style="width:10px;height:8px;background:var(--cyan);opacity:0.25;display:inline-block;border-radius:1px"></span>Benford Expected</span>
             <span style="font-family:var(--mono);font-size:0.68rem;display:flex;align-items:center;gap:5px"><span style="width:10px;height:8px;background:var(--cyan);display:inline-block;border-radius:1px"></span>Observed</span>
-            <span style="font-family:var(--mono);font-size:0.68rem;display:flex;align-items:center;gap:5px"><span style="width:10px;height:8px;background:var(--red);display:inline-block;border-radius:1px"></span>Observed, &gt;8 pp above expected</span>
+            <span style="font-family:var(--mono);font-size:0.68rem;display:flex;align-items:center;gap:5px"><span style="width:10px;height:8px;background:var(--red);display:inline-block;border-radius:1px"></span>Significantly over-represented (backend z-test)</span>
           </div>
-          <p id="benford-note" style="margin-top:12px;font-size:0.82rem;color:var(--txt2);line-height:1.6">No scan yet. Statistical testing (MAD, &chi;&sup2;, per-digit z) arrives in roadmap P7; until then this chart is descriptive only.</p>
-          </div><!-- /graph-wrap -->
-        </div><!-- /Benford t-card (was unclosed in the prototype, which hid the Anomalies/Relationships/Explainability tabs) -->
-
-        <div class="t-card">
-          <h3>Top Payees by Flagged Amount <span>High + Suspicious rows</span></h3>
-          <div id="trends-top-vendors" style="display:flex;flex-direction:column;gap:14px">
-            <div style="color:var(--txt3);font-size:0.85rem">Awaiting scan...</div>
-          </div>
-          <div style="margin-top:18px;padding:14px;background:var(--bg3);border-radius:10px;border-left:3px solid var(--amber)">
-            <div style="font-family:var(--mono);font-size:0.68rem;color:var(--amber);margin-bottom:4px">TOTAL FLAGGED AMOUNT</div>
-            <div id="trends-total-exposure" style="font-size:1.5rem;font-weight:700;color:var(--txt)">&mdash;</div>
-            <div id="trends-exposure-desc" style="font-size:0.75rem;color:var(--txt3);margin-top:2px">Run scan to compute payee concentrations</div>
+          <p id="benford-note" style="margin-top:12px;font-size:0.82rem;color:var(--txt2);line-height:1.6">No analysis yet.</p>
           </div>
         </div>
-        
-        <!-- Monte Carlo going-concern simulation: not available (needs cash-flow history; roadmap P18) -->
+
+        <div class="t-card">
+          <h3>Top Counterparties by Exposure <span>medium-or-higher rows</span></h3>
+          <div id="trends-top-vendors" style="display:flex;flex-direction:column;gap:14px">
+            <div style="color:var(--txt3);font-size:0.85rem">Run the analysis to list counterparties.</div>
+          </div>
+          <div style="margin-top:18px;padding:14px;background:var(--bg3);border-radius:10px;border-left:3px solid var(--amber)">
+            <div style="font-family:var(--mono);font-size:0.68rem;color:var(--amber);margin-bottom:4px">AMOUNT IN MEDIUM+ ROWS</div>
+            <div id="trends-total-exposure" style="font-size:1.5rem;font-weight:700;color:var(--txt)">&mdash;</div>
+            <div id="trends-exposure-desc" style="font-size:0.75rem;color:var(--txt3);margin-top:2px">Run the analysis to compute.</div>
+          </div>
+        </div>
+
         <div class="t-card" style="grid-column:1/-1;margin-top:24px">
           <h3>Monte Carlo Going Concern Stress Test <span>Cash-Flow Simulation</span></h3>
           <div class="na-card"><strong>Not available yet.</strong> A going-concern simulation needs the company's cash-flow history (at least ~24 months of inflows/outflows and an opening cash balance), which a transaction ledger alone does not provide. When supplied (roadmap P18), LedgerSpy will run thousands of simulated 12-month futures and show the survival probability with percentile bands. No projection is shown until then.</div>
@@ -423,78 +374,64 @@
     <!-- TAB C: ANOMALIES -->
     <div class="tab-content" id="tab-an">
       <div class="t-card">
-        <h3>Heuristic Score vs Amount <span>click a point for details</span></h3>
-        <!-- Use a fixed-size SVG container so scatter renders even when tab was hidden -->
+        <h3>Review-Risk Score vs Amount <span>click a point for its explanation</span></h3>
         <div style="position:relative;width:100%;background:#03050a;border-radius:8px;border:1px solid var(--border);overflow:hidden;" id="scatter-box">
           <svg id="scatter-svg" viewBox="0 0 800 350" width="100%" preserveAspectRatio="xMidYMid meet" style="display:block;">
-            <!-- Axis labels -->
             <text x="10" y="20" fill="#475569" font-family="DM Mono, monospace" font-size="10">AMOUNT ↑ (log scale)</text>
-            <text x="640" y="345" fill="#475569" font-family="DM Mono, monospace" font-size="10">HEURISTIC SCORE 0 → 100</text>
-            <!-- Grid -->
+            <text x="620" y="345" fill="#475569" font-family="DM Mono, monospace" font-size="10">REVIEW-RISK SCORE 0 → 100</text>
             <line x1="40" y1="10" x2="40" y2="330" stroke="rgba(255,255,255,0.05)" stroke-width="1"/>
             <line x1="40" y1="330" x2="790" y2="330" stroke="rgba(255,255,255,0.05)" stroke-width="1"/>
-            <!-- Dots injected by JS -->
           </svg>
         </div>
+        <p id="scatter-note" style="margin-top:12px;font-size:0.8rem;color:var(--txt3)">Run the analysis to plot.</p>
         <div id="ano-tt" class="tooltip"></div>
         <div class="anomaly-panel" style="display:none" id="ano-panel">
           <div style="font-family:var(--mono);color:var(--red);font-size:0.75rem;margin-bottom:8px"><span id="ap-label">SELECTED: </span><span id="ap-id"></span></div>
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-            <div style="font-size:1.2rem;font-weight:600" id="ap-v"></div>
-            <div style="font-family:var(--mono);font-size:1.2rem;color:var(--txt)" id="ap-amt"></div>
-          </div>
-          <div style="font-size:0.85rem;color:var(--txt2)" id="ap-rsn"></div>
+          <div id="ap-body"></div>
         </div>
+      </div>
+      <div class="t-card" style="margin-top:24px">
+        <h3>Anomaly Detectors <span>P8 · label-free</span></h3>
+        <div id="an-detectors"><div class="na-inline">Run the analysis to list the anomaly detectors.</div></div>
       </div>
     </div>
 
     <!-- TAB D: RELATIONSHIPS -->
     <div class="tab-content" id="tab-re">
-
       <div class="na-card" style="margin-bottom:24px">
-        <strong>Entity graph not available yet.</strong> Relationship mapping (resolved vendors and employees, cycle detection, centrality, shell-like patterns) needs entity resolution and vendor/employee master data — roadmap P12–P13. No network diagram is drawn until it is computed from your data. Below are simple counts the heuristic preview does compute.
+        <strong>Entity graph not available yet.</strong> Relationship mapping (resolved vendors and employees, cycle detection, centrality, shell-like patterns) needs entity resolution and vendor/employee master data — roadmap P12–P13. No network diagram is drawn. Below is counterparty-level risk from the backend: each counterparty stream (payee for payments, payer for receipts) aggregated from its transactions.
       </div>
-
-      <!-- Stats Row (computed) -->
       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px">
         <div style="background:var(--bg2);border:1px solid rgba(248,113,113,0.25);border-radius:12px;padding:16px">
-          <div style="font-family:var(--mono);font-size:0.6rem;color:var(--txt3);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px">Payees with High-Risk Rows</div>
-          <div style="font-size:2rem;font-weight:700;color:var(--red)" id="rel-stat-payees">—</div>
-          <div style="font-size:0.72rem;color:var(--txt3);margin-top:2px">distinct receivers</div>
+          <div style="font-family:var(--mono);font-size:0.6rem;color:var(--txt3);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px">Counterparties assessed</div>
+          <div style="font-size:2rem;font-weight:700;color:var(--txt)" id="rel-stat-total">—</div>
         </div>
         <div style="background:var(--bg2);border:1px solid rgba(245,158,11,0.25);border-radius:12px;padding:16px">
-          <div style="font-family:var(--mono);font-size:0.6rem;color:var(--txt3);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px">Amount to Those Payees</div>
-          <div style="font-size:1.4rem;font-weight:700;color:var(--amber)" id="rel-stat-amount">—</div>
-          <div style="font-size:0.72rem;color:var(--txt3);margin-top:2px">high-risk rows only</div>
+          <div style="font-family:var(--mono);font-size:0.6rem;color:var(--txt3);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px">Medium or higher</div>
+          <div style="font-size:2rem;font-weight:700;color:var(--amber)" id="rel-stat-medium">—</div>
+        </div>
+        <div style="background:var(--bg2);border:1px solid rgba(248,113,113,0.25);border-radius:12px;padding:16px">
+          <div style="font-family:var(--mono);font-size:0.6rem;color:var(--txt3);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px">High or critical</div>
+          <div style="font-size:2rem;font-weight:700;color:var(--red)" id="rel-stat-high">—</div>
         </div>
         <div style="background:var(--bg2);border:1px solid rgba(34,211,238,0.15);border-radius:12px;padding:16px">
-          <div style="font-family:var(--mono);font-size:0.6rem;color:var(--txt3);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px">Reciprocal-Flow Rows</div>
-          <div style="font-size:2rem;font-weight:700;color:var(--cyan)" id="rel-stat-recip">—</div>
-          <div style="font-size:0.72rem;color:var(--txt3);margin-top:2px">receiver also paid sender (1 hop; not cycle detection)</div>
-        </div>
-        <div style="background:var(--bg2);border:1px solid rgba(248,113,113,0.15);border-radius:12px;padding:16px">
-          <div style="font-family:var(--mono);font-size:0.6rem;color:var(--txt3);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px">Fan-in Payees</div>
-          <div style="font-size:2rem;font-weight:700;color:var(--red)" id="rel-stat-fanin">—</div>
-          <div style="font-size:0.72rem;color:var(--txt3);margin-top:4px">receive from more than 3 senders</div>
+          <div style="font-family:var(--mono);font-size:0.6rem;color:var(--txt3);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px">With high+ transactions</div>
+          <div style="font-size:2rem;font-weight:700;color:var(--cyan)" id="rel-stat-withhigh">—</div>
         </div>
       </div>
-
-      <!-- Top payees (computed) -->
       <div class="t-card">
-        <h3>Top Payees in High-Risk Rows <span>by amount</span></h3>
-        <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px" id="re-entity-cards">
-          <div class="na-inline" style="grid-column:1/-1">Run the scan to list payees.</div>
-        </div>
+        <h3>Counterparty Risk <span>review order</span></h3>
+        <div id="re-entities"><div class="na-inline">Run the analysis to list counterparties.</div></div>
       </div>
-
     </div>
 
     <!-- TAB E: EXPLAINABILITY -->
     <div class="tab-content" id="tab-ex">
-      <div class="t-card" style="max-width:820px;margin:0 auto">
-        <h3>Rule Contribution Summary (heuristic) <span id="ex-risk-label">No scan yet</span></h3>
-        <p style="font-size:0.85rem;color:var(--txt2);margin-bottom:32px" id="ex-desc">Run the scan to see which heuristic components contribute most to the scores of flagged rows. This is an exact breakdown of the rule-based preview — not SHAP and not a trained-model attribution.</p>
+      <div class="t-card" style="max-width:920px;margin:0 auto">
+        <h3>How the Score Is Built <span id="ex-risk-label">No analysis yet</span></h3>
+        <p style="font-size:0.85rem;color:var(--txt2);margin-bottom:24px" id="ex-desc">Run the analysis to see the scoring method and which evidence families lead the flagged rows. Contributions are an exact breakdown of the fused score (not SHAP).</p>
         <div id="ex-bars"></div>
+        <div id="ex-method" style="margin-top:24px"></div>
       </div>
     </div>
 
@@ -505,39 +442,37 @@
 <section id="transactions" class="table-section">
   <div class="label">Interactive Vouching</div>
   <div class="h2">Transaction <span>Investigation</span></div>
-  
+
   <div class="lock-blur" id="tv-lock">
-    <!-- Top row: risk filters + add button -->
     <div class="t-controls">
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
         <span class="filter-label">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
             <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
           </svg>
-          Filter
+          Tier
         </span>
         <div class="t-filters" id="risk-filters">
-          <button class="t-filter active" onclick="filt(this, 'all')">All</button>
-          <button class="t-filter" onclick="filt(this, 'high')">High Risk</button>
-          <button class="t-filter" onclick="filt(this, 'suspicious')">Suspicious</button>
-          <button class="t-filter" onclick="filt(this, 'safe')">Below Threshold</button>
-          <button class="t-filter" onclick="filt(this, 'unscored')">Not Scored</button>
+          <button class="t-filter active" type="button" data-tier="">All</button>
+          <button class="t-filter" type="button" data-tier="critical">Critical</button>
+          <button class="t-filter" type="button" data-tier="high">High</button>
+          <button class="t-filter" type="button" data-tier="medium">Medium</button>
+          <button class="t-filter" type="button" data-tier="low">Low</button>
+          <button class="t-filter" type="button" data-tier="insufficient_data">Not assessed</button>
         </div>
       </div>
-      <button class="btn btn-primary" id="open-add-tx" onclick="openAddTx()" style="padding:10px 22px;font-size:0.78rem;display:none">➕ Add Transaction</button>
+      <select class="col-filter-select" id="tx-sort" aria-label="Sort">
+        <option value="priority">Review priority</option>
+        <option value="score">Score</option>
+        <option value="amount">Amount</option>
+        <option value="source_row">File order</option>
+      </select>
     </div>
 
-    <!-- Second row: column filter + smart search -->
     <div class="search-row" style="margin-bottom:20px">
-      <select class="col-filter-select" id="col-filter-select" onchange="smartSearch()">
-        <option value="all">All Columns</option>
-        <!-- CSV columns injected here by JS -->
-      </select>
       <div class="search-wrap">
         <span class="s-icon">🔍</span>
-        <input type="text" class="search-box" id="search-in"
-          placeholder="Search transactions..."
-          oninput="smartSearch()">
+        <input type="text" class="search-box" id="search-in" placeholder="Search transaction ID, payer, payee or reference…" aria-label="Search transactions">
       </div>
       <span id="search-count-pill" class="search-count-pill" style="display:none"></span>
     </div>
@@ -549,39 +484,21 @@
             <th width="40"></th>
             <th>TX ID</th>
             <th>DATE</th>
-            <th>VENDOR</th>
-            <th>AMOUNT (₹)</th>
-            <th>HEURISTIC TIER · SCORE</th>
+            <th>PAYER → PAYEE</th>
+            <th>AMOUNT</th>
+            <th>RISK · TIER</th>
+            <th>KEY FINDINGS</th>
           </tr>
         </thead>
-        <tbody id="tx-body">
-          <!-- Rows -->
-        </tbody>
+        <tbody id="tx-body"></tbody>
       </table>
     </div>
+    <div class="di-toolbar" id="tx-pager" style="margin-top:14px"></div>
   </div>
-
 </section>
 
-<!-- ADD TRANSACTION MODAL -->
-<div id="add-tx-overlay">
-  <div class="add-tx-modal">
-    <h2>➕ Add New Transaction</h2>
-    <div class="sub" id="add-tx-sub">Fill in the fields below — columns match your uploaded CSV. New rows are not scored until you re-run the scan.</div>
-    <div class="lt-form-grid" id="lt-form-grid">
-      <!-- Dynamic fields built from CSV headers -->
-    </div>
-    <div class="lt-form-actions">
-      <button class="btn btn-secondary" onclick="closeAddTx()" style="padding:12px 24px">Cancel</button>
-      <button class="btn btn-primary" onclick="ltAddRow()" style="padding:12px 28px">✓ Add to Ledger</button>
-      <button class="btn btn-secondary" onclick="ltDownloadCsv()" style="padding:12px 24px">⬇ Download CSV</button>
-      <span class="lt-row-count" id="lt-row-count"></span>
-    </div>
-  </div>
-</div>
-
-<!-- Import Success Toast -->
-<div id="import-toast">✓ <span id="toast-msg">0 transactions imported successfully!</span></div>
+<!-- Toast -->
+<div id="import-toast">✓ <span id="toast-msg"></span></div>
 
 <!-- ====== CHATBOT PANEL ====== -->
 <div id="chatbot-panel">
@@ -589,78 +506,75 @@
     <div class="chat-header-icon">🤖</div>
     <div class="chat-header-info">
       <div class="ch-name">LedgerSpy Assistant</div>
-      <div class="ch-status">Rule-based · answers from the current scan</div>
+      <div class="ch-status">Rule-based · reads the backend analysis</div>
     </div>
     <button class="chat-close" onclick="toggleChatbot()" title="Close">&times;</button>
   </div>
   <div class="chat-messages" id="chat-messages">
     <div class="chat-msg bot">
       <div class="msg-label">Assistant</div>
-      👋 I'm the <strong>LedgerSpy assistant</strong>. I answer questions about the current scan using keyword matching — summaries, high-risk rows, score breakdowns and the digit profile.<br><br>
-      Upload a CSV and run a scan to get started.
+      👋 I'm the <strong>LedgerSpy assistant</strong>. I answer from the backend analysis using keyword matching — summaries, high-risk rows, explanations of a transaction ID and the Benford test.<br><br>
+      Choose a dataset and run the analysis to get started.
     </div>
   </div>
   <div class="chat-suggestions" id="chat-suggestions">
     <button class="chat-sug" onclick="chatSuggest(this)">📊 Show summary</button>
     <button class="chat-sug" onclick="chatSuggest(this)">⚠️ High risk transactions</button>
     <button class="chat-sug" onclick="chatSuggest(this)">🔍 Explain risk score</button>
-    <button class="chat-sug" onclick="chatSuggest(this)">💡 Top anomalies</button>
+    <button class="chat-sug" onclick="chatSuggest(this)">💡 Benford</button>
   </div>
   <div class="chat-input-area">
-    <input type="text" class="chat-input" id="chat-input" placeholder="Ask about transactions, risk, anomalies..." onkeydown="if(event.key==='Enter')sendChat()">
+    <input type="text" class="chat-input" id="chat-input" placeholder="Ask about the analysis, or 'why is <ID> flagged?'" onkeydown="if(event.key==='Enter')sendChat()">
     <button class="chat-send" onclick="sendChat()" title="Send">▶</button>
   </div>
 </div>
 
-<!-- 6 & 7. INSIGHTS & REPORT -->
+<!-- 6 & 7. INSIGHTS & FINDINGS SUMMARY -->
 <section id="insights" class="insights-section">
   <div class="label">Final Deliverable</div>
-  <div class="h2">Audit <span>Conclusions</span></div>
+  <div class="h2">Findings <span>Summary</span></div>
 
   <div class="insights-grid lock-blur" id="rp-lock">
-    
     <div style="display:flex;flex-direction:column;gap:24px">
       <div class="t-card" style="border-left:4px solid var(--amber)">
-        <div style="font-family:var(--mono);font-size:0.75rem;color:var(--txt3);margin-bottom:8px">AMOUNT IN HIGH-RISK ROWS (HEURISTIC)</div>
+        <div style="font-family:var(--mono);font-size:0.75rem;color:var(--txt3);margin-bottom:8px">AMOUNT IN HIGH / CRITICAL ROWS</div>
         <div style="font-size:2rem;font-weight:700;color:var(--txt)" id="insights-total-fraud">—</div>
       </div>
       <div class="t-card">
-        <div style="font-family:var(--mono);font-size:0.75rem;color:var(--txt3);margin-bottom:8px">PAYEES WITH HIGH-RISK ROWS</div>
+        <div style="font-family:var(--mono);font-size:0.75rem;color:var(--txt3);margin-bottom:8px">COUNTERPARTIES WITH HIGH+ ROWS</div>
         <div style="font-size:1.5rem;font-weight:600;color:var(--txt)" id="insights-vendors">—</div>
       </div>
       <div class="t-card" style="background:var(--red-dim);border:1px solid rgba(248,113,113,0.3)">
-        <div style="font-family:var(--mono);font-size:0.75rem;color:var(--red);margin-bottom:8px">MOST FREQUENT RULE (HIGH-RISK ROWS)</div>
-        <div style="font-size:1.1rem;font-weight:600;color:var(--txt)" id="insights-pattern">Pending scan…</div>
+        <div style="font-family:var(--mono);font-size:0.75rem;color:var(--red);margin-bottom:8px">LEADING EVIDENCE FAMILY (FLAGGED ROWS)</div>
+        <div style="font-size:1.1rem;font-weight:600;color:var(--txt)" id="insights-pattern">Pending analysis…</div>
       </div>
     </div>
 
-        <div class="report-panel">
+    <div class="report-panel">
       <div class="report-doc" id="print-doc">
-        <h1>Preliminary Analysis Memo</h1>
-        <p style="text-align:center;font-family:var(--mono);font-size:0.7rem;margin-bottom:32px;color:var(--txt3)">GENERATED IN-BROWSER FROM THE LOADED FILE</p>
-        <p>No scan yet. After a scan, this memo is generated only from computed results: scope, heuristic results, most frequent indicators, limitations and a suggested next step.</p>
+        <h1>Findings Summary</h1>
+        <p style="text-align:center;font-family:var(--mono);font-size:0.7rem;margin-bottom:32px;color:var(--txt3)">RENDERED FROM THE BACKEND ANALYSIS</p>
+        <p>No analysis yet. After an analysis this lists the review queue's top transactions, dataset-level findings, unavailable detectors and the volume-guard status — each as returned by the API. The narrative audit memo arrives in roadmap P16.</p>
       </div>
       <div style="display:flex;gap:12px">
-        <button class="btn btn-primary" style="flex:1" id="memo-copy-btn" onclick="copyMemoText()" disabled>⧉ Copy Memo Text</button>
+        <button class="btn btn-primary" style="flex:1" id="memo-copy-btn" disabled>⧉ Copy Summary Text</button>
         <button class="btn btn-secondary" style="flex:1" disabled title="Not yet implemented — PDF generation arrives in roadmap P16">↓ PDF — not yet available</button>
       </div>
     </div>
-
   </div>
 </section>
 
 <!-- Footer -->
 <footer style="padding:40px 5%;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;background:var(--bg0);margin-top:60px">
-  <div style="font-family:var(--mono);font-size:0.85rem;color:var(--txt3);">Ledger<em>Spy</em> — Forensic Audit (prototype)</div>
-  <div style="font-family:var(--mono);font-size:0.75rem;color:var(--txt3)">Processed locally in your browser · heuristic preview, not a trained model</div>
+  <div style="font-family:var(--mono);font-size:0.85rem;color:var(--txt3);">Ledger<em>Spy</em> — Forensic Audit</div>
+  <div style="font-family:var(--mono);font-size:0.75rem;color:var(--txt3)">Analysed by the local LedgerSpy service · review-risk scores are priorities, not probabilities</div>
 </footer>
 
 <script src="js/shared.js"></script>
-<script src="js/data-pipeline.js"></script>
+<script src="js/api.js"></script>
 <script src="js/ui-core.js"></script>
-<script src="js/ml-engine.js"></script>
+<script src="js/risk-ui.js"></script>
 <script src="js/chatbot-ui.js"></script>
 <script src="js/integrity-panel.js"></script>
 </body>
 </html>
-
