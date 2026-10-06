@@ -307,6 +307,7 @@ raw → validate → split FIRST (stratified; time-aware where timestamps allow)
 - **Model.** `IsolationForest(n_estimators≈200, contamination="auto", random_state fixed)`, fitted per run on the case's own data. This is transductive by nature, which is correct for audit analytics.
 - **Score.** Convert to a within-dataset percentile `p`. The signal strength is `s = clip((p − p0)/(1 − p0), 0, 1)` with `p0` from config (e.g., 0.95), so only the tail contributes.
 - **Validation.** No labels, so evaluate with (a) the synthetic scenario benchmark (injected anomalies → precision@k, recall@k) and (b) PaySim labels as a weak proxy. Results are published in the model card.
+- **As built (P8).** Pure-Python Isolation Forest (100 trees, ψ = 256, seed from config), threshold = top tail of reference scores above 0.5 capped by review capacity (not `contamination`), plus robust peer z and tail percentiles; reference = the dataset after a 90-day warm-up, or a chronological split. See [`anomaly-model-card.md`](anomaly-model-card.md).
 
 ### 5.4 Signals and the unified risk score (R12)
 
@@ -597,7 +598,8 @@ LedgerSpy/
 │   ├── normalize/             # explicit, logged transformations
 │   ├── features/              # P6 feature registry: spec, data (canonical rows only), history (point in time, peers),
 │   │                          #   transaction/entity features, deferred, matrix + manifest, report, registry_lock.json
-│   ├── detectors/             # rules.py (P7), anomaly.py, supervised.py
+│   ├── detectors/             # rules.py (P7), supervised.py
+│   ├── anomaly/               # P8: eligibility, isolation_forest, robust_stats, evaluation, models, service
 │   ├── forensics/             # models.py, duplicates.py, benford.py, service.py (P7); entity_resolution.py, graph.py,
 │   │                          #   reconciliation.py, cashflow_sim.py (later)
 │   ├── risk/                  # signal fusion, tiers, volume guard

@@ -248,7 +248,8 @@ Which features each future detector uses is mapped in [`synthetic-scenario-matri
 - **Thresholds are not tied to transaction kind.** `threshold_proximity` uses the nearest configured limit above the amount; the canonical data does not say which limit governs a row (claim vs vendor payment).
 - **One clock per dataset.** Point-in-time history uses posting timestamps. Back-dated postings are visible through `posting_lag_days`, but history is not re-ordered by document date.
 - **Bounded baselines.** Medians and MADs use the 200 most recent prior values of a group, and the global baseline is recency-weighted by this window.
-- **Pure-Python speed.** About 1 s for ~7–10k rows on a laptop. Larger datasets have not been profiled yet (P8 targets 100k rows).
+- **Pure-Python speed.** About 1 s for ~7–10k rows and about 30 s for a 100k-row synthetic ledger on a laptop (profiled in P8;
+  see docs/p8-acceptance.md).
 - **Hash sensitivity.** The definition hash includes the implementation's source, so even a formatting-only change to a feature function requires a version bump. Shared helpers in `history.py` are not hashed into each feature: a change there must bump the versions of the features that use it (stated in `history.py`).
 
 ## Feature catalogue
@@ -621,7 +622,7 @@ Generated from the registry. Support marks come from real runs on both datasets:
 - **Synthetic ledger:** ✔ · **PaySim:** ✔
 - **Test:** `tests/backend/test_features_units.py::test_pair_share_of_payer_outflow`
 
-**`payee_distinct_payers_prior`** · v1 · point_in_time · int, parties
+**`payee_distinct_payers_prior`** · v2 · point_in_time · int, parties
 
 - **Definition:** Number of distinct payers seen paying this row's payee before this row (fan-in to date).
 - **Inputs:** payer_raw, payee_raw, posted_at
@@ -630,6 +631,8 @@ Generated from the registry. Support marks come from real runs on both datasets:
 - **Unusual when:** higher · **requires:** timestamp, payer_payee
 - **Synthetic ledger:** ✔ · **PaySim:** ✔
 - **Test:** `tests/backend/test_features_units.py::test_payee_distinct_payers_prior`
+- **v2 (P8):** same values as v1; the per-payee payer set is kept incrementally (v1 rebuilt it for
+  every row: quadratic at 100k rows).
 
 **`payer_distinct_payees_prior`** · v1 · point_in_time · int, parties
 

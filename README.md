@@ -66,6 +66,13 @@ This repository is being rebuilt from a hackathon prototype into a working syste
   - Signals are review leads, not findings; risk fusion is P9.
 
   See [`docs/forensics.md`](docs/forensics.md) and [`docs/p7-acceptance.md`](docs/p7-acceptance.md).
+- **P8 statistical anomaly detection** (`ledgerspy/anomaly/`):
+  - Three label-free detectors over P6 features: a deterministic pure-Python Isolation Forest, robust peer-group z-scores (counterparty → account / type) and tail percentiles per flow.
+  - Feature eligibility, missing values, warm-up and insufficient data are reported explicitly; thresholds follow review capacity.
+  - `POST /api/datasets/{id}/anomaly` returns subject-level scores, triggered `model_anomaly` signals and model metadata.
+  - "Unusual" is never "fraudulent"; risk fusion is P9.
+
+  See [`docs/anomaly-model-card.md`](docs/anomaly-model-card.md) and [`docs/p8-acceptance.md`](docs/p8-acceptance.md).
 - The original notebooks are in `archive/` for reference. Their evaluation had data leakage and must not be quoted.
 
 See [`docs/requirements.md`](docs/requirements.md) for the requirement-by-requirement status.
@@ -74,7 +81,7 @@ See [`docs/requirements.md`](docs/requirements.md) for the requirement-by-requir
 
 ```
 ledgerspy/     Python package: config/, canonical/, cases/ (SQLite, audit log, evidence), ingest/, quality/,
-               normalize/, synth/, features/, detectors/, forensics/, api/, cli.py
+               normalize/, synth/, features/, detectors/, forensics/, anomaly/, api/, cli.py
 config/        default.yaml — every configurable value (validated, SHA-256 hashed)
 frontend/      prototype UI (index.html, css/, js/) — served by `ledgerspy serve`
 tests/         backend/ (pytest, P2) · frontend/harness.js (Node) + browser_check.py (optional, Playwright)
@@ -129,6 +136,8 @@ python tests/frontend/integrity_panel_check.py  # optional: P4 dashboard against
 | [`docs/p6-acceptance.md`](docs/p6-acceptance.md) | P6 Feature Registry: inventory, dataset support, quality reports, leakage/determinism demos |
 | [`docs/forensics.md`](docs/forensics.md) | P7 forensic rules and Benford: inputs, thresholds, availability, evidence, limitations |
 | [`docs/p7-acceptance.md`](docs/p7-acceptance.md) | P7 acceptance: scenario diagnostics, PaySim validation, Benford results, deviations |
+| [`docs/anomaly-model-card.md`](docs/anomaly-model-card.md) | P8 model card: purpose, features, reference population, thresholds, leakage controls, results, failure modes |
+| [`docs/p8-acceptance.md`](docs/p8-acceptance.md) | P8 acceptance: scenario validation, PaySim proxy, determinism, performance, deviations |
 | [`docs/synthetic-scenario-matrix.md`](docs/synthetic-scenario-matrix.md) | Feature → scenario → fields → records → detector phase |
 | [`docs/cleanup-log.md`](docs/cleanup-log.md) | What was moved, archived or deleted in the cleanup, and why |
 | [`docs/audits/phase-1-current-state-audit.md`](docs/audits/phase-1-current-state-audit.md) | Detailed audit of the prototype |

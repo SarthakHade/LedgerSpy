@@ -942,7 +942,7 @@ def is_reciprocal_pair(inp: FeatureInput) -> list[Any]:
 
 @tx(
     name="payee_distinct_payers_prior",
-    version=1,
+    version=2,
     family="relationship",
     description="Number of distinct payers seen paying this row's payee before this row (fan-in to date).",
     inputs=("payer_raw", "payee_raw", "posted_at"),
@@ -956,7 +956,15 @@ def is_reciprocal_pair(inp: FeatureInput) -> list[Any]:
     requires=("timestamp", "payer_payee"),
 )
 def payee_distinct_payers_prior(inp: FeatureInput) -> list[Any]:
-    return scan(inp, lambda r: r.payee, lambda r, h: len({p.payer for p in h.rows if p.payer}))
+    # v2: same values as v1, kept as a running set per payee (v1 rebuilt the set per row: quadratic).
+    def compute(r: FeatureRow, s: dict) -> int | None:
+        return None if not r.payee else len(s.get(r.payee, ()))
+
+    def add(r: FeatureRow, s: dict) -> None:
+        if r.payee and r.payer:
+            s.setdefault(r.payee, set()).add(r.payer)
+
+    return scan_groups(inp, compute, add)
 
 
 @tx(

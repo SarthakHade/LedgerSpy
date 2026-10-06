@@ -101,7 +101,7 @@ Large samples also "fail" χ² for trivial differences. A deviation says *where 
 The numbers are in [`p7-acceptance.md`](p7-acceptance.md). In brief:
 - **Synthetic ledger:** every target scenario is seen by its detector, and no look-alike control is flagged by the rule it resembles.
 - **S-U-08** (routine quarter-end overtime): its first two quarter-ends are flagged by `temporal`, before the routine is established.
-- **S-G-01** is a **known miss** of `new_vendor_large`. Its robust z of 2.65–2.96 is just under 3σ, because the raw-material peer group is widely dispersed. The `amount_to_account_median_ratio` of ≈ 4 remains in the P6 matrix for P8/P9.
+- **S-G-01** is a **known miss** of `new_vendor_large`. Its robust z of 2.65–2.96 is just under 3σ, because the raw-material peer group is widely dispersed. The `amount_to_account_median_ratio` of ≈ 4 remains in the P6 matrix; P8's Isolation Forest flags S-G-01 (see `p8-acceptance.md`).
 - **No tuning to the benchmark.** Thresholds were set from definitions and statistics (e.g. "just below" = within 5%, 3σ, a multiple-testing-aware Poisson p), not tuned to maximise P5 recall. The remaining "other" signals are reported, not hidden.
 - **PaySim:** 7 rules are not available (simulated clock, no references, not a corporate ledger), with reasons. The balance rule, exact duplicates, round amounts and Benford run.
 

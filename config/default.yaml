@@ -339,3 +339,108 @@ benford:
     max_example_rows: 20
   severity: low
   weight: 0.2
+
+# ---------------------------------------------------------------------------------------------
+# P8 — statistical anomaly detection (architecture §5.3, docs/anomaly-model-card.md). Three label-free detectors
+# score P6 registry features (never labels, ground truth, `extra` or P7 signals): an Isolation Forest, robust
+# peer-group z-scores and tail percentiles. "Anomalous" means unusual relative to the stated population, never
+# "fraudulent". Signals feed P9 risk fusion; P8 does not fuse.
+anomaly:
+  # Which rows form the reference population (fit, medians, cutoffs) and which rows are scored.
+  #   dataset:       transductive — every row is both (the audit question: what is unusual in this period?)
+  #   chronological: the earliest `chronological_fraction` of rows (by posting time) is the reference and only the
+  #                  later rows are scored, so no baseline ever contains a row's future.
+  reference:
+    mode: dataset
+    chronological_fraction: 0.5
+    # With real calendar dates, rows in the first 90 days are not scored and not part of the reference: their
+    # point-in-time history is not yet representative (every long-standing vendor looks new). Same reasoning
+    # as rules.new_vendor_large.min_days_observed.
+    warmup_days: 90
+  # A feature is used only if it is a computed, numeric, row/point-in-time P6 feature (dataset/post-period
+  # features would leak the future in chronological mode) with at most `max_missing_share` nulls and at least
+  # `min_distinct_values` distinct values in the reference population.
+  eligibility:
+    max_missing_share: 0.5
+    min_distinct_values: 2
+    min_row_present_share: 0.5    # a row needs at least half of the model's features present to be scored
+  isolation_forest:
+    enabled: true
+    severity: medium
+    weight: 0.4
+    random_state: 42
+    n_estimators: 100             # Liu et al. (2008): path lengths converge well before 100 trees
+    max_samples: 256              # sub-sample per tree (the paper's ψ = 256)
+    min_rows: 256                 # fewer scorable rows: insufficient_data (no meaningless model)
+    min_features: 3
+    # Threshold policy (instead of sklearn's contamination): a row is flagged when its score is in the top
+    # `tail_fraction` of the reference scores, above `min_score` (0.5 = the paper's "no distinct anomaly" level),
+    # and among the `max_flagged` highest scores (review capacity).
+    tail_fraction: 0.01
+    max_flagged: 100
+    min_score: 0.5
+    max_explained_features: 3     # feature deviations shown per flagged row (robust z, not SHAP)
+    # Behaviour of a transaction relative to its counterparty, peers and time — no identifiers, no labels, no
+    # policy thresholds, no data-quality flags (see the model card for why each is eligible).
+    features:
+      - {name: log_amount, transform: none}
+      - {name: amount_robust_z, transform: none}
+      - {name: amount_pctl_prior, transform: none}
+      - {name: amount_to_cp_median_ratio, transform: signed_log1p}
+      - {name: amount_to_account_median_ratio, transform: signed_log1p}
+      - {name: cp_prev_amount_ratio, transform: signed_log1p}
+      - {name: cp_prior_count, transform: signed_log1p}
+      - {name: cp_days_since_prev, transform: signed_log1p}
+      - {name: cp_days_since_first, transform: signed_log1p}
+      - {name: cp_count_7d, transform: signed_log1p}
+      - {name: cp_count_30d, transform: signed_log1p}
+      - {name: cp_velocity_ratio, transform: signed_log1p}
+      - {name: cp_count_30d_peer_ratio, transform: signed_log1p}
+      - {name: cp_log_amount_trend, transform: none}
+      - {name: hour_deviation, transform: none}
+      - {name: payer_new_payees_7d, transform: signed_log1p}
+      - {name: pair_share_of_payer_outflow, transform: none}
+  # Robust z = (x − median) / scale within a peer group of the reference population, scale = 1.4826·MAD (or
+  # 1.2533·mean absolute deviation when MAD = 0, Iglewicz–Hoaglin), never below the feature's `min_scale`
+  # (resolution: 0.1 log units ≈ 10%, as features.mad_scale_floor; half an hour for posting times), so a very
+  # regular stream (payroll every 28–31 days) is not "unusual" by a day. `peers` is ordered most specific
+  # first: a row is judged against its own counterparty's history when that has `min_group_size` reference
+  # values, else against its GL account / transaction type (the basis is reported). No global fallback: a row
+  # without a sufficient peer group is insufficient_data.
+  robust_peer:
+    enabled: true
+    severity: medium
+    weight: 0.4
+    min_group_size: 20
+    z_threshold: 3.5              # Iglewicz & Hoaglin's recommended outlier cut-off for modified z-scores
+    features:
+      # amount vs the vendor's own amounts, else its GL category / transaction type
+      - name: log_amount
+        transform: none
+        direction: both
+        peers: [counterparty, account, txn_type]
+        min_scale: 0.1
+      # time gap vs the vendor's usual cadence: long = dormancy, short = burst
+      - {name: cp_days_since_prev, transform: signed_log1p, direction: both, peers: [counterparty], min_scale: 0.1}
+      # 30-day activity vs the vendor's usual 30-day activity (velocity)
+      - {name: cp_count_30d, transform: signed_log1p, direction: higher, peers: [counterparty], min_scale: 0.1}
+      # posting time (hours) vs the vendor's usual posting time
+      - {name: hour_of_day, transform: none, direction: both, peers: [counterparty], min_scale: 0.5}
+  # Tail percentiles within each flow (money out / money in) of the reference population. Percentile = mid-rank
+  # ((values below + ½·values equal) / n), so a block of tied values never inflates a tail.
+  tail:
+    enabled: true
+    severity: low
+    weight: 0.2
+    fractions: [0.01, 0.005]      # top 1% and top 0.5%
+    min_population: 200           # smallest population in which the 0.5% tail holds a row
+    features:
+      - {name: amount_minor, direction: higher}
+      - {name: amount_to_cp_median_ratio, direction: higher}
+      - {name: amount_to_account_median_ratio, direction: higher}
+      - {name: cp_velocity_ratio, direction: higher}
+      - {name: cp_days_since_prev, direction: higher}
+      - {name: hour_deviation, direction: higher}
+  # Diagnostic evaluation only (never in the detection path): top-k sizes = review capacity in rows.
+  evaluation:
+    review_capacity: [50, 100, 250]

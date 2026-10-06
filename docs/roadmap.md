@@ -14,7 +14,7 @@ P0 Cleanup ✔
                                       └─ P5 Synthetic scenario data ✔ ◄─ (needs canonical schema from P2/P3)
                                           └─ P6 Feature registry ✔
                                               ├─ P7 Forensic rules + Benford ✔
-                                              ├─ P8 Anomaly detection
+                                              ├─ P8 Anomaly detection ✔
                                               └─ P9 Risk engine v1 + Explainability v1 + UI wired to API  ◄── first end-to-end slice
                                                   ├─ P10 Supervised training/evaluation ─ P11 Model registry/inference
                                                   ├─ P12 Entity resolution ─ P13 Graph analysis
@@ -126,7 +126,7 @@ See [`cleanup-log.md`](cleanup-log.md).
   - Rules: scenario recall on synthetic data.
 - **Acceptance.** Benford output for the PaySim sample and synthetic ledger is backed by data; the injected round-amount vendor is detected in the subgroup analysis.
 
-### P8 — Anomaly detection (R7)
+### P8 — Anomaly detection (R7) ✔ (done; see [`p8-acceptance.md`](p8-acceptance.md) and [`anomaly-model-card.md`](anomaly-model-card.md))
 - **Objective.** Isolation Forest plus robust peer z-scores, producing tail-percentile signals.
 - **Why now.** This is the PS's core label-free detector, and it feeds the risk engine.
 - **Files.** `ledgerspy/detectors/anomaly.py`.

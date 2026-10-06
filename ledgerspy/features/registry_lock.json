@@ -220,8 +220,8 @@
   "version": 1
  },
  "payee_distinct_payers_prior": {
-  "definition_sha256": "0d2d8ec89070a49969cbc698a2d1e04d6f11defd10210f0392d007387cf6f5f7",
-  "version": 1
+  "definition_sha256": "f59764d17378537d304d10b668d74e73c62656bb8a4aaf1d7e63a89daebb2010",
+  "version": 2
  },
  "payer_distinct_payees_prior": {
   "definition_sha256": "6d74bc42f1179ecfd3a5e897ae59a403d983bfa16188039d0f6e886b35c964f4",

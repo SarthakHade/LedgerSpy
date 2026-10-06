@@ -477,6 +477,126 @@ class BenfordConfig(_Section):
         return self
 
 
+# ------------------------------------------------------------------------------------------- P8 anomaly
+
+# Monotone transforms applied to a P6 feature value before it is scored. signed_log1p(x) = sign(x)·ln(1 + |x|)
+# compresses heavy tails (counts, days, ratios) and is defined for every real value.
+AnomalyTransform = Literal["none", "signed_log1p"]
+PeerDimension = Literal["counterparty", "account", "txn_type"]
+
+
+class AnomalyReference(_Section):
+    mode: Literal["dataset", "chronological"]
+    chronological_fraction: float = Field(gt=0.0, lt=1.0)
+    warmup_days: int = Field(ge=0)
+
+
+class AnomalyEligibility(_Section):
+    max_missing_share: float = Field(ge=0.0, lt=1.0)
+    min_distinct_values: int = Field(ge=2)
+    min_row_present_share: float = Field(gt=0.0, le=1.0)
+
+
+class ModelFeature(_Section):
+    name: str = Field(min_length=1)
+    transform: AnomalyTransform
+
+
+class _Detector(_Section):
+    enabled: bool
+    severity: Severity
+    weight: float = Field(gt=0.0, le=1.0)
+
+
+def _unique(names: list[str], what: str) -> None:
+    if len(names) != len(set(names)):
+        raise ValueError(f"{what}: a feature is listed twice")
+
+
+class IsolationForestConfig(_Detector):
+    random_state: int = Field(ge=0)
+    n_estimators: int = Field(ge=10, le=1000)
+    max_samples: int = Field(ge=16)
+    min_rows: int = Field(ge=16)
+    min_features: int = Field(ge=1)
+    tail_fraction: float = Field(gt=0.0, lt=0.5)
+    max_flagged: int = Field(ge=1)
+    min_score: float = Field(ge=0.0, lt=1.0)
+    max_explained_features: int = Field(ge=1)
+    features: list[ModelFeature] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def _valid(self) -> "IsolationForestConfig":
+        _unique([f.name for f in self.features], "isolation_forest.features")
+        return self
+
+
+class RobustFeature(_Section):
+    name: str = Field(min_length=1)
+    transform: AnomalyTransform
+    direction: Literal["higher", "lower", "both"]
+    peers: list[PeerDimension] = Field(
+        min_length=1
+    )  # most specific first; the first sufficient group is used
+    min_scale: float = Field(gt=0.0)  # resolution floor of the robust scale, in transformed units
+
+    @model_validator(mode="after")
+    def _valid(self) -> "RobustFeature":
+        if len(set(self.peers)) != len(self.peers):
+            raise ValueError(f"robust_peer feature {self.name}: a peer dimension is listed twice")
+        return self
+
+
+class RobustPeerConfig(_Detector):
+    min_group_size: int = Field(ge=5)
+    z_threshold: float = Field(gt=0.0)
+    features: list[RobustFeature] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def _valid(self) -> "RobustPeerConfig":
+        _unique([f.name for f in self.features], "robust_peer.features")
+        return self
+
+
+class TailFeature(_Section):
+    name: str = Field(min_length=1)
+    direction: Literal["higher", "lower"]
+
+
+class TailConfig(_Detector):
+    fractions: list[float] = Field(min_length=1)
+    min_population: int = Field(ge=10)
+    features: list[TailFeature] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def _valid(self) -> "TailConfig":
+        _unique([f.name for f in self.features], "tail.features")
+        if not all(0.0 < q < 0.5 for q in self.fractions) or len(set(self.fractions)) != len(self.fractions):
+            raise ValueError("tail.fractions are distinct shares in (0, 0.5)")
+        if self.min_population * min(self.fractions) < 1:
+            raise ValueError("tail.min_population must be large enough for the smallest tail to hold a row")
+        return self
+
+
+class AnomalyEvaluation(_Section):
+    review_capacity: list[int] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def _valid(self) -> "AnomalyEvaluation":
+        if any(k < 1 for k in self.review_capacity):
+            raise ValueError("review_capacity values are positive row counts")
+        return self
+
+
+class AnomalyConfig(_Section):
+    reference: AnomalyReference
+    eligibility: AnomalyEligibility
+    isolation_forest: IsolationForestConfig
+    robust_peer: RobustPeerConfig
+    tail: TailConfig
+    evaluation: AnomalyEvaluation
+
+
 class LedgerSpyConfig(_Section):
     config_version: Literal[1]
     server: ServerConfig
@@ -490,3 +610,4 @@ class LedgerSpyConfig(_Section):
     features: FeaturesConfig
     rules: RulesConfig
     benford: BenfordConfig
+    anomaly: AnomalyConfig
