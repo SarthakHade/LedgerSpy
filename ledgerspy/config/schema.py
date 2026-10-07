@@ -666,6 +666,102 @@ class RiskConfig(_Section):
         return self
 
 
+# ------------------------------------------------------------------------------------------- P10 supervised
+
+SplitStrategy = Literal["random_stratified", "chronological", "group"]
+
+
+class SupervisedTarget(_Section):
+    paysim_label_column: str = Field(min_length=1)
+    synthetic_min_severity: Literal["low", "medium", "high", "critical"]
+    synthetic_exclude_scenario_types: list[str]
+
+
+class SupervisedFeatures(_Section):
+    version: int = Field(ge=1)  # bump when the list or a transform changes
+    numeric: list[str] = Field(min_length=1)
+    log_transform: list[str]  # subset of numeric: signed log1p before scaling
+    categorical: list[str]  # one-hot encoded with categories learnt on the training split
+    max_missing_share: float = Field(ge=0.0, lt=1.0)
+    ablations: dict[str, list[str]]  # name → features removed
+
+    @model_validator(mode="after")
+    def _valid(self) -> "SupervisedFeatures":
+        names = self.numeric + self.categorical
+        if len(names) != len(set(names)):
+            raise ValueError("supervised.features: a feature is listed twice")
+        if not set(self.log_transform) <= set(self.numeric):
+            raise ValueError("supervised.features.log_transform must be numeric features")
+        for name, removed in self.ablations.items():
+            if not set(removed) <= set(names):
+                raise ValueError(f"ablation {name} removes features that are not in the list")
+        return self
+
+
+class SupervisedSplits(_Section):
+    train: float = Field(gt=0.0, lt=1.0)
+    validation: float = Field(gt=0.0, lt=1.0)
+    test: float = Field(gt=0.0, lt=1.0)
+    strategies: list[SplitStrategy] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def _sum(self) -> "SupervisedSplits":
+        if abs(self.train + self.validation + self.test - 1.0) > 1e-9:
+            raise ValueError("supervised.splits: train + validation + test must be 1")
+        return self
+
+
+class LogisticRegressionConfig(_Section):
+    l2: float = Field(gt=0.0)
+    max_iter: int = Field(ge=1)
+    tol: float = Field(gt=0.0)
+
+
+class GradientBoostingConfig(_Section):
+    n_estimators: int = Field(ge=1, le=2000)
+    learning_rate: float = Field(gt=0.0, le=1.0)
+    max_depth: int = Field(ge=1, le=8)
+    max_bins: int = Field(ge=4, le=255)
+    min_samples_leaf: int = Field(ge=1)
+    l2: float = Field(ge=0.0)
+
+
+class SupervisedModels(_Section):
+    logistic_regression: LogisticRegressionConfig
+    gradient_boosting: GradientBoostingConfig
+
+
+class SupervisedBootstrap(_Section):
+    resamples: int = Field(ge=10)
+    seed: int = Field(ge=0)
+    confidence: float = Field(gt=0.5, lt=1.0)
+
+
+class SupervisedEvaluation(_Section):
+    review_share: float = Field(gt=0.0, lt=0.5)  # operating point: top share of validation rows
+    top_k: list[int] = Field(min_length=1)
+    bootstrap: SupervisedBootstrap
+    calibration_bins: int = Field(ge=2)
+
+
+class SupervisedCalibration(_Section):
+    method: Literal["platt"]
+    min_validation_positives: int = Field(ge=1)
+    max_ece: float = Field(gt=0.0, lt=1.0)
+
+
+class SupervisedConfig(_Section):
+    seed: int = Field(ge=0)
+    target: SupervisedTarget
+    features: SupervisedFeatures
+    splits: SupervisedSplits
+    imbalance: list[Literal["none", "balanced"]] = Field(min_length=1)
+    models: SupervisedModels
+    evaluation: SupervisedEvaluation
+    calibration: SupervisedCalibration
+    permutation_repeats: int = Field(ge=1)
+
+
 class LedgerSpyConfig(_Section):
     config_version: Literal[1]
     server: ServerConfig
@@ -681,3 +777,4 @@ class LedgerSpyConfig(_Section):
     benford: BenfordConfig
     anomaly: AnomalyConfig
     risk: RiskConfig
+    supervised: SupervisedConfig

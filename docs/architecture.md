@@ -300,6 +300,10 @@ raw → validate → split FIRST (stratified; time-aware where timestamps allow)
   - Accuracy is not reported as a headline metric.
 - **Model card** (JSON, next to the artefact). Training-data hash, feature list and feature-registry version,
   applicability domain, metrics with CIs, threshold and its rationale, library versions, artefact SHA-256, date.
+- **As built (P10).** Pure-Python logistic regression (IRLS) and histogram gradient boosting (no scikit-learn in the
+  environment); random / chronological / entity-and-scenario-grouped splits with cluster-bootstrap intervals instead
+  of repeated k-fold; class weights only; Platt on validation. Experiments only, no persisted model; see
+  [`supervised-model-card.md`](supervised-model-card.md).
 
 ### 5.3 Unsupervised pipeline
 
@@ -600,7 +604,8 @@ LedgerSpy/
 │   ├── normalize/             # explicit, logged transformations
 │   ├── features/              # P6 feature registry: spec, data (canonical rows only), history (point in time, peers),
 │   │                          #   transaction/entity features, deferred, matrix + manifest, report, registry_lock.json
-│   ├── detectors/             # rules.py (P7), supervised.py
+│   ├── detectors/             # rules.py (P7)
+│   ├── supervised/            # P10: labels adapter, dataset contract, splits, models, metrics, calibration, experiment
 │   ├── anomaly/               # P8: eligibility, isolation_forest, robust_stats, evaluation, models, service
 │   ├── forensics/             # models.py, duplicates.py, benford.py, service.py (P7); entity_resolution.py, graph.py,
 │   │                          #   reconciliation.py, cashflow_sim.py (later)

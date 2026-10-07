@@ -541,3 +541,79 @@ risk:
     top_k: 3
     decay: 0.5
   max_contributors: 5             # contributors listed in an explanation (all remain in the detail)
+
+# ---------------------------------------------------------------------------------------------
+# P10 — supervised training and leakage-safe evaluation (docs/supervised-model-card.md). An OPTIONAL experiment
+# layer: labels are read only by ledgerspy/supervised/labels.py, never by P6–P9, and nothing here changes the P9
+# score. Model outputs are ranking scores; they are called probabilities only when calibration is validated.
+supervised:
+  seed: 42
+  target:
+    paysim_label_column: isFraud            # isFlaggedFraud is never used (it is the simulator's own rule flag)
+    synthetic_min_severity: medium          # P5 injected scenarios of this severity or higher are positives …
+    synthetic_exclude_scenario_types:       # … except those the ground truth itself says are not fraud
+      - digit_distribution_anomaly          # S-T-01: "Not labelled as fraud" (a Benford test target)
+  # Training data contract: P6 registry features only (row / point-in-time semantics), no identifiers, no P7/P8/P9
+  # outputs, no labels. Every inclusion and exclusion is recorded in each experiment (docs: feature table).
+  features:
+    version: 1
+    numeric:
+      - log_amount
+      - amount_robust_z
+      - amount_pctl_prior
+      - amount_to_cp_median_ratio
+      - amount_to_account_median_ratio
+      - cp_prev_amount_ratio
+      - cp_prior_count
+      - cp_days_since_prev
+      - cp_days_since_first
+      - cp_count_7d
+      - cp_count_30d
+      - cp_velocity_ratio
+      - cp_count_30d_peer_ratio
+      - cp_log_amount_trend
+      - hour_of_day
+      - hour_deviation
+      - is_after_hours
+      - is_non_working_weekday
+      - is_holiday
+      - days_to_month_end
+      - days_to_fiscal_year_end
+      - posting_lag_days
+      - round_level
+      - threshold_proximity
+      - is_outflow
+      - pair_prior_count
+      - pair_share_of_payer_outflow
+      - payer_new_payees_7d
+      - payer_distinct_payees_prior
+      - payee_distinct_payers_prior
+      - is_reciprocal_pair
+    log_transform: [amount_to_cp_median_ratio, amount_to_account_median_ratio, cp_prev_amount_ratio, cp_prior_count,
+                    cp_days_since_prev, cp_days_since_first, cp_count_7d, cp_count_30d, cp_velocity_ratio,
+                    cp_count_30d_peer_ratio, posting_lag_days, pair_prior_count, payer_new_payees_7d,
+                    payer_distinct_payees_prior, payee_distinct_payers_prior]
+    categorical: [txn_type]                 # one-hot, categories learnt on the training split only
+    max_missing_share: 0.5                  # in the training split; above this the feature is dropped (recorded)
+    ablations:
+      no_simulator_fields: [txn_type, is_outflow]  # PaySim: fraud only in TRANSFER / CASH_OUT; direction is derived from type
+  # Split first, then fit everything (imputation, scaling, encodings, models) on the training split only.
+  splits:
+    train: 0.6
+    validation: 0.2
+    test: 0.2
+    strategies: [random_stratified, chronological, group]
+  imbalance: [none, balanced]               # class weights only; no oversampling anywhere
+  models:
+    logistic_regression: {l2: 1.0, max_iter: 50, tol: 1.0e-8}
+    gradient_boosting: {n_estimators: 100, learning_rate: 0.1, max_depth: 3, max_bins: 32, min_samples_leaf: 20, l2: 1.0}
+  evaluation:
+    review_share: 0.02                      # operating threshold: the score of the top 2% of VALIDATION rows
+    top_k: [25, 50]                         # review capacity on the test split
+    bootstrap: {resamples: 500, seed: 7, confidence: 0.95}
+    calibration_bins: 10
+  calibration:
+    method: platt                           # isotonic needs ~1,000 positives (architecture §5.2); we have far fewer
+    min_validation_positives: 30            # fewer: calibration is not attempted (score stays a ranking score)
+    max_ece: 0.05                           # calibrated only if the test ECE is at most this
+  permutation_repeats: 2

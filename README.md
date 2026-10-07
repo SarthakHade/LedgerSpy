@@ -83,6 +83,15 @@ This repository is being rebuilt from a hackathon prototype into a working syste
     the scatter from one cached analysis; the UI imports, maps, analyses and renders through these endpoints.
 
   See [`docs/risk-engine.md`](docs/risk-engine.md) and [`docs/p9-acceptance.md`](docs/p9-acceptance.md).
+- **P10 supervised experiments** (`ledgerspy/supervised/`, `ledgerspy evaluate`), an optional and experimental layer:
+  - Logistic regression and histogram gradient boosting are trained on P6 features with a versioned contract.
+  - Labels come only through a dedicated adapter (PaySim `isFraud`, or a P5 ground-truth file given explicitly).
+  - Random, chronological and entity/scenario-grouped splits; thresholds and calibration on validation only.
+  - Baselines (prevalence, amount, P8, P9), bootstrap intervals and a PaySim ablation.
+  - Outputs are model ranking scores, not fraud probabilities. Nothing is persisted, and P9 and the UI are
+    unchanged.
+
+  See [`docs/supervised-model-card.md`](docs/supervised-model-card.md) and [`docs/p10-acceptance.md`](docs/p10-acceptance.md).
 - The original notebooks are in `archive/` for reference. Their evaluation had data leakage and must not be quoted.
 
 See [`docs/requirements.md`](docs/requirements.md) for the requirement-by-requirement status.
@@ -91,7 +100,7 @@ See [`docs/requirements.md`](docs/requirements.md) for the requirement-by-requir
 
 ```
 ledgerspy/     Python package: config/, canonical/, cases/ (SQLite, audit log, evidence), ingest/, quality/,
-               normalize/, synth/, features/, detectors/, forensics/, anomaly/, risk/, api/, cli.py
+               normalize/, synth/, features/, detectors/, forensics/, anomaly/, risk/, supervised/, api/, cli.py
 config/        default.yaml — every configurable value (validated, SHA-256 hashed)
 frontend/      UI (index.html, css/, js/) — served by `ledgerspy serve`; renders API results only
 tests/         backend/ (pytest, P2) · frontend/harness.js (Node) + browser_check.py (optional, Playwright)
@@ -114,6 +123,7 @@ py -3.12 -m venv .venv                          # or: python3.12 -m venv .venv
 .venv/Scripts/ledgerspy audit verify            # verify the workspace audit-log hash chain
 .venv/Scripts/ledgerspy evidence verify         # re-hash every evidence file against the database
 .venv/Scripts/ledgerspy synth --out out/synth --seed 42   # generate a synthetic company (offline, deterministic)
+.venv/Scripts/ledgerspy evaluate --dataset-id D-… --labels paysim   # P10 supervised experiment (local JSON report)
 ```
 
 The workspace (`workspace/ledgerspy.db`) holds client data and is git-ignored.
@@ -150,6 +160,8 @@ python tests/frontend/integrity_panel_check.py  # optional: P4 dashboard against
 | [`docs/p8-acceptance.md`](docs/p8-acceptance.md) | P8 acceptance: scenario validation, PaySim proxy, determinism, performance, deviations |
 | [`docs/risk-engine.md`](docs/risk-engine.md) | P9 risk engine: score formula, caps, tiers, volume guard, entities, explanations, API, limitations |
 | [`docs/p9-acceptance.md`](docs/p9-acceptance.md) | P9 acceptance: synthetic and PaySim validation, frontend rewire, security, deviations |
+| [`docs/supervised-model-card.md`](docs/supervised-model-card.md) | P10 model card: data, features, splits, leakage controls, metrics, calibration, findings |
+| [`docs/p10-acceptance.md`](docs/p10-acceptance.md) | P10 acceptance: experiments, baselines, leakage checks, deviations |
 | [`docs/synthetic-scenario-matrix.md`](docs/synthetic-scenario-matrix.md) | Feature → scenario → fields → records → detector phase |
 | [`docs/cleanup-log.md`](docs/cleanup-log.md) | What was moved, archived or deleted in the cleanup, and why |
 | [`docs/audits/phase-1-current-state-audit.md`](docs/audits/phase-1-current-state-audit.md) | Detailed audit of the prototype |

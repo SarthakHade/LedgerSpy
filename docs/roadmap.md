@@ -16,7 +16,7 @@ P0 Cleanup ✔
                                               ├─ P7 Forensic rules + Benford ✔
                                               ├─ P8 Anomaly detection ✔
                                               └─ P9 Risk engine v1 + Explainability v1 + UI wired to API ✔  ◄── first end-to-end slice
-                                                  ├─ P10 Supervised training/evaluation ─ P11 Model registry/inference
+                                                  ├─ P10 Supervised training/evaluation ✔ ─ P11 Model registry/inference
                                                   ├─ P12 Entity resolution ─ P13 Graph analysis
                                                   ├─ P14 Bank reconciliation (P14b PDF/OCR)  (uses P12 aliases)
                                                   └─ P15 Investigation workflow + case/evidence mgmt
@@ -151,7 +151,7 @@ See [`cleanup-log.md`](cleanup-log.md).
   - Frontend contains no scoring constants (grep test).
 - **Acceptance.** On the synthetic set, the flagged volume is within the review budget, scenario recall is at or above the target recorded in the plan, and each flagged row shows a % breakdown plus evidence links.
 
-### P10 — Supervised training and evaluation (R17)
+### P10 — Supervised training and evaluation (R17) ✔ (done; see [`p10-acceptance.md`](p10-acceptance.md) and [`supervised-model-card.md`](supervised-model-card.md))
 - **Objective.** Rebuild the notebook work as `ledgerspy train/evaluate`, following the pipeline in `architecture.md` §5.2.
   - Split first; preprocessing inside the pipeline; class weights or in-fold SMOTE.
   - Compare LR vs HGB; calibrate; select the threshold from review capacity.

@@ -1,4 +1,4 @@
-"""Command line: `ledgerspy serve` and `ledgerspy audit verify`."""
+"""Command line: `ledgerspy serve`, `audit verify`, `evidence verify`, `synth` and `evaluate` (P10)."""
 
 import argparse
 import secrets
@@ -131,6 +131,39 @@ def cmd_synth(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_evaluate(args: argparse.Namespace) -> int:
+    from ledgerspy.cases.db import connect, db_path_for
+    from ledgerspy.errors import LedgerSpyError
+    from ledgerspy.supervised import service
+
+    cfg = _load(args, {})
+    conn = connect(db_path_for(cfg.settings))
+    try:
+        report = service.evaluate(
+            conn, cfg, args.dataset_id, args.labels, Path(args.ground_truth) if args.ground_truth else None
+        )
+    except LedgerSpyError as exc:
+        print(f"ERROR: {exc.message}", file=sys.stderr)
+        return 1
+    finally:
+        conn.close()
+    path = Path(args.out) if args.out else service.write(report, Path(cfg.settings.workspace.path))
+    if args.out:
+        path.write_text(__import__("json").dumps(report, indent=1, ensure_ascii=False), encoding="utf-8")
+    k = cfg.settings.supervised.evaluation.top_k[-1]
+    print(f"Supervised EXPERIMENT (not a fraud probability). Results: {path}")
+    print(f"result sha256 {report['result_sha256']}")
+    for r in report["comparison"]:
+        pr = "—" if r["pr_auc"] is None else f"{r['pr_auc']:.3f}"
+        print(
+            f"  {r['split']:18} {r['model']:52} PR-AUC {pr:>6}  P@{k} {r[f'precision@{k}']}  "
+            f"{r['calibration']}"
+        )
+    for w in report["warnings"]:
+        print(f"  warning: {w}")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="ledgerspy", description="LedgerSpy offline forensic audit tool")
     parser.add_argument("--version", action="version", version=f"ledgerspy {__version__}")
@@ -171,6 +204,14 @@ def build_parser() -> argparse.ArgumentParser:
     )
     synth.add_argument("--force", action="store_true", help="replace an existing synthetic dataset in --out")
     synth.set_defaults(func=cmd_synth)
+
+    ev = commands.add_parser("evaluate", help="P10: leakage-safe supervised experiment on a labelled dataset")
+    common(ev)
+    ev.add_argument("--dataset-id", required=True, help="canonicalised dataset ID (D-…)")
+    ev.add_argument("--labels", required=True, choices=["paysim", "synthetic"], help="label source")
+    ev.add_argument("--ground-truth", help="P5 ground-truth JSON (required for --labels synthetic)")
+    ev.add_argument("--out", help="write the report here (default: <workspace>/experiments/)")
+    ev.set_defaults(func=cmd_evaluate)
     return parser
 
 
