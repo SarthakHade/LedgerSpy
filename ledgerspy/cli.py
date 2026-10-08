@@ -1,4 +1,5 @@
-"""Command line: `ledgerspy serve`, `audit verify`, `evidence verify`, `synth` and `evaluate` (P10)."""
+"""Command line: `ledgerspy serve`, `audit verify`, `evidence verify`, `synth`, `evaluate` (P10) and
+`model` (P11)."""
 
 import argparse
 import secrets
@@ -164,6 +165,117 @@ def cmd_evaluate(args: argparse.Namespace) -> int:
     return 0
 
 
+def _print_failure(exc) -> None:
+    print(f"ERROR: {exc.message}", file=sys.stderr)
+    for c in exc.details.get("checks", []):
+        print(f"  [{'PASS' if c['passed'] else 'FAIL'}] {c['check']}: {c['detail']}", file=sys.stderr)
+    for pr in exc.details.get("problems", []):
+        print(f"  - {pr}", file=sys.stderr)
+
+
+def cmd_model(args: argparse.Namespace) -> int:
+    """P11 model registry. Lifecycle changes are audit-logged; nothing becomes active without approval."""
+    import json
+
+    from ledgerspy.cases.audit import local_actor
+    from ledgerspy.cases.db import connect, db_path_for, init_db
+    from ledgerspy.errors import LedgerSpyError
+    from ledgerspy.supervised import artifact, inference, registry, train
+
+    cfg = _load(args, {})
+    db_path = db_path_for(cfg.settings)
+    actor = local_actor()
+    init_db(db_path, actor)
+    workspace = Path(cfg.settings.workspace.path)
+    conn = connect(db_path)
+    sub = args.model_command
+    code = 0
+    try:
+        if sub == "train":
+            doc = train.train(
+                conn,
+                cfg,
+                args.dataset_id,
+                args.labels,
+                Path(args.ground_truth) if args.ground_truth else None,
+                args.model,
+                args.imbalance,
+                args.split,
+                args.ablation,
+            )
+            out = registry.register(conn, workspace, doc, actor, "trained with ledgerspy model train")
+            ev = doc["evaluation"]["test"]
+            tr = doc["training"]
+            print("Supervised model artefact (EXPERIMENT: a ranking score, not a fraud probability)")
+            print(f"  model {out['model_id']}  {doc['model']['type']}  status {out['status']}")
+            print(f"  artefact sha256 {out['artifact_sha256']}  file models/{out['file']}")
+            print(
+                f"  training domain {tr['training_domain']} (production eligible: "
+                f"{tr['production_eligible']})"
+            )
+            print(
+                f"  test PR-AUC {ev['pr_auc']}  ROC-AUC {ev['roc_auc']}  calibration "
+                f"{doc['calibration']['status']}"
+            )
+            for w in doc["evaluation"]["warnings"]:
+                print(f"  warning: {w}")
+            return 0
+        if sub == "list" and not args.json:
+            out = registry.list_models(conn, workspace)
+            for m in out["models"]:
+                flag = "ACTIVE " if m["active"] else ""
+                print(
+                    f"{flag}{m['model_id']}  {m['model_type']:20} {m['effective_status']:16} "
+                    f"{m['training_domain']}  sha256 {m['artifact_sha256'][:16]}"
+                )
+            for f in out["unregistered_files"]:
+                print(f"unregistered file (never used): {f}")
+            print(f"active model: {out['active_model_id'] or 'none'}")
+            return 0
+        if sub == "list":
+            out = registry.list_models(conn, workspace)
+        elif sub == "register":
+            out = registry.import_file(conn, workspace, Path(args.file), actor)
+        elif sub == "inspect":
+            out = registry.describe(conn, workspace, args.model_id, full=True)
+        elif sub == "verify":
+            if args.file:
+                loaded = artifact.load_file(Path(args.file))
+                out = {
+                    "model_id": loaded.model_id,
+                    "artifact_sha256": loaded.sha256,
+                    "integrity": "verified",
+                    "compatibility": artifact.compatibility(loaded.doc),
+                }
+                code = 0 if out["compatibility"]["compatible"] else 1
+            else:
+                out = registry.describe(conn, workspace, args.model_id)
+                code = 1 if out["effective_status"] in ("integrity_failed", "incompatible") else 0
+        elif sub in STATUS_COMMANDS:
+            out = registry.set_status(
+                conn, workspace, args.model_id, STATUS_COMMANDS[sub], actor, args.reason
+            )
+        elif sub == "activate":
+            out = registry.activate(conn, workspace, args.model_id, actor, args.reason)
+        elif sub == "deactivate":
+            out = registry.deactivate(conn, workspace, actor, args.reason)
+        else:  # infer
+            res = inference.infer(conn, cfg, workspace, args.dataset_id, args.model_id, args.experimental)
+            out = res.get("metadata", res)
+            if args.out and "rows" in res:
+                Path(args.out).write_text(json.dumps(res, indent=1, ensure_ascii=False), encoding="utf-8")
+    except LedgerSpyError as exc:
+        _print_failure(exc)
+        return 1
+    finally:
+        conn.close()
+    print(json.dumps(out, indent=1, ensure_ascii=False))
+    return code
+
+
+STATUS_COMMANDS = {"promote": "candidate", "approve": "approved", "retire": "retired", "demote": "experiment"}
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="ledgerspy", description="LedgerSpy offline forensic audit tool")
     parser.add_argument("--version", action="version", version=f"ledgerspy {__version__}")
@@ -212,6 +324,48 @@ def build_parser() -> argparse.ArgumentParser:
     ev.add_argument("--ground-truth", help="P5 ground-truth JSON (required for --labels synthetic)")
     ev.add_argument("--out", help="write the report here (default: <workspace>/experiments/)")
     ev.set_defaults(func=cmd_evaluate)
+
+    model = commands.add_parser("model", help="P11: supervised model artefacts, registry and inference")
+    msub = model.add_subparsers(dest="model_command", required=True)
+    m_train = msub.add_parser("train", help="train one model the P10 way and register it as an experiment")
+    m_train.add_argument("--dataset-id", required=True, help="canonicalised dataset ID (D-…)")
+    m_train.add_argument("--labels", required=True, choices=["paysim", "synthetic"], help="label source")
+    m_train.add_argument("--ground-truth", help="P5 ground-truth JSON (required for --labels synthetic)")
+    m_train.add_argument(
+        "--model", default="gradient_boosting", choices=["logistic_regression", "gradient_boosting"]
+    )
+    m_train.add_argument("--imbalance", default="balanced", choices=["none", "balanced"])
+    m_train.add_argument("--split", default="group", choices=["random_stratified", "chronological", "group"])
+    m_train.add_argument("--ablation", help="a configured ablation, e.g. no_simulator_fields")
+    m_reg = msub.add_parser("register", help="verify an artefact file and register a copy (as experiment)")
+    m_reg.add_argument("--file", required=True)
+    m_list = msub.add_parser("list", help="registered models with their effective status")
+    m_list.add_argument("--json", action="store_true")
+    m_inspect = msub.add_parser("inspect", help="metadata, verification and history of a registered model")
+    m_inspect.add_argument("model_id")
+    m_verify = msub.add_parser("verify", help="verify a registered model (ID) or an artefact file (--file)")
+    m_verify.add_argument("model_id", nargs="?")
+    m_verify.add_argument("--file")
+    for name, text in (
+        ("promote", "experiment → candidate (runs the gate)"),
+        ("approve", "candidate → approved (approval gate)"),
+        ("demote", "candidate → experiment"),
+        ("retire", "retire a model (deactivates it if active)"),
+        ("activate", "make an approved model the production model (re-runs the gate)"),
+    ):
+        mp = msub.add_parser(name, help=text)
+        mp.add_argument("model_id")
+        mp.add_argument("--reason", required=True)
+    m_deact = msub.add_parser("deactivate", help="leave no active production model")
+    m_deact.add_argument("--reason", required=True)
+    m_infer = msub.add_parser("infer", help="score a dataset: the active model, or --model-id --experimental")
+    m_infer.add_argument("--dataset-id", required=True)
+    m_infer.add_argument("--model-id")
+    m_infer.add_argument("--experimental", action="store_true", help="allow a model that is not active")
+    m_infer.add_argument("--out", help="also write every score to this file")
+    for mp in msub.choices.values():
+        common(mp)
+        mp.set_defaults(func=cmd_model)
     return parser
 
 

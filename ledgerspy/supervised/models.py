@@ -14,6 +14,11 @@ each leaf holding ≥ min_samples_leaf rows; histograms of a node's larger child
 smaller child's. No randomness: features and bins are scanned in order and ties keep the first split.
 
 Both accept per-row weights (class weights for imbalance); neither ever sees validation or test rows.
+
+Persistence (P11): `parameters()` returns the fitted state as plain JSON values (floats are written with
+Python's shortest round-trip repr, so a saved and re-loaded model is bit-identical); `from_parameters()`
+rebuilds a scoring-only model from it. Scoring is row-independent: a row's score never depends on the other
+rows in the batch. `IMPLEMENTATION_VERSION` changes whenever scoring of a persisted model would change.
 """
 
 import math
@@ -22,6 +27,9 @@ from operator import mul
 from typing import Any
 
 from ledgerspy.hashing import canonical_json, sha256_hex
+
+IMPLEMENTATION = "ledgerspy.supervised.models (pure Python)"
+IMPLEMENTATION_VERSION = 1
 
 
 def sigmoid(x: float) -> float:
@@ -114,6 +122,19 @@ class LogisticRegression:
         return sha256_hex(
             canonical_json({"intercept": repr(self.intercept), "coef": [repr(c) for c in self.coef]})
         )
+
+    def parameters(self) -> dict[str, Any]:
+        return {"intercept": self.intercept, "coef": list(self.coef)}
+
+    @property
+    def n_inputs(self) -> int:
+        return len(self.coef)
+
+    @classmethod
+    def from_parameters(cls, hyper: dict[str, Any], params: dict[str, Any]) -> "LogisticRegression":
+        m = cls(hyper["l2"], hyper["max_iter"], hyper["tol"])
+        m.intercept, m.coef = float(params["intercept"]), [float(c) for c in params["coef"]]
+        return m
 
 
 class GradientBoosting:
@@ -262,6 +283,35 @@ class GradientBoosting:
     def describe(self) -> dict[str, Any]:
         return {"trees": len(self.trees), "leaves": sum(1 for t in self.trees for nd in t if nd[0] == "leaf")}
 
+    def parameters(self) -> dict[str, Any]:
+        """init (log-odds), per-input bin edges, and trees as node lists: ["leaf", value] or
+        ["split", input, bin, left, right, gain] (a row goes left when its bin ≤ `bin`)."""
+        return {
+            "init": self.init,
+            "cuts": [list(c) for c in self.cuts],
+            "trees": [[list(nd) for nd in t] for t in self.trees],
+        }
+
+    @property
+    def n_inputs(self) -> int:
+        return len(self.cuts)
+
+    @classmethod
+    def from_parameters(cls, hyper: dict[str, Any], params: dict[str, Any]) -> "GradientBoosting":
+        m = cls(
+            hyper["n_estimators"],
+            hyper["learning_rate"],
+            hyper["max_depth"],
+            hyper["max_bins"],
+            hyper["min_samples_leaf"],
+            hyper["l2"],
+        )
+        m.init = float(params["init"])
+        m.cuts = [[float(v) for v in c] for c in params["cuts"]]
+        m.trees = [[tuple(nd) for nd in t] for t in params["trees"]]
+        m.gain = [0.0] * len(m.cuts)  # training diagnostics are not persisted
+        return m
+
     def sha256(self) -> str:
         return sha256_hex(
             canonical_json(
@@ -274,6 +324,9 @@ class GradientBoosting:
                 }
             )
         )
+
+
+CLASSES = {"logistic_regression": LogisticRegression, "gradient_boosting": GradientBoosting}
 
 
 def make(name: str, cfg) -> LogisticRegression | GradientBoosting:

@@ -617,3 +617,7 @@ supervised:
     min_validation_positives: 30            # fewer: calibration is not attempted (score stays a ranking score)
     max_ece: 0.05                           # calibrated only if the test ECE is at most this
   permutation_repeats: 2
+  # P11: persisted model artefacts (<workspace>/models/) and inference. Scoring is row-independent, so the batch
+  # size changes speed and memory only, never a score.
+  inference:
+    batch_size: 2048

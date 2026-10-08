@@ -13,6 +13,10 @@ Preprocessing is fitted on the TRAINING split only and then applied unchanged to
   dropped when constant or more than `max_missing_share` null in training (recorded); standardised with
   training mean/SD (used by logistic regression; the tree model is invariant to it);
 - categorical: one-hot over the categories seen in training (an unseen category is all zeros).
+
+P11 persists the fitted preprocessor (`state()` / `from_state()`, exact floats) inside the model artefact.
+Inference applies that state to a `Frame` of P6 values; nothing is ever re-fitted on the inference rows, and a
+row's design values depend only on that row.
 """
 
 import math
@@ -145,6 +149,29 @@ def build(
     )
 
 
+@dataclass
+class Frame:
+    """P6 feature values of the rows to score (inference): no labels, no split metadata."""
+
+    txn_ids: list[str]
+    numeric: dict[str, list[float | None]]
+    categorical: dict[str, list[str | None]]
+
+    @property
+    def n(self) -> int:
+        return len(self.txn_ids)
+
+
+def frame_from_run(run: FeatureRun, numeric: list[str], categorical: list[str]) -> Frame:
+    """Copies of the named transaction-level P6 columns (every row of the dataset, in matrix order)."""
+    tx = run.transactions
+    return Frame(
+        txn_ids=list(tx.subjects),
+        numeric={n: [None if v is None else float(v) for v in tx.columns[n]] for n in numeric},
+        categorical={n: list(tx.columns[n]) for n in categorical},
+    )
+
+
 def _slog(x: float) -> float:
     return math.copysign(math.log1p(abs(x)), x)
 
@@ -214,7 +241,9 @@ class Preprocessor:
             out.extend(f"{e['feature']}={c}" for c in e["categories"])
         return out
 
-    def transform(self, data: TrainingData, rows: list[int], standardise: bool) -> list[list[float]]:
+    def transform(
+        self, data: "TrainingData | Frame", rows: list[int], standardise: bool
+    ) -> list[list[float]]:
         """Column-major design matrix for `rows`, using only fitted (training) statistics."""
         cols: list[list[float]] = []
         for e in self.numeric:
@@ -233,6 +262,33 @@ class Preprocessor:
             for c in e["categories"]:
                 cols.append([1.0 if v == c else 0.0 for v in vals])
         return cols
+
+    def state(self) -> dict[str, Any]:
+        """The complete fitted state, exact (persisted in the P11 artefact)."""
+        return {
+            "fitted_on": "training split only",
+            "numeric": [dict(e) for e in self.numeric],
+            "categorical": [
+                {"feature": e["feature"], "categories": list(e["categories"])} for e in self.categorical
+            ],
+            "dropped": [dict(d) for d in self.dropped],
+            "design_columns": self.names,
+        }
+
+    @classmethod
+    def from_state(cls, state: dict[str, Any]) -> "Preprocessor":
+        return cls(
+            numeric=[dict(e) for e in state["numeric"]],
+            categorical=[
+                {"feature": e["feature"], "categories": list(e["categories"])} for e in state["categorical"]
+            ],
+            dropped=[dict(d) for d in state["dropped"]],
+        )
+
+    @property
+    def features(self) -> list[str]:
+        """Input features actually read, in design order."""
+        return [e["feature"] for e in self.numeric] + [e["feature"] for e in self.categorical]
 
     def describe(self) -> dict[str, Any]:
         return {

@@ -304,6 +304,14 @@ raw → validate → split FIRST (stratified; time-aware where timestamps allow)
   environment); random / chronological / entity-and-scenario-grouped splits with cluster-bootstrap intervals instead
   of repeated k-fold; class weights only; Platt on validation. Experiments only, no persisted model; see
   [`supervised-model-card.md`](supervised-model-card.md).
+- **As built (P11).**
+  - **Artefact:** a model plus its training-only preprocessing, exact feature contract, validation threshold,
+    calibration status, training / evaluation record and model card, in one canonical-JSON artefact
+    (`<workspace>/models/M-….json`, SHA-256, no pickle).
+  - **Registry:** in the workspace database (append-only, audit-logged), with experiment → candidate → approved →
+    retired and an approval gate that refuses non-target training domains (PaySim, synthetic).
+  - **Inference:** deterministic batch inference behind token-protected endpoints. Not fused into P9 and no SHAP yet.
+  - See [`model-lifecycle.md`](model-lifecycle.md).
 
 ### 5.3 Unsupervised pipeline
 
@@ -535,7 +543,7 @@ raw names (+ attributes) → normalise → tokenise → aliases → block → sc
 | CSV | Python `csv` module (RFC 4180 quoting). No evaluation of content. **Formula-injection protection on export:** prefix cells starting with `= + - @ \t \r` with `'` |
 | XLSX | `openpyxl` read-only, `data_only=True` (cached values, no formula evaluation). Reject `.xlsm`/macros. Zip-bomb protection: check uncompressed size and ratio before parsing. Reject external links. P3 also refuses `vbaProject.bin`/macro content types, ActiveX, embedded OLE objects and any DTD/ENTITY in workbook XML; the row width is bounded so a bogus sheet dimension cannot inflate rows |
 | PDF / OCR | Parse with `pdfplumber` (no JavaScript execution). Page and size limits. OCR runs locally |
-| Model artefacts | Loaded only from `models/`. SHA-256 must match the model card and the registry. Pickle/joblib files are never loaded from user uploads |
+| Model artefacts | Loaded only from `models/`. SHA-256 must match the model card and the registry. Pickle/joblib files are never loaded from user uploads. **As built (P11):** JSON only, closed schema, canonical SHA-256 pinned in the registry, IDs (never paths) from the API |
 | Evidence integrity | Hash on import. Read-only copies. Hashes printed in reports. Hash-chained audit log |
 | Local storage | Workspace in the user profile with OS permissions. Recommend OS full-disk encryption (BitLocker/FileVault) rather than custom crypto. No browser `localStorage` for case data |
 | Dependencies | Pinned versions. Offline wheelhouse with hashes (`pip install --require-hashes`). Periodic `pip-audit` on a connected build machine |
@@ -606,6 +614,7 @@ LedgerSpy/
 │   │                          #   transaction/entity features, deferred, matrix + manifest, report, registry_lock.json
 │   ├── detectors/             # rules.py (P7)
 │   ├── supervised/            # P10: labels adapter, dataset contract, splits, models, metrics, calibration, experiment
+│   │                          #   P11: artifact (schema, hash, safe load), registry, train, inference
 │   ├── anomaly/               # P8: eligibility, isolation_forest, robust_stats, evaluation, models, service
 │   ├── forensics/             # models.py, duplicates.py, benford.py, service.py (P7); entity_resolution.py, graph.py,
 │   │                          #   reconciliation.py, cashflow_sim.py (later)
@@ -616,7 +625,7 @@ LedgerSpy/
 │   ├── synth/                 # P5 deterministic synthetic company + scenarios + separate ground truth
 │   ├── api/                   # FastAPI app, routes, schemas
 │   ├── hashing.py, paths.py   # canonical JSON + SHA-256; repository paths
-│   └── cli.py                 # ledgerspy serve | train | evaluate | audit verify | synth
+│   └── cli.py                 # ledgerspy serve | evaluate | model … (P11) | audit verify | synth
 ├── config/default.yaml        # all configurable values (hashed)
 ├── frontend/                  # existing UI (served by the API)
 ├── models/                    # artefacts + model cards (binaries git-ignored; cards committed)

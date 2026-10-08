@@ -210,6 +210,18 @@ simulated hours (66 train, 2 validation, 0 test positives), so the split has no 
   splits and the least dependent on simulator structure.
 - **Do not persist a PaySim-trained model for client ledgers.** Its domain does not transfer.
 
+## P11: persisted artefacts
+
+P11 persists single P10 runs as hash-verified artefacts ([`model-lifecycle.md`](model-lifecycle.md)), following the
+recommendation above.
+- **What an artefact holds:** contract, preprocessor, model with its hash, validation threshold, calibration status,
+  evaluation record and this card's essentials.
+- **What persistence reproduces:** a persisted model reproduces its P10 run exactly (same `model_sha256`, same test
+  PR-AUC).
+- **Status:** PaySim and synthetic artefacts are `experiment` by policy. They cannot become candidates, approved or
+  active.
+- **Output:** an uncalibrated ranking score, never fused into P9.
+
 ## Known limitations
 
 - **Few positives.** There are 68 PaySim positives (14–20 per test split), so the intervals are wide. The full

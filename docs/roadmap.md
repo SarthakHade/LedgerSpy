@@ -16,7 +16,7 @@ P0 Cleanup ✔
                                               ├─ P7 Forensic rules + Benford ✔
                                               ├─ P8 Anomaly detection ✔
                                               └─ P9 Risk engine v1 + Explainability v1 + UI wired to API ✔  ◄── first end-to-end slice
-                                                  ├─ P10 Supervised training/evaluation ✔ ─ P11 Model registry/inference
+                                                  ├─ P10 Supervised training/evaluation ✔ ─ P11 Model registry/inference ✔
                                                   ├─ P12 Entity resolution ─ P13 Graph analysis
                                                   ├─ P14 Bank reconciliation (P14b PDF/OCR)  (uses P12 aliases)
                                                   └─ P15 Investigation workflow + case/evidence mgmt
@@ -161,11 +161,15 @@ See [`cleanup-log.md`](cleanup-log.md).
 - **Tests.** Leakage tests (label column absent from the feature matrix; no test rows seen in fit); reproducible metrics with a fixed seed; baselines reported.
 - **Acceptance.** The model card shows PR-AUC with CI vs baselines; no accuracy headline; results are reproducible from the CLI.
 
-### P11 — Model persistence and inference
+### P11 — Model persistence and inference ✔ (done; see [`p11-acceptance.md`](p11-acceptance.md) and [`model-lifecycle.md`](model-lifecycle.md))
 - **Objective.** Model registry (`models/`), artefact SHA-256 verification on load, applicability gating, and the supervised signal plugged into fusion with SHAP attributions.
 - **Dependencies.** P10, P9.
 - **Tests.** A tampered artefact is refused; a non-applicable dataset gives `not_applicable`; SHAP values sum to the model output (additivity check).
 - **Acceptance.** A run manifest lists model hashes; the UI explanation shows a SHAP sub-breakdown only for the supervised component.
+- **As built.** Hash-verified JSON artefacts, an append-only registry with a lifecycle and approval gate, exact-contract
+  inference with `not_applicable`, and token-protected read / inference endpoints. By the phase instructions, the
+  supervised score is **not** fused into P9 and has no SHAP or UI yet. P10 found no reliable gain over P9, and no
+  production-eligible (target-domain) model exists. See the deviations in [`p11-acceptance.md`](p11-acceptance.md).
 
 ### P12 — Entity resolution (R6)
 - **Objective.** The pipeline in `architecture.md` §8, with a similarity matrix API, analyst confirm/reject, and employee–vendor linking.

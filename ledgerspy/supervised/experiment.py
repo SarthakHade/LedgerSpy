@@ -195,7 +195,10 @@ def _interpret(model, pre: Preprocessor, cols_val, y_val, ids_val, base_ap, repe
     return out
 
 
-def _run_model(data, split, model_name, imbalance, ablation, removed, settings, identity, interpret):
+def _run_model(
+    data, split, model_name, imbalance, ablation, removed, settings, identity, interpret, fitted=False
+):
+    """One experiment record; with `fitted`, also the fitted preprocessor and model (P11 persistence)."""
     sc = settings.supervised
     ev = sc.evaluation
     tr, va, te = split.parts["train"], split.parts["validation"], split.parts["test"]
@@ -249,7 +252,7 @@ def _run_model(data, split, model_name, imbalance, ablation, removed, settings, 
             model, pre, xv, yv, iv, val["pr_auc"], sc.permutation_repeats, sc.seed
         )
     rec["_seconds"] = round(time.perf_counter() - started, 2)
-    return rec
+    return (rec, pre, model) if fitted else rec
 
 
 def run(

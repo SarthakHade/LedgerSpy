@@ -82,7 +82,13 @@ def test_only_the_label_adapter_reads_labels_and_no_detector_imports_supervised(
     assert readers == ["supervised/labels.py"], readers
     for sub in ("features", "detectors", "forensics", "anomaly", "risk", "api", "normalize", "quality"):
         for p in (pkg / sub).rglob("*.py"):
-            assert "ledgerspy.supervised" not in p.read_text(encoding="utf-8"), p
+            code = p.read_text(encoding="utf-8")
+            if p == pkg / "api" / "routes" / "models.py":  # P11: model metadata and inference only
+                assert re.findall(r"ledgerspy\.supervised.*", code) == [
+                    "ledgerspy.supervised import inference, registry"
+                ]
+                continue
+            assert "ledgerspy.supervised" not in code, p
     sup = [p for p in (pkg / "supervised").glob("*.py") if p.name != "labels.py"]
     for p in sup:
         code = p.read_text(encoding="utf-8")
@@ -90,10 +96,13 @@ def test_only_the_label_adapter_reads_labels_and_no_detector_imports_supervised(
 
 
 def test_no_api_endpoint_or_frontend_exposes_a_fraud_probability():
-    routes = "".join(
-        p.read_text(encoding="utf-8") for p in (ROOT / "ledgerspy" / "api" / "routes").glob("*.py")
+    routes = {
+        p.name: p.read_text(encoding="utf-8") for p in (ROOT / "ledgerspy" / "api" / "routes").glob("*.py")
+    }
+    assert [n for n, code in routes.items() if "supervised" in code] == ["models.py"]  # P11 only
+    assert not re.search(
+        r"(?<!not a )(fraud[ _]probability|probability of fraud)", "".join(routes.values()), re.I
     )
-    assert "supervised" not in routes
     fe = "".join(
         p.read_text(encoding="utf-8")
         for p in (ROOT / "frontend").rglob("*.*")

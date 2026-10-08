@@ -750,6 +750,10 @@ class SupervisedCalibration(_Section):
     max_ece: float = Field(gt=0.0, lt=1.0)
 
 
+class SupervisedInference(_Section):
+    batch_size: int = Field(ge=1, le=1_000_000)  # rows scored per batch (speed / memory only)
+
+
 class SupervisedConfig(_Section):
     seed: int = Field(ge=0)
     target: SupervisedTarget
@@ -760,6 +764,7 @@ class SupervisedConfig(_Section):
     evaluation: SupervisedEvaluation
     calibration: SupervisedCalibration
     permutation_repeats: int = Field(ge=1)
+    inference: SupervisedInference
 
 
 class LedgerSpyConfig(_Section):

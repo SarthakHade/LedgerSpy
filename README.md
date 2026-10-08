@@ -92,6 +92,16 @@ This repository is being rebuilt from a hackathon prototype into a working syste
     unchanged.
 
   See [`docs/supervised-model-card.md`](docs/supervised-model-card.md) and [`docs/p10-acceptance.md`](docs/p10-acceptance.md).
+- **P11 model artefacts and inference** (`ledgerspy model …`, `/api/models…`):
+  - Fitted P10 models persist as deterministic JSON artefacts with a canonical SHA-256. A strict loader never
+    executes content and refuses tampered, malformed, unsupported or inconsistent files.
+  - Feature contracts must match exactly; preprocessing is the persisted training state.
+  - A local, audit-logged registry has a lifecycle (experiment → candidate → approved → retired) and an approval
+    gate. PaySim and synthetic models stay experimental by policy.
+  - Batch inference is deterministic and returns an uncalibrated ranking score with full metadata. It never
+    changes P9 review risk, and the UI is unchanged.
+
+  See [`docs/model-lifecycle.md`](docs/model-lifecycle.md) and [`docs/p11-acceptance.md`](docs/p11-acceptance.md).
 - The original notebooks are in `archive/` for reference. Their evaluation had data leakage and must not be quoted.
 
 See [`docs/requirements.md`](docs/requirements.md) for the requirement-by-requirement status.
@@ -124,6 +134,8 @@ py -3.12 -m venv .venv                          # or: python3.12 -m venv .venv
 .venv/Scripts/ledgerspy evidence verify         # re-hash every evidence file against the database
 .venv/Scripts/ledgerspy synth --out out/synth --seed 42   # generate a synthetic company (offline, deterministic)
 .venv/Scripts/ledgerspy evaluate --dataset-id D-… --labels paysim   # P10 supervised experiment (local JSON report)
+.venv/Scripts/ledgerspy model train --dataset-id D-… --labels paysim  # P11: persist one model as an experiment artefact
+.venv/Scripts/ledgerspy model list                                    # registry; also inspect / verify / infer / promote …
 ```
 
 The workspace (`workspace/ledgerspy.db`) holds client data and is git-ignored.
@@ -162,6 +174,8 @@ python tests/frontend/integrity_panel_check.py  # optional: P4 dashboard against
 | [`docs/p9-acceptance.md`](docs/p9-acceptance.md) | P9 acceptance: synthetic and PaySim validation, frontend rewire, security, deviations |
 | [`docs/supervised-model-card.md`](docs/supervised-model-card.md) | P10 model card: data, features, splits, leakage controls, metrics, calibration, findings |
 | [`docs/p10-acceptance.md`](docs/p10-acceptance.md) | P10 acceptance: experiments, baselines, leakage checks, deviations |
+| [`docs/model-lifecycle.md`](docs/model-lifecycle.md) | P11 artefact schema, integrity, compatibility, registry, lifecycle, approval gate, inference, security |
+| [`docs/p11-acceptance.md`](docs/p11-acceptance.md) | P11 acceptance: round trips, tampering, compatibility, P9 isolation, performance, deviations |
 | [`docs/synthetic-scenario-matrix.md`](docs/synthetic-scenario-matrix.md) | Feature → scenario → fields → records → detector phase |
 | [`docs/cleanup-log.md`](docs/cleanup-log.md) | What was moved, archived or deleted in the cleanup, and why |
 | [`docs/audits/phase-1-current-state-audit.md`](docs/audits/phase-1-current-state-audit.md) | Detailed audit of the prototype |

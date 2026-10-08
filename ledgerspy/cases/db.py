@@ -2,8 +2,9 @@
 
 Migration 1 (P2): schema_version, audit_log, cases. Migration 2 (P3): evidence_files, datasets, transactions,
 labels, ingest_issues. Migration 3 (P4): integrity runs/issues, fixes and decisions, transformations,
-normalised values, plus immutability triggers on the P3 tables. Later phases append migrations for their own
-tables (runs/signals/scores in P9, …);
+normalised values, plus immutability triggers on the P3 tables. Migration 4 (P11): the supervised model
+registry (registered artefacts, status and activation events; all append-only). Later phases append
+migrations for their own tables;
 existing migrations are never edited.
 """
 
@@ -253,6 +254,45 @@ MIGRATIONS: list[tuple[int, str, list[str]]] = [
                 PRIMARY KEY (dataset_id, txn_id, field),
                 FOREIGN KEY (dataset_id, txn_id) REFERENCES transactions (dataset_id, txn_id)
             )""",
+        ],
+    ),
+    (
+        4,
+        "P11 supervised model registry: model_artifacts, model_status_events, model_activation_events",
+        [
+            # One row per registered artefact; the artefact file itself is verified against this hash on use.
+            """CREATE TABLE model_artifacts (
+                model_id        TEXT PRIMARY KEY
+                                CHECK (model_id GLOB 'M-[0-9a-f]*' AND length(model_id) = 18),
+                artifact_sha256 TEXT NOT NULL UNIQUE CHECK (length(artifact_sha256) = 64),
+                model_type      TEXT NOT NULL
+                                CHECK (model_type IN ('logistic_regression', 'gradient_boosting')),
+                training_domain TEXT NOT NULL,
+                label_source    TEXT NOT NULL,
+                registered_by   TEXT NOT NULL,
+                registered_at   TEXT NOT NULL
+            )""",
+            *_immutable("model_artifacts", "registered model artefacts are immutable"),
+            # Lifecycle: the current status is the latest event. 'incompatible' is derived, never stored.
+            """CREATE TABLE model_status_events (
+                seq      INTEGER PRIMARY KEY AUTOINCREMENT,
+                model_id TEXT NOT NULL REFERENCES model_artifacts (model_id),
+                status   TEXT NOT NULL CHECK (status IN ('experiment', 'candidate', 'approved', 'retired')),
+                actor    TEXT NOT NULL,
+                ts       TEXT NOT NULL,
+                reason   TEXT NOT NULL,
+                details  TEXT NOT NULL
+            )""",
+            *_immutable("model_status_events", "model status events are append-only"),
+            # The active production model is the latest event's model_id (NULL: none).
+            """CREATE TABLE model_activation_events (
+                seq      INTEGER PRIMARY KEY AUTOINCREMENT,
+                model_id TEXT REFERENCES model_artifacts (model_id),
+                actor    TEXT NOT NULL,
+                ts       TEXT NOT NULL,
+                reason   TEXT NOT NULL
+            )""",
+            *_immutable("model_activation_events", "model activation events are append-only"),
         ],
     ),
 ]
