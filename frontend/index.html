@@ -398,8 +398,19 @@
 
     <!-- TAB D: RELATIONSHIPS -->
     <div class="tab-content" id="tab-re">
-      <div class="na-card" style="margin-bottom:24px">
-        <strong>Entity graph not available yet.</strong> Relationship mapping (cycle detection, centrality, shell-like patterns) is roadmap P13. No network diagram is drawn. Below is counterparty-level risk from the backend: counterparties (payee for payments, payer for receipts) aggregated from their transactions, with their entity-resolution identity (P12).
+      <div class="na-card" id="re-graph-na" style="margin-bottom:24px">
+        <strong>Entity graph not available yet.</strong> The relationship graph is built by the local LedgerSpy service from the analysed dataset's payments and P12 entity resolution. Run the analysis to load it; nothing is drawn before that.
+      </div>
+      <div class="t-card" id="re-graph-card" style="margin-bottom:24px">
+        <h3>Relationship Graph <span>evidence for review, not proof</span></h3>
+        <div id="re-graph-controls" class="ls-muted"></div>
+        <div id="re-graph-summary" class="ls-muted" style="margin:8px 0"></div>
+        <div style="display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:16px">
+          <div id="re-graph-canvas"><div class="na-inline">Run the analysis to build the graph.</div></div>
+          <div id="re-graph-detail"><div class="na-inline">Select a node, an edge or a cycle.</div></div>
+        </div>
+        <div id="re-graph-cycles" style="margin-top:16px"></div>
+        <div id="re-graph-findings" style="margin-top:16px"></div>
       </div>
       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px">
         <div style="background:var(--bg2);border:1px solid rgba(248,113,113,0.25);border-radius:12px;padding:16px">
@@ -574,6 +585,7 @@
 <script src="js/api.js"></script>
 <script src="js/ui-core.js"></script>
 <script src="js/risk-ui.js"></script>
+<script src="js/graph-ui.js"></script>
 <script src="js/chatbot-ui.js"></script>
 <script src="js/integrity-panel.js"></script>
 </body>

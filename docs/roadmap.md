@@ -17,7 +17,7 @@ P0 Cleanup ✔
                                               ├─ P8 Anomaly detection ✔
                                               └─ P9 Risk engine v1 + Explainability v1 + UI wired to API ✔  ◄── first end-to-end slice
                                                   ├─ P10 Supervised training/evaluation ✔ ─ P11 Model registry/inference ✔
-                                                  ├─ P12 Entity resolution ✔ ─ P13 Graph analysis
+                                                  ├─ P12 Entity resolution ✔ ─ P13 Graph analysis ✔
                                                   ├─ P14 Bank reconciliation (P14b PDF/OCR)  (uses P12 aliases)
                                                   └─ P15 Investigation workflow + case/evidence mgmt
                                                       └─ P16 Reports + local memo assistant
@@ -185,11 +185,22 @@ See [`cleanup-log.md`](cleanup-log.md).
     (no separate matrix screen).
   - See the deviations in [`p12-acceptance.md`](p12-acceptance.md).
 
-### P13 — Graph and relationship analysis (R9)
+### P13 — Graph and relationship analysis (R9) ✔ (done; see [`p13-acceptance.md`](p13-acceptance.md) and [`relationship-graph.md`](relationship-graph.md))
 - **Objective.** Graph build from resolved entities, temporal cycles, reciprocity, fan-in/out percentiles, communities, centrality, concentration, shell/ghost indicators, and a Cytoscape view (node size = risk, glow = centrality).
 - **Dependencies.** P12, P9.
 - **Tests.** Known small graphs (cycle of length k found; non-temporal cycle rejected); synthetic ring recovered with the correct members; performance on 100k edges.
 - **Acceptance.** The static SVG and hard-coded cards are deleted; every node, edge and finding traces to transactions.
+- **As built.**
+  - **Graph:** pure Python, no networkx. Nodes are P12 canonical entities; edges are payments plus P12-evidenced
+    shared attributes.
+  - **Cycles:** bounded enumeration with time-ordered / value-retention assessment. The S-O-01 and S-O-02 rings
+    are found; the 3 other P5 cycles are not flagged.
+  - **Metrics:** degree, flow, reciprocity, concentration, PageRank, exact betweenness within limits,
+    components, clustering.
+  - **Evidence:** employee–vendor findings, ghost-vendor leads, and graph signals as a separate family (not
+    fused into P9).
+  - **Not done:** no Louvain communities, and no Cytoscape (an SVG view drawn from API data).
+  - See [`p13-acceptance.md`](p13-acceptance.md).
 
 ### P14 — Bank statement reconciliation (R8)
 - **Objective.** CSV/XLSX statements, normalisation, candidate generation, scoring, optimal assignment, one-to-many grouping, matched/partial/missing classification, and exception findings.

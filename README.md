@@ -112,6 +112,17 @@ This repository is being rebuilt from a hackathon prototype into a working syste
   - Validation on P5: 0 false merges.
 
   See [`docs/entity-resolution.md`](docs/entity-resolution.md) and [`docs/p12-acceptance.md`](docs/p12-acceptance.md).
+- **P13 relationship graph** (`ledgerspy/graph/`, `/api/datasets/{id}/graph…`, Relationships tab):
+  - Nodes are P12 canonical entities. Edges are evidence: payments (payer → payee, per currency, every
+    transaction ID kept) and shared bank accounts / tax IDs / contacts / addresses from P12 pair evidence.
+  - Bounded, deterministic cycle detection with time-ordered, value-retention assessment.
+  - Documented network metrics (degree, flow, reciprocity, concentration, PageRank, exact betweenness within
+    limits, components).
+  - Employee–vendor evidence and ghost-vendor verification leads (never conclusions).
+  - Graph signals as a separate evidence family; P9 scores are unchanged.
+  - The UI draws only API data.
+
+  See [`docs/relationship-graph.md`](docs/relationship-graph.md) and [`docs/p13-acceptance.md`](docs/p13-acceptance.md).
 - The original notebooks are in `archive/` for reference. Their evaluation had data leakage and must not be quoted.
 
 See [`docs/requirements.md`](docs/requirements.md) for the requirement-by-requirement status.
@@ -120,8 +131,8 @@ See [`docs/requirements.md`](docs/requirements.md) for the requirement-by-requir
 
 ```
 ledgerspy/     Python package: config/, canonical/, cases/ (SQLite, audit log, evidence), ingest/, quality/,
-               normalize/, synth/, features/, detectors/, forensics/, anomaly/, risk/, supervised/, resolution/, api/,
-               cli.py
+               normalize/, synth/, features/, detectors/, forensics/, anomaly/, risk/, supervised/, resolution/, graph/,
+               api/, cli.py
 config/        default.yaml — every configurable value (validated, SHA-256 hashed)
 frontend/      UI (index.html, css/, js/) — served by `ledgerspy serve`; renders API results only
 tests/         backend/ (pytest, P2) · frontend/harness.js (Node) + browser_check.py (optional, Playwright)
@@ -190,6 +201,8 @@ python tests/frontend/integrity_panel_check.py  # optional: P4 dashboard against
 | [`docs/p11-acceptance.md`](docs/p11-acceptance.md) | P11 acceptance: round trips, tampering, compatibility, P9 isolation, performance, deviations |
 | [`docs/entity-resolution.md`](docs/entity-resolution.md) | P12 entity resolution: normalisation, identifiers, similarity, blocking, decision rules, clusters, integration, limitations |
 | [`docs/p12-acceptance.md`](docs/p12-acceptance.md) | P12 acceptance: P5 validation (false merges / splits), adversarial cases, P9 before/after, performance |
+| [`docs/relationship-graph.md`](docs/relationship-graph.md) | P13 graph: schema, identity, edge provenance, cycles, metrics, signals, API, limits |
+| [`docs/p13-acceptance.md`](docs/p13-acceptance.md) | P13 acceptance: P5 findings, PaySim and scale limits, P9 isolation, UI, deviations |
 | [`docs/synthetic-scenario-matrix.md`](docs/synthetic-scenario-matrix.md) | Feature → scenario → fields → records → detector phase |
 | [`docs/cleanup-log.md`](docs/cleanup-log.md) | What was moved, archived or deleted in the cleanup, and why |
 | [`docs/audits/phase-1-current-state-audit.md`](docs/audits/phase-1-current-state-audit.md) | Detailed audit of the prototype |

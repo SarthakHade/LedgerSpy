@@ -472,6 +472,18 @@ raw names (+ attributes) → normalise → tokenise → aliases → block → sc
 - **Frontend.** Cytoscape.js (vendored), which is purpose-built for interactive network views, replaces the static SVG.
 - **Scale.** Aggregated graphs from 10⁵–10⁶ transactions are typically ≤10⁴–10⁵ nodes. This is fine for networkx with SCC pruning and bounded cycles.
 
+- **As built (P13).**
+  - **Implementation:** pure-Python graph (no networkx) in `ledgerspy/graph/`. Nodes are P12 canonical entities.
+  - **Edges:** typed (`paid` per currency, `shares_bank_account`, `shares_tax_id`, `shares_contact`,
+    `shares_address`, `possible_same_entity`, `potential_conflict_of_interest`). `employed_by` and
+    `owns_or_controls` are unavailable without source evidence.
+  - **Cycles:** bounded canonical cycle enumeration (lengths 3–5) with time-ordered chain and value-retention
+    assessment.
+  - **Metrics:** PageRank, exact Brandes betweenness within node / work limits (otherwise unavailable,
+    never sampled), components, reciprocity, concentration, clustering. No Louvain yet.
+  - **Signals:** a `relationship` family, not fused into P9.
+  - See [`relationship-graph.md`](relationship-graph.md).
+
 ## 10. Bank statement reconciliation (R8)
 
 **Inputs**
@@ -623,6 +635,7 @@ LedgerSpy/
 │   ├── detectors/             # rules.py (P7)
 │   ├── supervised/            # P10: labels adapter, dataset contract, splits, models, metrics, calibration, experiment
 │   ├── resolution/            # P12: normalize, similarity, records, matching, engine, ledger, masters, service, validation
+│   ├── graph/                 # P13: model (nodes/edges), metrics, cycles, signals (findings), service
 │   │                          #   P11: artifact (schema, hash, safe load), registry, train, inference
 │   ├── anomaly/               # P8: eligibility, isolation_forest, robust_stats, evaluation, models, service
 │   ├── forensics/             # models.py, duplicates.py, benford.py, service.py (P7); entity_resolution.py, graph.py,

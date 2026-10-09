@@ -13,6 +13,7 @@ from ledgerspy.api.routes import (
     cases,
     datasets,
     forensics,
+    graph,
     health,
     models,
     quality,
@@ -69,6 +70,7 @@ def create_app(
     app.include_router(risk.router)
     app.include_router(models.router)  # P11: separate from P9; never feeds risk
     app.include_router(resolution.router)  # P12: entity resolution (read-only)
+    app.include_router(graph.router)  # P13: relationship graph (read-only; separate from P9 scores)
 
     @app.get("/", include_in_schema=False)
     def index(request: Request) -> Response:

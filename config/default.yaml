@@ -646,3 +646,41 @@ supervised:
   inference:
     batch_size: 2048
 
+
+# --------------------------------------------------------------------------------- P13 relationship graph
+# Deterministic, evidence-backed graph (docs/relationship-graph.md). Graph signals are a separate evidence family;
+# they never change P9 scores. Every limit, when reached, is reported (truncated / unavailable), never hidden.
+graph:
+  version: 1
+  cycles:
+    min_length: 3                 # A→B→C→A and longer; two-party back-and-forth is the reciprocal signal
+    max_length: 5                 # bounded enumeration (simple cycles only)
+    max_cycles: 500               # enumeration stops here: reported as truncated
+    max_search_steps: 2000000     # DFS expansions budget: reported as truncated when reached
+    window_days: 30               # a time-ordered chain of payments must complete within this window
+    min_edge_txns: 1
+    min_edge_amount_minor: 0
+    retention_min: 0.8            # smallest / largest chain amount ≥ 0.8: "value largely retained"
+    max_chains: 50                # ordered chains evaluated per cycle (repeated payments)
+  centrality:
+    pagerank_damping: 0.85
+    pagerank_tol: 1.0e-10
+    pagerank_max_iter: 200
+    betweenness_max_nodes: 3000   # exact Brandes betweenness up to this many nodes; above: unavailable
+    betweenness_max_work: 20000000  # ... and up to nodes × money edges of 2·10^7 (≈ 7 s); above: unavailable
+    high_percentile: 0.99         # peer percentile for the high-betweenness signal
+  signals:
+    reciprocal_window_days: 30    # A→B and B→A within this many days ...
+    reciprocal_amount_ratio: 0.8  # ... with amounts within 20% of each other
+    pass_through_window_days: 7   # a receipt followed within 7 days by payments ...
+    pass_through_ratio_low: 0.75  # ... totalling 75%–125% of it (lowered from 0.80 after S-P-02 measured 79.9%; disclosed) ...
+    pass_through_ratio_high: 1.25
+    pass_through_min_new_counterparties: 3  # ... to at least 3 counterparties first seen in that window
+    pass_through_warmup_days: 90  # a counterparty first seen in the data's first 90 days is not "new"
+    shared_identifier_cluster_min: 3        # ≥ 3 entities linked by shared bank accounts / tax IDs
+  limits:
+    max_page_size: 500
+    visualization_max_nodes: 250
+    visualization_max_edges: 1500
+    neighbourhood_max_edges: 200
+    edge_max_transactions: 500

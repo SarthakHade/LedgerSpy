@@ -330,6 +330,44 @@ def main() -> int:
                 "() => document.querySelector('#chat-messages .chat-msg.bot:last-child').innerText"
             )
             page.click("#ai-mascot")
+
+            # ---------------- A10 (P13): relationship graph from the graph API ----------------
+            page.click('button.tab-btn[onclick*="tab-re"]')
+            page.wait_for_selector("#re-graph-svg", state="attached", timeout=120000)
+            page.wait_for_function("() => document.querySelectorAll('#re-graph-cycles tbody tr').length > 0")
+            viz = page.evaluate(f"() => LS_API.get('/api/datasets/{syn_id}/graph/visualization')")
+            gsum = page.evaluate(f"() => LS_API.get('/api/datasets/{syn_id}/graph')")
+            cyc = page.evaluate(f"() => LS_API.get('/api/datasets/{syn_id}/graph/cycles?size=25')")
+            drawn = page.evaluate(
+                """() => ({
+                nodes: document.querySelectorAll('#re-graph-svg circle.gr-node').length,
+                edges: document.querySelectorAll('#re-graph-svg line.gr-edge').length,
+                summary: document.getElementById('re-graph-summary').textContent,
+                cycles: document.querySelectorAll('#re-graph-cycles tbody tr.main-row').length,
+                ids: [...document.querySelectorAll('#re-graph-svg circle.gr-node')].map(c => c.dataset.nodeId).sort(),
+            })"""
+            )
+            check(
+                "A10",
+                "Relationship graph is drawn from the graph API only (same nodes, edges and cycles; no invented elements)",
+                drawn["nodes"] == len(viz["nodes"])
+                and drawn["edges"] == len(viz["edges"])
+                and drawn["ids"] == sorted(n["node_id"] for n in viz["nodes"])
+                and gsum["graph_sha256"][:12] in drawn["summary"]
+                and drawn["cycles"] == len(cyc["items"]),
+                f"{drawn['nodes']} nodes, {drawn['edges']} edges, {drawn['cycles']} cycles",
+            )
+            first = cyc["items"][0]
+            page.click("#re-graph-cycles tbody tr.main-row >> nth=0")
+            page.wait_for_function("() => /Cycle C-/.test(document.getElementById('re-graph-detail').textContent)")
+            detail = page.text_content("#re-graph-detail")
+            chain_ok = first["best_chain"] is None or all(t["txn_id"] in detail for t in first["best_chain"])
+            check(
+                "A10",
+                "Selecting a cycle shows its status and the actual transaction chain from the API",
+                first["status"] in detail and chain_ok,
+                first["cycle_id"] + " " + first["status"],
+            )
             heights = {}
             for tab in ["tab-ov", "tab-di", "tab-fi", "tab-bsr", "tab-tr", "tab-an", "tab-re", "tab-ex"]:
                 page.click(f'button.tab-btn[onclick*="{tab}"]')

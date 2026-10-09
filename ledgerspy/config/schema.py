@@ -813,6 +813,63 @@ class SupervisedConfig(_Section):
     inference: SupervisedInference
 
 
+# ------------------------------------------------------------------------------------------ P13 graph
+
+
+class GraphCycles(_Section):
+    min_length: int = Field(ge=2, le=12)
+    max_length: int = Field(ge=2, le=12)  # bounded enumeration: longer cycles are never searched
+    max_cycles: int = Field(ge=1)  # enumeration stops here (reported as truncated)
+    max_search_steps: int = Field(ge=1000)  # DFS expansions; reaching it is reported as truncated
+    window_days: int = Field(ge=1)  # a time-ordered chain must complete within this many days
+    min_edge_txns: int = Field(ge=1)  # money edges with fewer transactions are not searched
+    min_edge_amount_minor: int = Field(ge=0)
+    retention_min: float = Field(gt=0.0, le=1.0)  # min/max chain amount at or above: "value retained"
+    max_chains: int = Field(ge=1)  # ordered chains evaluated per cycle
+
+    @model_validator(mode="after")
+    def _bounds(self) -> "GraphCycles":
+        if self.min_length > self.max_length:
+            raise ValueError("graph.cycles.min_length must not exceed max_length")
+        return self
+
+
+class GraphCentrality(_Section):
+    pagerank_damping: float = Field(gt=0.0, lt=1.0)
+    pagerank_tol: float = Field(gt=0.0)
+    pagerank_max_iter: int = Field(ge=1)
+    betweenness_max_nodes: int = Field(ge=0)  # above this, betweenness is reported unavailable (not sampled)
+    betweenness_max_work: int = Field(ge=0)  # nodes × money edges above this: unavailable (Brandes is O(n·m))
+    high_percentile: float = Field(gt=0.5, lt=1.0)  # graph.high_betweenness: at or above this peer percentile
+
+
+class GraphSignals(_Section):
+    reciprocal_window_days: int = Field(ge=1)
+    reciprocal_amount_ratio: float = Field(gt=0.0, le=1.0)
+    pass_through_window_days: int = Field(ge=1)
+    pass_through_ratio_low: float = Field(gt=0.0, le=1.0)
+    pass_through_ratio_high: float = Field(ge=1.0)
+    pass_through_min_new_counterparties: int = Field(ge=2)
+    pass_through_warmup_days: int = Field(ge=0)  # counterparties first seen this early are not "new"
+    shared_identifier_cluster_min: int = Field(ge=2)
+
+
+class GraphLimits(_Section):
+    max_page_size: int = Field(ge=1, le=5000)
+    visualization_max_nodes: int = Field(ge=1)
+    visualization_max_edges: int = Field(ge=1)
+    neighbourhood_max_edges: int = Field(ge=1)
+    edge_max_transactions: int = Field(ge=1)  # transactions listed per edge detail page (all remain counted)
+
+
+class GraphConfig(_Section):
+    version: int = Field(ge=1)
+    cycles: GraphCycles
+    centrality: GraphCentrality
+    signals: GraphSignals
+    limits: GraphLimits
+
+
 class LedgerSpyConfig(_Section):
     config_version: Literal[1]
     server: ServerConfig
@@ -829,3 +886,4 @@ class LedgerSpyConfig(_Section):
     anomaly: AnomalyConfig
     risk: RiskConfig
     supervised: SupervisedConfig
+    graph: GraphConfig
