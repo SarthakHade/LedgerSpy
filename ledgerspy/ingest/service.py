@@ -22,11 +22,12 @@ from ledgerspy.config import EffectiveConfig
 from ledgerspy.hashing import canonical_json, sha256_hex, utc_now_iso
 from ledgerspy.ingest.adapters import CONVERTERS
 from ledgerspy.ingest.errors import IngestError
-from ledgerspy.ingest.mapping import Mapping, Profile, profile_table, suggest, validate_mapping
+from ledgerspy.ingest.mapping import Mapping, Profile, mapping_json, profile_table, suggest, validate_mapping
 from ledgerspy.ingest.readers import TableSource, detect_format, iter_records, open_csv, open_xlsx, reopen
 from ledgerspy.ingest.values import cell_text
 
-SUPPORTED_KINDS = ("ledger",)
+# A ledger is analysed (P4–P13); a bank statement (P14) is reconciled against a ledger of the same case.
+SUPPORTED_KINDS = ("ledger", "bank_statement")
 _BATCH = 5000
 _ISSUE_EXAMPLES = 20
 _MAX_SOURCE_ID_CHARS = 128
@@ -71,7 +72,8 @@ def ingest_upload(
         if kind not in SUPPORTED_KINDS:
             raise IngestError(
                 "kind_not_supported",
-                f"kind {kind!r} is not supported yet (P3 imports ledgers only).",
+                f"kind {kind!r} is not supported (ledgers and CSV/XLSX bank statements only; PDF and "
+                "scanned statements come in P14b).",
                 {"supported": list(SUPPORTED_KINDS)},
             )
         fmt = detect_format(staged.path, filename)
@@ -79,7 +81,7 @@ def ingest_upload(
         profile = profile_table(src, cfg.settings)
         if profile.rows == 0:
             raise IngestError("no_data_rows", "The file has a header but no data rows.")
-        proposal = suggest(profile, cfg.settings)
+        proposal = suggest(profile, cfg.settings, kind)
     except IngestError as exc:
         staged.path.unlink(missing_ok=True)
         if exc.code != "case_not_found":
@@ -294,7 +296,7 @@ def confirm_mapping(
     if src.header != json.loads(row["header"]):  # pragma: no cover — guarded by the hash check above
         raise IngestError("evidence_changed", "The evidence header differs from the one recorded at upload.")
     profile = profile_table(src, cfg.settings)
-    errors = validate_mapping(mapping, profile, cfg.settings)
+    errors = validate_mapping(mapping, profile, cfg.settings, row["kind"])
     if errors:
         raise IngestError("mapping_invalid", "The mapping is not valid for this file.", {"errors": errors})
     use_source_ids = "txn_id" in mapping.fields
@@ -388,8 +390,8 @@ def confirm_mapping(
             "total": sum(sum(c.values()) for c in counts.values()),
             "by_field": {f: dict(sorted(c.items())) for f, c in sorted(counts.items())},
         }
-        mapping_json = mapping.model_dump(mode="json")
-        mapping_sha = sha256_hex(canonical_json(mapping_json))
+        stored_mapping = mapping_json(mapping)
+        mapping_sha = sha256_hex(canonical_json(stored_mapping))
         synthetic = converter.synthetic
         now = utc_now_iso()
         conn.execute(
@@ -398,7 +400,7 @@ def confirm_mapping(
             "issue_summary = ?, "
             "canonicalised_by = ?, canonicalised_at = ? WHERE dataset_id = ?",
             (
-                _json(mapping_json),
+                _json(stored_mapping),
                 mapping_sha,
                 converter.name,
                 converter.version,
@@ -429,6 +431,11 @@ def confirm_mapping(
         )
 
     notes = []
+    if converter.name == "bank_statement":
+        notes.append(
+            "Bank statement: directions are in/out from the account holder's view, as confirmed in the "
+            "mapping. It is reconciled against a ledger of the same case (/api/reconciliation)."
+        )
     if converter.name == "paysim":
         notes.append(
             "SYNTHETIC: PaySim is a simulation. posted_at is derived from `step` "

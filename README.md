@@ -15,7 +15,7 @@ This repository is being rebuilt from a hackathon prototype into a working syste
 - `frontend/` is the UI, served by `ledgerspy serve`. Since **P9** it **renders the backend's results only**: the
   in-browser heuristic scorer of the prototype is deleted, and every score, tier, count, chart and explanation comes
   from the local API. Opened as a plain file it says the local service is required. P1's guarantees still hold:
-  - modules that don't exist yet (bank reconciliation, relationship graph, Monte Carlo, benchmarking, PDF) show "Not available yet";
+  - modules that don't exist yet (PDF / OCR statements, Monte Carlo, benchmarking, PDF reports) show "Not available yet";
   - label columns such as `isFraud` are never used;
   - file content is rendered safely;
   - the page makes no non-local requests.
@@ -123,6 +123,17 @@ This repository is being rebuilt from a hackathon prototype into a working syste
   - The UI draws only API data.
 
   See [`docs/relationship-graph.md`](docs/relationship-graph.md) and [`docs/p13-acceptance.md`](docs/p13-acceptance.md).
+- **P14 bank reconciliation** (`ledgerspy/reconciliation/`, `/api/reconciliation…`, Bank Recon tab):
+  - CSV / XLSX bank statements are imported through the P3 flow (`kind=bank_statement`); debit/credit or sign
+    semantics are confirmed, never assumed, and currencies are never invented.
+  - Ledger ↔ bank matching within confirmed account scopes, per currency and direction: exact, probable, grouped
+    (both orientations), partial (amount / date / reference / counterparty), ambiguous (never resolved by order),
+    duplicate candidates, unmatched, insufficient data. Every row lands in exactly one traceable result.
+  - Balance checks only where the statement supports them; reconciliation findings as a separate evidence family
+    (P9 scores unchanged); deterministic runs recorded in an append-only register.
+  - PDF / OCR statements come in P14b.
+
+  See [`docs/reconciliation.md`](docs/reconciliation.md) and [`docs/p14-acceptance.md`](docs/p14-acceptance.md).
 - The original notebooks are in `archive/` for reference. Their evaluation had data leakage and must not be quoted.
 
 See [`docs/requirements.md`](docs/requirements.md) for the requirement-by-requirement status.
@@ -132,7 +143,7 @@ See [`docs/requirements.md`](docs/requirements.md) for the requirement-by-requir
 ```
 ledgerspy/     Python package: config/, canonical/, cases/ (SQLite, audit log, evidence), ingest/, quality/,
                normalize/, synth/, features/, detectors/, forensics/, anomaly/, risk/, supervised/, resolution/, graph/,
-               api/, cli.py
+               reconciliation/, api/, cli.py
 config/        default.yaml — every configurable value (validated, SHA-256 hashed)
 frontend/      UI (index.html, css/, js/) — served by `ledgerspy serve`; renders API results only
 tests/         backend/ (pytest, P2) · frontend/harness.js (Node) + browser_check.py (optional, Playwright)
@@ -203,6 +214,8 @@ python tests/frontend/integrity_panel_check.py  # optional: P4 dashboard against
 | [`docs/p12-acceptance.md`](docs/p12-acceptance.md) | P12 acceptance: P5 validation (false merges / splits), adversarial cases, P9 before/after, performance |
 | [`docs/relationship-graph.md`](docs/relationship-graph.md) | P13 graph: schema, identity, edge provenance, cycles, metrics, signals, API, limits |
 | [`docs/p13-acceptance.md`](docs/p13-acceptance.md) | P13 acceptance: P5 findings, PaySim and scale limits, P9 isolation, UI, deviations |
+| [`docs/reconciliation.md`](docs/reconciliation.md) | P14 reconciliation: data contract, scope, normalisation, matching stages, duplicates, balances, findings, API |
+| [`docs/p14-acceptance.md`](docs/p14-acceptance.md) | P14 acceptance: P5 classification and precision, PaySim and scale, determinism, P9 isolation, UI, deviations |
 | [`docs/synthetic-scenario-matrix.md`](docs/synthetic-scenario-matrix.md) | Feature → scenario → fields → records → detector phase |
 | [`docs/cleanup-log.md`](docs/cleanup-log.md) | What was moved, archived or deleted in the cleanup, and why |
 | [`docs/audits/phase-1-current-state-audit.md`](docs/audits/phase-1-current-state-audit.md) | Detailed audit of the prototype |

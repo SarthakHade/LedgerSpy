@@ -870,6 +870,94 @@ class GraphConfig(_Section):
     limits: GraphLimits
 
 
+# ----------------------------------------------------------------------------------- P14 reconciliation
+
+
+class ReconDates(_Section):
+    bank_before_days: int = Field(ge=0)  # a bank line may precede the ledger date by this many days
+    bank_after_days: int = Field(ge=0)  # normal clearing window after the ledger date
+    extended_before_days: int = Field(ge=0)  # beyond the normal window, up to these: a date discrepancy
+    extended_after_days: int = Field(ge=0)
+
+    @model_validator(mode="after")
+    def _nested(self) -> "ReconDates":
+        if (
+            self.extended_before_days < self.bank_before_days
+            or self.extended_after_days < self.bank_after_days
+        ):
+            raise ValueError("reconciliation.dates: the extended window must contain the normal window")
+        return self
+
+
+class ReconWeights(_Section):
+    amount: float = Field(ge=0.0)
+    date: float = Field(ge=0.0)
+    reference: float = Field(ge=0.0)
+    counterparty: float = Field(ge=0.0)
+
+    @model_validator(mode="after")
+    def _positive(self) -> "ReconWeights":
+        if self.amount + self.date <= 0:
+            raise ValueError("reconciliation.scoring.weights: amount + date must be positive")
+        return self
+
+
+class ReconScoring(_Section):
+    weights: ReconWeights
+    probable_min_score: float = Field(gt=0.0, le=1.0)  # evidence score needed for a probable match
+    ambiguity_margin: float = Field(ge=0.0, lt=1.0)  # best must beat the runner-up by more than this
+
+
+class ReconCounterparty(_Section):
+    use_entity_resolution: bool  # P12 aliases: names of the same canonical entity count as the same party
+    min_name_chars: int = Field(ge=1)  # shorter names are never searched for in bank descriptions
+    min_prefix_chars: int = Field(ge=1)  # a truncated name must still match at least this many characters
+
+
+class ReconReference(_Section):
+    min_chars: int = Field(ge=1)  # shorter references are not compared
+    conflict_on_same_shape: bool  # same identifier shape but different value: blocks automatic matching
+
+
+class ReconPartial(_Section):
+    max_abs_minor: int = Field(ge=0)  # an amount difference must be at most this ...
+    max_relative: float = Field(ge=0.0, lt=1.0)  # ... and at most this share of the larger amount
+
+
+class ReconGrouping(_Section):
+    max_group_size: int = Field(ge=2, le=50)
+    window_days: int = Field(ge=0)  # components within this many days of the settlement line
+    max_candidates: int = Field(ge=2)  # rows considered per settlement; more: the search is truncated
+
+
+class ReconDuplicates(_Section):
+    near_window_days: int = Field(ge=0)
+
+
+class ReconBalance(_Section):
+    min_order_share: float = Field(gt=0.5, le=1.0)  # transitions a file order must explain to be used
+
+
+class ReconLimits(_Section):
+    max_candidates_per_row: int = Field(ge=1)  # 1:1 candidates per row and stage; more: truncated
+    max_page_size: int = Field(ge=1, le=5000)
+    max_runs_cached: int = Field(ge=1)
+
+
+class ReconciliationConfig(_Section):
+    version: int = Field(ge=1)
+    dates: ReconDates
+    scoring: ReconScoring
+    counterparty: ReconCounterparty
+    reference: ReconReference
+    partial: ReconPartial
+    grouping: ReconGrouping
+    duplicates: ReconDuplicates
+    balance: ReconBalance
+    direction_proposal_min_share: float = Field(gt=0.5, le=1.0)
+    limits: ReconLimits
+
+
 class LedgerSpyConfig(_Section):
     config_version: Literal[1]
     server: ServerConfig
@@ -887,3 +975,4 @@ class LedgerSpyConfig(_Section):
     risk: RiskConfig
     supervised: SupervisedConfig
     graph: GraphConfig
+    reconciliation: ReconciliationConfig

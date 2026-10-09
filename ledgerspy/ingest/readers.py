@@ -77,6 +77,14 @@ def detect_format(path: Path, filename: str) -> Format:
                 "extension_mismatch", "The file has a text extension but contains a binary workbook."
             )
         return "csv"
+    if ext == ".pdf":
+        raise IngestError(
+            "unsupported_format",
+            "PDF statements (text or scanned / OCR) are not supported yet: they come in roadmap P14b. Export "
+            "the statement as .csv or .xlsx.",
+            {"deferred_to": "P14b"},
+            http_status=415,
+        )
     raise IngestError(
         "unsupported_format",
         f"Unsupported file type {ext or '(none)'!r}; upload .csv or .xlsx.",

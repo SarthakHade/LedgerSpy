@@ -6,6 +6,13 @@ sends a mapping back (PUT /api/datasets/{id}/mapping), and that mapping is valid
 Suggestions are conservative. A field is proposed only when exactly one column matches one of its configured
 aliases *and* that column's values fit the field. Several candidates, ill-fitting values or an ambiguous
 convention (date format, decimal separator) are reported for confirmation and left unset.
+
+Bank statements (P14, dataset kind `bank_statement`, adapter `bank_statement`) map into the same canonical
+Transaction with direction `in` / `out` from the ACCOUNT HOLDER's view. Sign conventions differ between banks,
+so the direction rule is part of the confirmed mapping (`bank`): what a debit column / debit indicator means
+(`debit_means`), or what a positive signed amount means (`amount_sign`). It is proposed only when the headers
+state it unambiguously (Withdrawal / Deposit); otherwise it must be confirmed. The running-balance and
+statement-identifier columns stay verbatim in `extra`; `bank` names them.
 """
 
 import contextlib
@@ -27,7 +34,8 @@ from ledgerspy.config.schema import (
 from ledgerspy.ingest.readers import TableSource, iter_records
 from ledgerspy.ingest.values import Cell, cell_text, fits_format, is_blank, parse_decimal
 
-AdapterName = Literal["paysim", "generic_ledger"]
+AdapterName = Literal["paysim", "generic_ledger", "bank_statement"]
+DatasetKind = Literal["ledger", "bank_statement"]
 AMOUNT_FIELDS = ("amount", "debit_amount", "credit_amount")
 DATE_FIELDS = ("posted_at", "document_date")
 REQUIRED_GROUPS = ("posted_at", "amount source", "direction source")
@@ -45,6 +53,17 @@ PAYSIM_SIGNATURE = (
     "oldbalanceDest",
     "newbalanceDest",
 )
+# Headers that state the direction from the account holder's view (normalised with normalize_header).
+OUTFLOW_HEADERS = frozenset(
+    {"withdrawal", "withdrawals", "withdrawalamount", "withdrawalamt", "withdrawalinr", "paidout", "moneyout"}
+)
+INFLOW_HEADERS = frozenset(
+    {"deposit", "deposits", "depositamount", "depositamt", "depositinr", "paidin", "moneyin"}
+)
+STATEMENT_HEADERS = frozenset(
+    {"statementid", "statementno", "statementnumber", "stmtid", "stmtno", "statement"}
+)
+
 PAYSIM_FIELDS: dict[str, str] = {
     "posted_at": "step",
     "amount": "amount",
@@ -70,6 +89,21 @@ class MappingOptions(BaseModel):
     direction: DirectionValue | None = Field(default=None, description="declared for the whole dataset")
 
 
+class BankOptions(BaseModel):
+    """Bank-statement semantics (adapter `bank_statement` only), from the account holder's view."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    debit_means: Literal["outflow", "inflow"] | None = Field(
+        default=None, description="what a debit column / debit indicator means for the account holder"
+    )
+    amount_sign: Literal["positive_inflow", "positive_outflow"] | None = Field(
+        default=None, description="for one signed amount column without a direction column"
+    )
+    balance_column: str | None = Field(default=None, min_length=1, max_length=255)
+    statement_column: str | None = Field(default=None, min_length=1, max_length=255)
+
+
 class Mapping(BaseModel):
     """A confirmed (or proposed) mapping from source columns to canonical transaction fields."""
 
@@ -79,6 +113,15 @@ class Mapping(BaseModel):
     fields: dict[MappableField, str] = Field(default_factory=dict)
     options: MappingOptions = Field(default_factory=MappingOptions)
     label_columns: list[str] = Field(default_factory=list)
+    bank: BankOptions | None = None
+
+
+def mapping_json(mapping: Mapping) -> dict[str, Any]:
+    """The stored / hashed form. `bank` is omitted when absent: ledger mappings keep their P3 hash."""
+    out = mapping.model_dump(mode="json")
+    if out.get("bank") is None:
+        out.pop("bank", None)
+    return out
 
 
 # ----------------------------------------------------------------------------------------------- profile
@@ -297,11 +340,156 @@ def _paysim_header_names(header: list[str]) -> dict[str, str]:
     return {f: by_key[normalize_header(col)] for f, col in PAYSIM_FIELDS.items()}
 
 
-def suggest(profile: Profile, settings: LedgerSpyConfig) -> dict[str, Any]:
+def suggest(profile: Profile, settings: LedgerSpyConfig, kind: str = "ledger") -> dict[str, Any]:
     """Build the inspectable mapping proposal returned by the upload endpoint."""
+    if kind == "bank_statement":
+        return _suggest_bank(profile, settings)
     if _is_paysim(profile.header):
         return _suggest_paysim(profile, settings)
-    return _suggest_generic(profile, settings)
+    out = _suggest_generic(profile, settings)
+    if _looks_like_bank_statement(profile, settings):
+        out["notes"].append(
+            "This file looks like a bank statement (withdrawal/deposit or running-balance columns). "
+            "To reconcile it against a ledger, upload it with kind=bank_statement; as a ledger it is "
+            "analysed as postings."
+        )
+    return out
+
+
+def _balance_columns(profile: Profile, settings: LedgerSpyConfig, used: set[str]) -> list[str]:
+    aliases = {normalize_header(a) for a in settings.quality.balance.running_balance_aliases}
+    return [h for h in profile.header if h not in used and normalize_header(h) in aliases]
+
+
+def _looks_like_bank_statement(profile: Profile, settings: LedgerSpyConfig) -> bool:
+    keys = {normalize_header(h) for h in profile.header}
+    return bool(keys & OUTFLOW_HEADERS and keys & INFLOW_HEADERS) or bool(
+        _balance_columns(profile, settings, set())
+    )
+
+
+def _direction_values_seen(col: ColumnProfile, settings: LedgerSpyConfig) -> set[str]:
+    """Canonical direction values ('debit', 'credit', 'in', 'out') the column's distinct values map to."""
+    known = {normalize_header(v): d for d, vs in settings.mapping.direction_values.items() for v in vs}
+    return {known[k] for v in col.distinct_text if (k := normalize_header(v)) in known}
+
+
+def _suggest_bank(profile: Profile, settings: LedgerSpyConfig) -> dict[str, Any]:
+    """Generic column proposal + bank semantics. Nothing about direction or currency is assumed."""
+    out = _suggest_generic(profile, settings)
+    fields = dict(out["proposed_mapping"]["fields"])
+    for f in ("payer_raw", "payee_raw"):
+        if f in fields:
+            out["fields"][f]["basis"] += (
+                " (bank statements usually name the counterparty only in the description)"
+            )
+    confirm = [i for i in out["requires_confirmation"] if i["item"] != "direction source"]
+    bank: dict[str, Any] = {}
+    semantics: dict[str, Any] = {}
+    if "debit_amount" in fields and "credit_amount" in fields:
+        dk, ck = normalize_header(fields["debit_amount"]), normalize_header(fields["credit_amount"])
+        if dk in OUTFLOW_HEADERS and ck in INFLOW_HEADERS:
+            bank["debit_means"] = "outflow"
+            semantics = {
+                "status": "proposed",
+                "debit_means": "outflow",
+                "basis": f"the headers state the direction: {fields['debit_amount']!r} is money out of the "
+                f"account, {fields['credit_amount']!r} money in",
+            }
+        else:
+            semantics = {"status": "requires_confirmation"}
+            confirm.append(
+                {
+                    "item": "bank.debit_means",
+                    "reason": f"columns {fields['debit_amount']!r} / {fields['credit_amount']!r}: on most "
+                    "bank statements a debit is money out of the account holder's account, but the "
+                    "convention is not universal; confirm 'outflow' or 'inflow'",
+                }
+            )
+    elif "amount" in fields and "direction" in fields:
+        seen = _direction_values_seen(profile.column(fields["direction"]), settings)
+        if seen & {"debit", "credit"}:
+            semantics = {"status": "requires_confirmation", "indicator_values": sorted(seen)}
+            confirm.append(
+                {
+                    "item": "bank.debit_means",
+                    "reason": f"direction column {fields['direction']!r} uses debit/credit indicators; "
+                    "confirm whether a debit is money out ('outflow') or in ('inflow') for the account "
+                    "holder",
+                }
+            )
+        else:
+            semantics = {"status": "proposed", "basis": "indicator values are in/out (no debit/credit)"}
+    elif "amount" in fields:
+        semantics = {"status": "requires_confirmation"}
+        confirm.append(
+            {
+                "item": "bank.amount_sign",
+                "reason": "one signed amount column and no direction column: confirm whether a positive "
+                "amount is money in ('positive_inflow') or money out ('positive_outflow'); it is never "
+                "assumed",
+            }
+        )
+    used = set(fields.values()) | set(profile.label_columns)
+    balances = _balance_columns(profile, settings, used)
+    if len(balances) == 1:
+        bank["balance_column"] = balances[0]
+        balance = {"column": balances[0], "status": "proposed", "basis": "the only running-balance column"}
+    elif balances:
+        balance = {"column": None, "status": "ambiguous", "candidates": balances}
+        confirm.append(
+            {"item": "bank.balance_column", "reason": f"several running-balance columns: {balances}"}
+        )
+    else:
+        balance = {
+            "column": None,
+            "status": "not_in_source",
+            "basis": "no running-balance column: balance checks will be reported unavailable",
+        }
+    statements = [h for h in profile.header if h not in used and normalize_header(h) in STATEMENT_HEADERS]
+    if len(statements) == 1:
+        bank["statement_column"] = statements[0]
+    if "currency" not in fields:
+        confirm.append(
+            {
+                "item": "currency",
+                "reason": "no currency column: declare options.currency only if the statement states it; "
+                "rows without a currency are reported as insufficient data and never reconciled",
+            }
+        )
+    if "account" not in fields:
+        out["notes"].append(
+            "No account-number column: the statement is treated as ONE unidentified account; every "
+            "reconciliation scope must then be confirmed explicitly."
+        )
+    proposal = Mapping(
+        adapter="bank_statement",
+        fields=fields,
+        options=MappingOptions(**out["proposed_mapping"]["options"]),
+        label_columns=profile.label_columns,
+        bank=BankOptions(**bank),
+    )
+    out["adapter"] = {
+        "suggested": "bank_statement",
+        "basis": "uploaded as a bank statement (kind=bank_statement)",
+        "available": ["bank_statement"],
+    }
+    out["bank"] = {
+        "direction_semantics": semantics,
+        "balance": balance,
+        "statement_column": bank.get("statement_column"),
+        "formats": {
+            "supported": ["csv", "xlsx"],
+            "deferred": "PDF statements (text and scanned / OCR) are not supported in P14; they come in P14b",
+        },
+    }
+    out["requires_confirmation"] = confirm
+    out["notes"] = [
+        "Bank lines become canonical transactions with direction in/out from the account holder's view.",
+        *out["notes"],
+    ]
+    out["proposed_mapping"] = mapping_json(proposal)
+    return out
 
 
 def _unmapped(profile: Profile, fields: dict[str, str]) -> list[str]:
@@ -361,7 +549,7 @@ def _suggest_paysim(profile: Profile, settings: LedgerSpyConfig) -> dict[str, An
             "(e.g. 'Date of transaction') have unknown provenance and are not used as dates.",
             "Label columns are stored separately and never become transaction fields.",
         ],
-        "proposed_mapping": proposal.model_dump(mode="json"),
+        "proposed_mapping": mapping_json(proposal),
     }
 
 
@@ -481,19 +669,31 @@ def _suggest_generic(profile: Profile, settings: LedgerSpyConfig) -> dict[str, A
             "Unmapped columns are preserved verbatim in each transaction's `extra`.",
             "Label columns are stored separately and never become transaction fields.",
         ],
-        "proposed_mapping": proposal.model_dump(mode="json"),
+        "proposed_mapping": mapping_json(proposal),
     }
 
 
 # ----------------------------------------------------------------------------------------------- validate
 
 
-def validate_mapping(mapping: Mapping, profile: Profile, settings: LedgerSpyConfig) -> list[dict[str, str]]:
+def validate_mapping(
+    mapping: Mapping, profile: Profile, settings: LedgerSpyConfig, kind: str = "ledger"
+) -> list[dict[str, str]]:
     """Structural checks before conversion. Returns a list of errors (empty = valid)."""
     errors: list[dict[str, str]] = []
 
     def err(code: str, message: str, fieldname: str = "") -> None:
         errors.append({"code": code, "field": fieldname, "message": message})
+
+    is_bank = mapping.adapter == "bank_statement"
+    if kind == "bank_statement" and not is_bank:
+        err("adapter", "a bank statement dataset must use the bank_statement adapter")
+    if kind != "bank_statement" and is_bank:
+        err("adapter", "the bank_statement adapter is only for datasets uploaded with kind=bank_statement")
+    if mapping.bank is not None and not is_bank:
+        err("bank", "`bank` options apply to the bank_statement adapter only")
+    if errors:
+        return errors
 
     header = set(profile.header)
     missing_labels = [c for c in profile.label_columns if c not in mapping.label_columns]
@@ -528,7 +728,9 @@ def validate_mapping(mapping: Mapping, profile: Profile, settings: LedgerSpyConf
         err("amount_source", "map either amount or debit_amount + credit_amount, not both", "amount")
     elif "amount" not in fields and len(dc) != 2:
         err("amount_source", "map amount, or both debit_amount and credit_amount", "amount")
-    if "amount" in fields:
+    if is_bank:
+        _validate_bank(mapping, profile, settings, err)
+    elif "amount" in fields:
         if "direction" in fields and o.direction:
             err(
                 "direction_source",
@@ -550,3 +752,54 @@ def validate_mapping(mapping: Mapping, profile: Profile, settings: LedgerSpyConf
         if fmt is not None and "%" not in fmt:
             err("options", f"options.{opt} must be a strptime format such as %d/%m/%Y", f)
     return errors
+
+
+def _validate_bank(mapping: Mapping, profile: Profile, settings: LedgerSpyConfig, err) -> None:
+    """Direction semantics of a bank statement must be stated, never assumed (see module docstring)."""
+    o, fields = mapping.options, mapping.fields
+    b = mapping.bank or BankOptions()
+    if o.direction is not None and o.direction not in ("in", "out"):
+        err(
+            "direction_source",
+            "a bank statement can only declare options.direction 'in' or 'out'",
+            "direction",
+        )
+    if "amount" in fields:
+        sources = ["direction" in fields, o.direction is not None, b.amount_sign is not None]
+        if sum(sources) != 1:
+            err(
+                "direction_source",
+                "a signed amount column needs exactly one direction source: a direction column, "
+                "options.direction ('in' / 'out'), or bank.amount_sign",
+                "direction",
+            )
+        if "direction" in fields and b.debit_means is None:
+            seen = _direction_values_seen(profile.column(fields["direction"]), settings)
+            if seen & {"debit", "credit"}:
+                err(
+                    "bank_semantics",
+                    "the direction column uses debit/credit indicators: confirm bank.debit_means",
+                    "direction",
+                )
+    elif "debit_amount" in fields and "credit_amount" in fields:
+        if "direction" in fields or o.direction:
+            err("direction_source", "debit/credit columns already give the direction", "direction")
+        if b.debit_means is None:
+            err(
+                "bank_semantics",
+                "confirm bank.debit_means: is the debit column money out of the account ('outflow') or in?",
+                "debit_amount",
+            )
+        if b.amount_sign is not None:
+            err("bank_semantics", "bank.amount_sign applies to one signed amount column only", "amount")
+    used = set(fields.values()) | set(mapping.label_columns) | set(profile.label_columns)
+    for opt in ("balance_column", "statement_column"):
+        col = getattr(b, opt)
+        if col is None:
+            continue
+        if col not in profile.header:
+            err("unknown_column", f"bank.{opt} {col!r} is not in the file", opt)
+        elif col in used:
+            err("bank_column_mapped", f"bank.{opt} {col!r} is already mapped or a label column", opt)
+    if b.balance_column and b.balance_column == b.statement_column:
+        err("bank_column_mapped", "the balance and statement columns must differ", "balance_column")

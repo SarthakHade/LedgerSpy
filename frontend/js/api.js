@@ -47,7 +47,7 @@ const LS_API = (function(){
     get: (path) => call('GET', path),
     post: (path, body) => call('POST', path, body),
     put: (path, body) => call('PUT', path, body),
-    upload: (caseId, file) => call('POST', '/api/cases/' + caseId + '/files' + qs({ filename: file.name }), undefined, file),
+    upload: (caseId, file, kind) => call('POST', '/api/cases/' + caseId + '/files' + qs({ filename: file.name, kind: kind }), undefined, file),
   };
 })();
 

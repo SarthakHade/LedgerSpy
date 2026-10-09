@@ -68,7 +68,8 @@ const LS_STATE = { datasetId: null, summary: null, detectors: null, page: 1, siz
     let items;
     try { items = (await LS_API.get('/api/datasets')).items; }
     catch(e){ status('Could not reach the backend: ' + e.message, 'red'); return; }
-    const usable = items.filter(d => d.status === 'canonicalised');
+    // bank statements (P14) are reconciled in the Bank Recon tab, not analysed as ledgers
+    const usable = items.filter(d => d.status === 'canonicalised' && (d.kind || 'ledger') === 'ledger');
     const sel = $('dataset-select');
     setChildren(sel, usable.map(d => el('option', { value: d.dataset_id },
       d.original_filename + ' · ' + d.case_name + ' · ' + lsInt(d.row_count) + ' rows')));

@@ -5,8 +5,13 @@ labels, ingest_issues. Migration 3 (P4): integrity runs/issues, fixes and decisi
 normalised values, plus immutability triggers on the P3 tables. Migration 4 (P11): the supervised model
 registry (registered artefacts, status and activation events; all append-only). Migration 5 (P12): imported
 master files and their records (vendor / customer / employee / group-company masters; immutable, raw values
-only). Later phases append migrations for their own tables;
+only). Migration 6 (P14): datasets may be bank statements (`kind` 'bank_statement'; the table is rebuilt with
+the same columns, rows and triggers because SQLite cannot alter a CHECK constraint) and the append-only
+reconciliation run register. Later phases append migrations for their own tables;
 existing migrations are never edited.
+
+Migrations run with foreign-key enforcement switched off for the connection (the documented SQLite procedure
+for rebuilding a referenced table) and `PRAGMA foreign_key_check` must be empty before the batch commits.
 """
 
 import sqlite3
@@ -333,6 +338,64 @@ MIGRATIONS: list[tuple[int, str, list[str]]] = [
             *_immutable("master_records", "master records are immutable"),
         ],
     ),
+    (
+        6,
+        "P14 bank statement reconciliation: bank_statement dataset kind, reconciliation_runs",
+        [
+            # Same columns, order and triggers as migration 2; only the kind CHECK gains 'bank_statement'.
+            """CREATE TABLE datasets_v6 (
+                dataset_id        TEXT PRIMARY KEY,
+                case_id           TEXT NOT NULL REFERENCES cases (case_id),
+                evidence_sha256   TEXT NOT NULL REFERENCES evidence_files (sha256),
+                original_filename TEXT NOT NULL,
+                kind              TEXT NOT NULL CHECK (kind IN ('ledger', 'bank_statement')),
+                format            TEXT NOT NULL CHECK (format IN ('csv', 'xlsx')),
+                format_details    TEXT NOT NULL,
+                header            TEXT NOT NULL,
+                row_count         INTEGER NOT NULL,
+                profile           TEXT NOT NULL,
+                suggestion        TEXT NOT NULL,
+                upload_config_sha256 TEXT NOT NULL,
+                status            TEXT NOT NULL CHECK (status IN ('mapping_required', 'canonicalised')),
+                created_by        TEXT NOT NULL,
+                created_at        TEXT NOT NULL,
+                mapping           TEXT,
+                mapping_sha256    TEXT,
+                adapter           TEXT,
+                adapter_version   TEXT,
+                config_sha256     TEXT,
+                time_basis        TEXT CHECK (time_basis IN ('date', 'datetime', 'simulation_step')),
+                synthetic         INTEGER CHECK (synthetic IN (0, 1)),
+                id_source         TEXT CHECK (id_source IN ('source_column', 'derived')),
+                issue_summary     TEXT,
+                canonicalised_by  TEXT,
+                canonicalised_at  TEXT
+            )""",
+            "INSERT INTO datasets_v6 SELECT * FROM datasets",
+            "DROP TABLE datasets",
+            "ALTER TABLE datasets_v6 RENAME TO datasets",
+            "CREATE TRIGGER datasets_frozen BEFORE UPDATE ON datasets WHEN OLD.status = 'canonicalised' "
+            "BEGIN SELECT RAISE(ABORT, 'a canonicalised dataset is immutable'); END",
+            "CREATE TRIGGER datasets_no_delete BEFORE DELETE ON datasets "
+            "BEGIN SELECT RAISE(ABORT, 'datasets are never deleted'); END",
+            # One row per reconciliation run: its exact inputs (datasets + data versions, confirmed scopes and
+            # direction semantics, configuration) and the hash of its result. Results are recomputed
+            # deterministically from these inputs and verified against result_sha256. Append-only.
+            """CREATE TABLE reconciliation_runs (
+                run_id            TEXT PRIMARY KEY CHECK (run_id GLOB 'RR-[0-9a-f]*'),
+                case_id           TEXT NOT NULL REFERENCES cases (case_id),
+                ledger_dataset_id TEXT NOT NULL REFERENCES datasets (dataset_id),
+                bank_dataset_id   TEXT NOT NULL REFERENCES datasets (dataset_id),
+                parameters        TEXT NOT NULL,
+                identity          TEXT NOT NULL,
+                result_sha256     TEXT NOT NULL CHECK (length(result_sha256) = 64),
+                summary           TEXT NOT NULL,
+                created_by        TEXT NOT NULL,
+                created_at        TEXT NOT NULL
+            )""",
+            *_immutable("reconciliation_runs", "reconciliation runs are append-only"),
+        ],
+    ),
 ]
 SCHEMA_VERSION = MIGRATIONS[-1][0]
 
@@ -389,6 +452,10 @@ def init_db(path: Path | str, actor: str) -> int:
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     conn = connect(path)
+    # Rebuilding a referenced table (migration 6) needs FK enforcement off; it is a no-op inside a
+    # transaction, so it is set here and integrity is verified with foreign_key_check before the
+    # batch commits.
+    conn.execute("PRAGMA foreign_keys = OFF")
     try:
         with transaction(conn):
             version = current_version(conn)
@@ -411,6 +478,11 @@ def init_db(path: Path | str, actor: str) -> int:
                     "schema.migrated",
                     f"schema:{mig_version}",
                     {"version": mig_version, "description": description},
+                )
+            broken = conn.execute("PRAGMA foreign_key_check").fetchall()
+            if broken:
+                raise DatabaseError(
+                    f"foreign key check failed after migration: {[tuple(r) for r in broken][:5]}"
                 )
         return current_version(conn)
     finally:

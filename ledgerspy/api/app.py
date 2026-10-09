@@ -17,6 +17,7 @@ from ledgerspy.api.routes import (
     health,
     models,
     quality,
+    reconciliation,
     resolution,
     risk,
 )
@@ -71,6 +72,7 @@ def create_app(
     app.include_router(models.router)  # P11: separate from P9; never feeds risk
     app.include_router(resolution.router)  # P12: entity resolution (read-only)
     app.include_router(graph.router)  # P13: relationship graph (read-only; separate from P9 scores)
+    app.include_router(reconciliation.router)  # P14: ledger ↔ bank reconciliation (separate from P9 scores)
 
     @app.get("/", include_in_schema=False)
     def index(request: Request) -> Response:

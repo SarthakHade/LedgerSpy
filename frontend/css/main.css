@@ -361,3 +361,8 @@ tr.expanded .exp-icon{transform:rotate(90deg)}
 .ls-bar-v{width:60px;text-align:right;font-family:var(--mono)}
 .ls-mapping td,.ls-mapping th{padding:6px 10px;font-size:0.78rem}
 .detail-content.ls-detail{grid-template-columns:1fr}
+
+/* P14 reconciliation status counters */
+.bsr-stats{display:flex;flex-wrap:wrap;gap:10px;margin:10px 0}
+.bsr-stat{background:var(--bg3);border-radius:10px;padding:10px 12px;min-width:120px}
+.bsr-stat-n{font-family:var(--mono);font-size:1.1rem;font-weight:700;margin-top:6px;color:var(--txt)}

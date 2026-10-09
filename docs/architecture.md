@@ -511,6 +511,22 @@ raw names (+ attributes) → normalise → tokenise → aliases → block → sc
 - Side-by-side rows with status, score, diffs, and the matched IDs on both sides.
 - Summary: matched %, value of unreconciled items by age.
 
+- **As built (P14).** `ledgerspy/reconciliation/` (records, engine, duplicates, balances, findings, service).
+  - **Ingest:** CSV / XLSX statements only, as datasets of kind `bank_statement` through the P3 flow; direction
+    semantics confirmed in the mapping. PDF / OCR is P14b.
+  - **Normalise:** P4 views; P12 name rules and canonical entities for counterparties named in narrations;
+    reference shapes; masked account keys. Balance continuity is checked per account in statement order.
+  - **Candidates:** blocks of scope (confirmed account ↔ ledger filter) × currency × flow; indexed by amount.
+  - **Assignment:** mutual best by more than a margin, repeated; otherwise `ambiguous`. No `linear_sum_assignment`:
+    it would choose among equal candidates. Grouping uses date-contiguous runs of one counterparty (no subset
+    search).
+  - **Statuses:** exact / probable / grouped / partial / ambiguous / duplicate_candidate / unmatched_ledger /
+    unmatched_bank / insufficient_data / not_applicable.
+  - **Findings:** `reconciliation.recon_*` signals, not fused into P9.
+  - **Output:** paginated results with differences, scores (not probabilities) and source evidence; per-currency
+    summary; no aging analysis yet.
+  - See [`reconciliation.md`](reconciliation.md).
+
 ## 11. Audit memo and reporting (R11, R15)
 
 - **Report model.** A structured object built from a case snapshot (one run, findings with status ≠ dismissed). Sections:
@@ -636,6 +652,7 @@ LedgerSpy/
 │   ├── supervised/            # P10: labels adapter, dataset contract, splits, models, metrics, calibration, experiment
 │   ├── resolution/            # P12: normalize, similarity, records, matching, engine, ledger, masters, service, validation
 │   ├── graph/                 # P13: model (nodes/edges), metrics, cycles, signals (findings), service
+│   ├── reconciliation/        # P14: records, engine (matching), duplicates, balances, findings, service
 │   │                          #   P11: artifact (schema, hash, safe load), registry, train, inference
 │   ├── anomaly/               # P8: eligibility, isolation_forest, robust_stats, evaluation, models, service
 │   ├── forensics/             # models.py, duplicates.py, benford.py, service.py (P7); entity_resolution.py, graph.py,

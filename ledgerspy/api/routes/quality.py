@@ -41,7 +41,7 @@ def list_datasets(db: Db) -> Any:
     """Datasets with their latest readiness (for the integrity dashboard's picker)."""
     rows = db.execute(
         "SELECT d.dataset_id, d.case_id, c.name AS case_name, d.original_filename, d.format, d.status, "
-        "d.row_count, "
+        "d.kind, d.row_count, "
         "d.adapter, d.created_at, (SELECT readiness FROM integrity_runs r WHERE r.dataset_id = d.dataset_id "
         "ORDER BY r.created_at DESC, r.run_id DESC LIMIT 1) AS latest_readiness "
         "FROM datasets d JOIN cases c ON c.case_id = d.case_id ORDER BY d.created_at DESC"

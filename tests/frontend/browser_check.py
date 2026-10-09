@@ -11,6 +11,8 @@ API, then drives the real page in headless Chromium:
   A7  tier filter, search, pagination, row detail, chatbot and every tab work
   A8  opened as a plain file the page computes nothing and names the requirement
   A9  no JavaScript errors and no dialogs during the run
+  A10 (P13) the relationship graph is drawn from the graph API
+  A11 (P14) bank reconciliation shows the reconciliation API's results; PDF/OCR is labelled P14b
 
 Requires: playwright + Chromium (no download at runtime).
 Usage (from repo root):  python tests/frontend/browser_check.py [--screenshots DIR]
@@ -33,6 +35,7 @@ from playwright.sync_api import sync_playwright
 ROOT = Path(__file__).resolve().parents[2]
 PAYSIM = ROOT / "data" / "raw" / "paysim_sample_10k.csv"
 SYNTHETIC = ROOT / "data" / "synthetic" / "reference" / "SYNTHETIC_ledger.csv"
+BANK = ROOT / "data" / "synthetic" / "reference" / "SYNTHETIC_bank_statement.csv"
 MALICIOUS = ROOT / "tests" / "frontend" / "fixtures" / "malicious.csv"
 results: list[dict] = []
 
@@ -367,6 +370,53 @@ def main() -> int:
                 "Selecting a cycle shows its status and the actual transaction chain from the API",
                 first["status"] in detail and chain_ok,
                 first["cycle_id"] + " " + first["status"],
+            )
+            # ---------------- A11 (P14): bank reconciliation from the reconciliation API ----------------
+            case_id = api(base, token, "GET", f"/api/datasets/{syn_id}")["case_id"]
+            bds = api(base, token, "POST", f"/api/cases/{case_id}/files?filename={BANK.name}&kind=bank_statement",
+                      BANK.read_bytes(), raw=True)
+            api(base, token, "PUT", f"/api/datasets/{bds['dataset_id']}/mapping",
+                bds["mapping_suggestion"]["proposed_mapping"])
+            setup = api(base, token, "GET",
+                        f"/api/reconciliation/setup?ledger_dataset_id={syn_id}&bank_dataset_id={bds['dataset_id']}")
+            page.click('button.tab-btn[onclick*="tab-bsr"]')
+            page.evaluate(f"() => document.dispatchEvent(new CustomEvent('ls:dataset', {{ detail: {{ datasetId: '{syn_id}' }} }}))")
+            page.wait_for_selector("#bsr-run", timeout=120000)
+            code = {"…6964": "LVE", "…2401": "LVC"}
+            for a in setup["bank"]["accounts"]:
+                page.check(f"#bsr-scope-use-{a['account_key']}")
+                page.select_option(f"#bsr-scope-col-{a['account_key']}", "Company Code")
+                page.fill(f"#bsr-scope-val-{a['account_key']}", code[a["account"]])
+            page.select_option("#bsr-ledger-debit", "outflow")
+            page.click("#bsr-run")
+            page.wait_for_function("() => /Run RR-/.test(document.getElementById('bsr-summary').textContent)",
+                                   timeout=120000)
+            runs = api(base, token, "GET", f"/api/reconciliation/runs?ledger_dataset_id={syn_id}")["items"]
+            rsum = api(base, token, "GET", f"/api/reconciliation/runs/{runs[0]['run_id']}")
+            shown = page.evaluate(
+                """() => Object.fromEntries([...document.querySelectorAll('#bsr-summary .bsr-stat')]
+                .map(n => [n.dataset.status, Number(n.querySelector('.bsr-stat-n').textContent.replace(/,/g, ''))]))"""
+            )
+            check(
+                "A11",
+                "Bank reconciliation shows the API's status counts for the confirmed scopes (no simulated matches)",
+                shown == rsum["summary"]["results_by_status"]
+                and rsum["run_id"] in page.text_content("#bsr-summary")
+                and shown["exact_match"] > 7000,
+                json.dumps(shown),
+            )
+            page.select_option("#bsr-f-status", "partial_match")
+            page.click("#bsr-apply")
+            page.wait_for_function("() => /Partial match/.test(document.querySelector('#bsr-results tbody').textContent)")
+            page.click("#bsr-results tbody tr.main-row >> nth=0")
+            page.wait_for_function("() => /Source evidence/.test(document.getElementById('bsr-detail').textContent)")
+            detail = page.text_content("#bsr-detail")
+            p14b = page.text_content("#bsr-p14b")
+            check(
+                "A11",
+                "A partial match shows its discrepancy and source rows; PDF/OCR is labelled as coming in P14b",
+                "Not reconciled" in detail and "SYNTHETIC_bank_statement.csv row" in detail and "P14b" in p14b,
+                detail[:90],
             )
             heights = {}
             for tab in ["tab-ov", "tab-di", "tab-fi", "tab-bsr", "tab-tr", "tab-an", "tab-re", "tab-ex"]:

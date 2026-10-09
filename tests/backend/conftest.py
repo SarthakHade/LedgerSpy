@@ -66,7 +66,7 @@ class Ingest:
         self.conn = connect(root / "ledgerspy.db")
         self.case_id = store.create_case(self.conn, name="Test case", actor="tester")["case_id"]
 
-    def upload(self, source: Path | bytes, filename: str | None = None, **kw) -> dict:
+    def upload(self, source: Path | bytes, filename: str | None = None, kind: str = "ledger", **kw) -> dict:
         from ledgerspy.cases import evidence
         from ledgerspy.ingest import service
 
@@ -83,7 +83,7 @@ class Ingest:
             self.case_id,
             staged,
             filename or source.name,
-            "ledger",
+            kind,
             "tester",
             **kw,
         )

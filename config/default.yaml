@@ -684,3 +684,43 @@ graph:
     visualization_max_edges: 1500
     neighbourhood_max_edges: 200
     edge_max_transactions: 500
+
+
+# --------------------------------------------------------------------------------- P14 bank reconciliation
+# Ledger ↔ bank statement matching (docs/reconciliation.md). Reconciliation findings are a separate evidence
+# family: they never change P9 scores. Scores are evidence scores, NOT probabilities. Every limit, when reached,
+# is reported as truncated.
+reconciliation:
+  version: 1
+  dates:
+    bank_before_days: 2           # a bank line may precede the ledger posting by up to 2 days (value dating)
+    bank_after_days: 5            # normal clearing: up to 5 calendar days after posting (2 working days + weekend)
+    extended_before_days: 7       # outside the normal window but within 7 days before / 31 days after:
+    extended_after_days: 31       #   a candidate with a DATE DISCREPANCY (partial match, never reconciled)
+  scoring:
+    weights: {amount: 0.35, date: 0.25, reference: 0.2, counterparty: 0.2}
+    probable_min_score: 0.6       # weighted evidence score (available components only) for a probable match
+    ambiguity_margin: 0.1         # the best candidate must beat the runner-up by more than 0.1, else ambiguous
+  counterparty:
+    use_entity_resolution: true   # P12 aliases: any name of the same canonical entity is the same party
+    min_name_chars: 6             # names shorter than 6 characters are never searched for in descriptions
+    min_prefix_chars: 12          # a truncated name in a description must match at least 12 characters
+  reference:
+    min_chars: 4
+    conflict_on_same_shape: true  # e.g. two different UTR-shaped references: blocks automatic matching
+  partial:
+    max_abs_minor: 500000         # an amount difference of at most 5,000.00 ...
+    max_relative: 0.05            # ... and at most 5% of the larger amount (fees, short payments)
+  grouping:
+    max_group_size: 6             # one settlement line covers at most 6 rows of the other side
+    window_days: 15               # ... posted within 15 days of it
+    max_candidates: 60            # rows considered per settlement (date-contiguous runs only; no subset search)
+  duplicates:
+    near_window_days: 3           # same account, direction, amount and counterparty within 3 days
+  balance:
+    min_order_share: 0.9          # a statement order (file / reverse) must explain 90% of balance transitions
+  direction_proposal_min_share: 0.9  # ledger debit semantics are proposed only when 90% of rows agree
+  limits:
+    max_candidates_per_row: 50
+    max_page_size: 500
+    max_runs_cached: 6

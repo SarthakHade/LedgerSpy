@@ -18,7 +18,7 @@ P0 Cleanup ✔
                                               └─ P9 Risk engine v1 + Explainability v1 + UI wired to API ✔  ◄── first end-to-end slice
                                                   ├─ P10 Supervised training/evaluation ✔ ─ P11 Model registry/inference ✔
                                                   ├─ P12 Entity resolution ✔ ─ P13 Graph analysis ✔
-                                                  ├─ P14 Bank reconciliation (P14b PDF/OCR)  (uses P12 aliases)
+                                                  ├─ P14 Bank reconciliation ✔ (P14b PDF/OCR)  (uses P12 aliases)
                                                   └─ P15 Investigation workflow + case/evidence mgmt
                                                       └─ P16 Reports + local memo assistant
                                                           ├─ P17 Investigation assistant (optional)
@@ -202,12 +202,23 @@ See [`cleanup-log.md`](cleanup-log.md).
   - **Not done:** no Louvain communities, and no Cytoscape (an SVG view drawn from API data).
   - See [`p13-acceptance.md`](p13-acceptance.md).
 
-### P14 — Bank statement reconciliation (R8)
+### P14 — Bank statement reconciliation (R8) ✔ (done, CSV/XLSX; P14b pending; see [`p14-acceptance.md`](p14-acceptance.md) and [`reconciliation.md`](reconciliation.md))
 - **Objective.** CSV/XLSX statements, normalisation, candidate generation, scoring, optimal assignment, one-to-many grouping, matched/partial/missing classification, and exception findings.
   - **P14b:** text-PDF via pdfplumber, then scanned statements via local Tesseract OCR with confidence gating.
 - **Dependencies.** P3, P4, P12 (aliases), P9.
 - **Tests.** Synthetic statement with known delays, fees, batching and missing items gives exact expected classification counts; tie-breaking is deterministic; OCR fixture with low-confidence lines is never auto-matched.
 - **Acceptance.** `runMockBSR` is gone; the side-by-side view shows real statuses; exceptions feed the risk engine.
+- **As built.**
+  - **Ingestion:** dataset kind `bank_statement` and a `bank_statement` adapter with confirmed debit/credit or
+    sign semantics; CSV / XLSX only.
+  - **Matching:** staged and deterministic (exact, probable, grouped both ways, partial with discrepancies);
+    ambiguity resolved by mutual best by a margin, never by order (instead of `linear_sum_assignment`, which
+    would pick among equal candidates).
+  - **Evidence:** duplicate candidates, statement-supported balance checks and a `reconciliation` findings
+    family. P5: every S-S scenario classified, 0 wrong pairings against the generator.
+  - **Not done:** exceptions do **not** feed the risk engine yet (P14 brief: P9 unchanged; P9 / P16 integration
+    is a separately validated change); P14b (PDF / OCR) pending.
+  - See [`p14-acceptance.md`](p14-acceptance.md).
 
 ### P15 — Investigation workflow, case and evidence management (R13, R14)
 - **Objective.** Case lifecycle, finding statuses (New / Under review / Confirmed / Dismissed with reason / Escalated), notes, server-side paging and filtering, an evidence panel, audit-log viewer, and run comparison.
