@@ -58,8 +58,8 @@ Nothing is reinterpreted:
 - A ledger upload that looks like a statement gets a note suggesting `kind=bank_statement`.
 - Bank statements are hidden from the ledger analysis picker. Any other kind is refused.
 
-**PDF statements (text or scanned / OCR) are not supported in P14.** They come in **P14b**. The upload error and
-the UI say so.
+**PDF statements** (text or scanned) are supported since **P14b**: they are extracted and reviewed first, then
+confirmed through the same mapping — see [`pdf-extraction.md`](pdf-extraction.md). Ledger PDFs are refused.
 
 ## 2. Scope: accounts, currencies, directions
 
@@ -283,7 +283,7 @@ The tab shows only what the API returns:
   - A detail view: explanation, differences, source evidence, components, competing candidates.
   - Balance check, duplicate candidates and findings.
 - **Unavailable states** are stated explicitly.
-- **PDF / OCR** is labelled "coming in P14b".
+- **PDF statements (P14b)** open an extraction-review panel first; the card shows the local OCR status.
 
 ## 11. Limitations
 
@@ -301,4 +301,4 @@ The tab shows only what the API returns:
 - **No aging analysis.** "Unreconciled items by age" is not built.
 - **No FX.** Different currencies are never matched.
 - **Scope proposals** need a group-company master. Otherwise scopes are entered by the analyst.
-- **No PDF / OCR** (P14b).
+- PDF / OCR limitations are listed in [`pdf-extraction.md`](pdf-extraction.md) §7.

@@ -13,6 +13,7 @@ API, then drives the real page in headless Chromium:
   A9  no JavaScript errors and no dialogs during the run
   A10 (P13) the relationship graph is drawn from the graph API
   A11 (P14) bank reconciliation shows the reconciliation API's results; PDF/OCR is labelled P14b
+  A12 (P14b) a PDF statement's extraction review shows the PDF API's rows, page image and decisions
 
 Requires: playwright + Chromium (no download at runtime).
 Usage (from repo root):  python tests/frontend/browser_check.py [--screenshots DIR]
@@ -268,7 +269,7 @@ def main() -> int:
                 detail["explanation"]["headline"][:90],
             )
             na = page.evaluate("""() => ({
-                recon: !!document.querySelector('#tab-bsr .na-card'),
+                recon: /OCR (available|UNAVAILABLE)/i.test(document.getElementById('bsr-pdf-status').textContent),  // P14b: OCR status from the API
                 montecarlo: [...document.querySelectorAll('#tab-tr .na-card')].some(n => /going-concern/.test(n.textContent)),
                 benchmark: [...document.querySelectorAll('#tab-ov .na-card')].some(n => /benchmark/i.test(n.textContent)),
                 graph: [...document.querySelectorAll('#tab-re .na-card')].some(n => /Entity graph not available/.test(n.textContent)),
@@ -414,9 +415,54 @@ def main() -> int:
             p14b = page.text_content("#bsr-p14b")
             check(
                 "A11",
-                "A partial match shows its discrepancy and source rows; PDF/OCR is labelled as coming in P14b",
+                "A partial match shows its discrepancy and source rows; the PDF/OCR (P14b) card is shown",
                 "Not reconciled" in detail and "SYNTHETIC_bank_statement.csv row" in detail and "P14b" in p14b,
                 detail[:90],
+            )
+            # ---------------- A12 (P14b): PDF statement extraction review from the PDF API ----------------
+            sys.path.insert(0, str(ROOT))
+            from tests.backend import pdf_builder as pb
+
+            spec = [{"date": f"0{d}/01/2024", "description": f"PAYMENT {d}", "debit": "10.00",
+                     "balance": f"{1000 - 10 * d}.00"} for d in range(1, 7)]
+            pdf = pb.statement_pdf(spec, info=["Account No: 1234567890", "Currency: INR"], rows_per_page=3,
+                                   scanned_pages=(1,), dpi=300)
+            pds = api(base, token, "POST", f"/api/cases/{case_id}/files?filename=scan.pdf&kind=bank_statement",
+                      pdf, raw=True)
+            pid = pds["dataset_id"]
+            page.evaluate(f"() => document.dispatchEvent(new CustomEvent('ls:dataset', {{ detail: {{ datasetId: '{syn_id}' }} }}))")
+            page.click("text=scan.pdf (pdf)", timeout=60000)
+            page.wait_for_function("() => /PDF extraction review/.test(document.getElementById('bsr-setup').textContent)",
+                                   timeout=120000)
+            req = api(base, token, "GET", f"/api/datasets/{pid}/pdf/items?review=required&size=200")
+            summ = api(base, token, "GET", f"/api/datasets/{pid}/pdf")
+            n_rows = page.locator("#bsr-pdf-items tbody tr").count()
+            text_ui = page.text_content("#bsr-setup")
+            check(
+                "A12",
+                "PDF review shows the API's review-required rows, per-page methods and the OCR engine",
+                n_rows == req["total"] and summ["extraction"]["extraction_id"] in text_ui
+                and "Tesseract" in text_ui and [p["method"] for p in summ["pages"]] == ["text", "ocr"],
+                f"{n_rows} rows, pages {[p['method'] for p in summ['pages']]}",
+            )
+            page.click("#bsr-pdf-items tbody tr >> nth=0 >> text=Page")
+            page.wait_for_function("() => document.getElementById('bsr-pdf-canvas').width > 100", timeout=60000)
+            drawn_w = page.evaluate("() => document.getElementById('bsr-pdf-canvas').width")
+            page.click("#bsr-pdf-items tbody tr >> nth=0 >> text=Confirm")
+            page.wait_for_function(
+                f"() => LS_API.get('/api/datasets/{pid}/pdf').then(s => s.review.pending === {summ['review']['pending'] - 1})",
+                timeout=60000,
+            )
+            after = api(base, token, "GET", f"/api/datasets/{pid}/pdf")
+            page.wait_for_function("() => /confirmed/.test(document.getElementById('bsr-pdf-items').textContent)",
+                                   timeout=60000)
+            check(
+                "A12",
+                "The original page is drawn from the API and a reviewer decision is stored through the API",
+                drawn_w > 100
+                and after["review"]["pending"] == summ["review"]["pending"] - 1
+                and after["review"]["can_confirm"] is False,
+                json.dumps(after["review"]["by_state"]),
             )
             heights = {}
             for tab in ["tab-ov", "tab-di", "tab-fi", "tab-bsr", "tab-tr", "tab-an", "tab-re", "tab-ex"]:

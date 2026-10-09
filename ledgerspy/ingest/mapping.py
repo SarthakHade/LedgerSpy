@@ -479,8 +479,8 @@ def _suggest_bank(profile: Profile, settings: LedgerSpyConfig) -> dict[str, Any]
         "balance": balance,
         "statement_column": bank.get("statement_column"),
         "formats": {
-            "supported": ["csv", "xlsx"],
-            "deferred": "PDF statements (text and scanned / OCR) are not supported in P14; they come in P14b",
+            "supported": ["csv", "xlsx", "pdf"],
+            "pdf": "PDF statements (text and scanned, local OCR) are extracted and reviewed first (P14b)",
         },
     }
     out["requires_confirmation"] = confirm

@@ -596,12 +596,17 @@ def test_negative_value_in_a_directional_column_is_not_reinterpreted(ingest):
     assert [i[0] for i in issues] == ["negative_in_directional_column"]
 
 
-def test_pdf_statements_are_deferred_to_p14b(ingest):
+def test_pdf_is_accepted_only_as_a_bank_statement_and_malformed_pdfs_are_refused(ingest):
+    """P14 deferred PDFs to P14b; since P14b a PDF is a bank statement (ledgers stay CSV / XLSX)."""
     from ledgerspy.ingest.errors import IngestError
 
     with pytest.raises(IngestError) as e:
+        ingest.upload(b"%PDF-1.7 ...", "statement.pdf")  # as a ledger
+    assert e.value.code == "unsupported_format" and "bank statement" in e.value.message
+    with pytest.raises(IngestError) as e:
         ingest.upload(b"%PDF-1.7 ...", "statement.pdf", kind="bank_statement")
-    assert e.value.code == "unsupported_format" and "P14b" in e.value.message
+    assert e.value.code == "pdf_malformed"
+    assert ingest.conn.execute("SELECT COUNT(*) FROM datasets").fetchone()[0] == 0  # nothing registered
 
 
 # ------------------------------------------------------------------------------------------ schema
@@ -633,9 +638,11 @@ def test_migration_6_keeps_existing_datasets_and_triggers(tmp_path):
     )
     conn.execute("COMMIT")
     conn.close()
-    assert init_db(path, "tester") == SCHEMA_VERSION == 6
+    assert (
+        init_db(path, "tester") == SCHEMA_VERSION and SCHEMA_VERSION >= 6
+    )  # v5 → latest (6 = P14, 7 = P14b)
     c = connect(path)
-    assert current_version(c) == 6
+    assert current_version(c) == SCHEMA_VERSION
     assert c.execute("SELECT kind, status FROM datasets").fetchall()[0][:] == ("ledger", "canonicalised")
     assert c.execute("SELECT COUNT(*) FROM transactions").fetchone()[0] == 1
     with pytest.raises(sqlite3.DatabaseError, match="immutable"):

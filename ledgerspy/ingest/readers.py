@@ -7,6 +7,10 @@ re-applies the limits from config (`ingest`), streams records one at a time and 
 Row numbering: `source_row` is the 1-based ordinal of the record after the header, counting blank records,
 so it matches what a person sees in a spreadsheet (spreadsheet row = header row + source_row). Blank
 records are skipped (they produce no transaction) but keep their number.
+
+P14b: a PDF bank statement is never read as a table here. Its extraction (ledgerspy.pdfstatements) produces a
+table of text cells with provenance columns, handed over in memory (`details["_rows"]`, never persisted), and
+it then passes through the same limits, profiling, mapping and conversion as CSV / XLSX.
 """
 
 import codecs
@@ -25,7 +29,7 @@ from ledgerspy.config.schema import IngestConfig
 from ledgerspy.ingest.errors import IngestError
 from ledgerspy.ingest.values import Cell, is_blank
 
-Format = Literal["csv", "xlsx"]
+Format = Literal["csv", "xlsx", "pdf"]
 
 CSV_EXTENSIONS = {".csv", ".txt", ".tsv"}
 XLSX_EXTENSIONS = {".xlsx"}
@@ -48,7 +52,7 @@ class TableSource:
 # ----------------------------------------------------------------------------------------------- format
 
 
-def detect_format(path: Path, filename: str) -> Format:
+def detect_format(path: Path, filename: str, allow_pdf: bool = False) -> Format:
     ext = Path(filename).suffix.lower()
     with path.open("rb") as f:
         head = f.read(8)
@@ -78,13 +82,17 @@ def detect_format(path: Path, filename: str) -> Format:
             )
         return "csv"
     if ext == ".pdf":
-        raise IngestError(
-            "unsupported_format",
-            "PDF statements (text or scanned / OCR) are not supported yet: they come in roadmap P14b. Export "
-            "the statement as .csv or .xlsx.",
-            {"deferred_to": "P14b"},
-            http_status=415,
-        )
+        if not allow_pdf:
+            raise IngestError(
+                "unsupported_format",
+                "PDF files are accepted only as bank statements (kind=bank_statement), through the PDF "
+                "extraction and review (P14b). Ledgers must be .csv or .xlsx.",
+                http_status=415,
+            )
+        with path.open("rb") as f:
+            if b"%PDF-" not in f.read(1024):
+                raise IngestError("pdf_malformed", "The file has a .pdf extension but no PDF header.")
+        return "pdf"
     raise IngestError(
         "unsupported_format",
         f"Unsupported file type {ext or '(none)'!r}; upload .csv or .xlsx.",
@@ -430,7 +438,13 @@ def _xlsx_rows(src: TableSource, cfg: IngestConfig) -> Iterator[tuple[int, list[
 # ----------------------------------------------------------------------------------------------- common
 
 
+def _memory_rows(src: TableSource) -> Iterator[tuple[int, list[Cell]]]:
+    yield from enumerate(src.details["_rows"], start=1)
+
+
 def _raw_rows(src: TableSource, cfg: IngestConfig) -> Iterator[tuple[int, list[Cell]]]:
+    if src.format == "pdf":
+        return _memory_rows(src)
     return _csv_rows(src, cfg) if src.format == "csv" else _xlsx_rows(src, cfg)
 
 

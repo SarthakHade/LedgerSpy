@@ -32,7 +32,7 @@
         <div class="about-feature"><div class="af-icon">📏</div><div class="af-title">Forensic rules + Benford — working</div><div class="af-desc">Ten explainable rules (duplicates, splitting, timing, dormancy, velocity…) and Benford tests with minimum-sample gating.</div></div>
         <div class="about-feature"><div class="af-icon">📈</div><div class="af-title">Statistical anomalies — working</div><div class="af-desc">Isolation Forest, peer-group robust z-scores and tail percentiles. "Unusual" is never "fraudulent".</div></div>
         <div class="about-feature"><div class="af-icon">🧮</div><div class="af-title">Review-risk score — working</div><div class="af-desc">A 0–100 review priority with an exact breakdown by signal. Not a probability of fraud: nothing is calibrated against confirmed outcomes yet.</div></div>
-        <div class="about-feature"><div class="af-icon">🕸️</div><div class="af-title">Graph and Bank Recon — Benchmarks not yet</div><div class="af-desc">Entity resolution, the relationship graph and CSV/XLSX bank reconciliation run in the local service. PDF/OCR statements (P14b), Monte Carlo and benchmarking are on the roadmap and show "Not available" until built.</div></div>
+        <div class="about-feature"><div class="af-icon">🕸️</div><div class="af-title">Graph and Bank Recon — Benchmarks not yet</div><div class="af-desc">Entity resolution, the relationship graph and bank reconciliation (CSV, XLSX and PDF statements with local OCR and review) run in the local service. Monte Carlo and benchmarking are on the roadmap and show "Not available" until built.</div></div>
       </div>
     </div>
 
@@ -245,8 +245,9 @@
          <div id="bsr-pickers"><div class="na-inline">Loading datasets…</div></div>
          <div class="ls-muted" id="bsr-msg" role="status"></div>
          <div id="bsr-setup"></div>
-         <div class="na-card" id="bsr-p14b" style="margin-top:12px">
-           <strong>Scanned PDF / OCR statements: coming in P14b.</strong> Only CSV and XLSX bank statements can be imported now; PDF statements (text or scanned) are not read and are never simulated.
+         <div class="t-card" id="bsr-p14b" style="margin-top:12px">
+           <strong>PDF statements (P14b):</strong> text PDFs are read locally; scanned pages need the local OCR engine. Every extracted row keeps its page, position and source text, and uncertain rows must be reviewed before the statement is confirmed.
+           <div class="ls-muted" id="bsr-pdf-status">Checking the local OCR engine…</div>
          </div>
        </div>
        <div class="t-card" style="margin-bottom:24px">

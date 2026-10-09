@@ -18,7 +18,7 @@ P0 Cleanup ✔
                                               └─ P9 Risk engine v1 + Explainability v1 + UI wired to API ✔  ◄── first end-to-end slice
                                                   ├─ P10 Supervised training/evaluation ✔ ─ P11 Model registry/inference ✔
                                                   ├─ P12 Entity resolution ✔ ─ P13 Graph analysis ✔
-                                                  ├─ P14 Bank reconciliation ✔ (P14b PDF/OCR)  (uses P12 aliases)
+                                                  ├─ P14 Bank reconciliation ✔ (P14b PDF/OCR ✔)  (uses P12 aliases)
                                                   └─ P15 Investigation workflow + case/evidence mgmt
                                                       └─ P16 Reports + local memo assistant
                                                           ├─ P17 Investigation assistant (optional)
@@ -202,7 +202,7 @@ See [`cleanup-log.md`](cleanup-log.md).
   - **Not done:** no Louvain communities, and no Cytoscape (an SVG view drawn from API data).
   - See [`p13-acceptance.md`](p13-acceptance.md).
 
-### P14 — Bank statement reconciliation (R8) ✔ (done, CSV/XLSX; P14b pending; see [`p14-acceptance.md`](p14-acceptance.md) and [`reconciliation.md`](reconciliation.md))
+### P14 — Bank statement reconciliation (R8) ✔ (done: CSV/XLSX in P14, PDF/OCR in P14b; see [`p14-acceptance.md`](p14-acceptance.md), [`p14b-acceptance.md`](p14b-acceptance.md), [`reconciliation.md`](reconciliation.md), [`pdf-extraction.md`](pdf-extraction.md))
 - **Objective.** CSV/XLSX statements, normalisation, candidate generation, scoring, optimal assignment, one-to-many grouping, matched/partial/missing classification, and exception findings.
   - **P14b:** text-PDF via pdfplumber, then scanned statements via local Tesseract OCR with confidence gating.
 - **Dependencies.** P3, P4, P12 (aliases), P9.
@@ -217,8 +217,17 @@ See [`cleanup-log.md`](cleanup-log.md).
   - **Evidence:** duplicate candidates, statement-supported balance checks and a `reconciliation` findings
     family. P5: every S-S scenario classified, 0 wrong pairings against the generator.
   - **Not done:** exceptions do **not** feed the risk engine yet (P14 brief: P9 unchanged; P9 / P16 integration
-    is a separately validated change); P14b (PDF / OCR) pending.
+    is a separately validated change).
   - See [`p14-acceptance.md`](p14-acceptance.md).
+- **As built (P14b).**
+  - **PDF ingestion:** P3 upload / evidence; per-page text (PDFium via pypdfium2, not pdfplumber), OCR (local
+    Tesseract 5) or mixed, in a time-limited subprocess with page / pixel limits.
+  - **Extraction:** the `header_columns` layout strategy; every line kept with page, box and source text.
+  - **Confidence gating:** separate text / OCR / parse confidences; every OCR row and every uncertain row is
+    review-required; the P3 confirmation is refused until each is confirmed or excluded; an unconfirmed
+    extracted line can never be matched (the roadmap's "low-confidence OCR line is never auto-matched").
+  - **Not done:** value correction of misread rows (P15), other layout strategies, Dr/Cr-signed balance checks.
+  - See [`p14b-acceptance.md`](p14b-acceptance.md).
 
 ### P15 — Investigation workflow, case and evidence management (R13, R14)
 - **Objective.** Case lifecycle, finding statuses (New / Under review / Confirmed / Dismissed with reason / Escalated), notes, server-side paging and filtering, an evidence panel, audit-log viewer, and run comparison.

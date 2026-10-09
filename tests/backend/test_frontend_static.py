@@ -105,7 +105,10 @@ def test_unavailable_modules_are_labelled_not_simulated():
         "Entity graph not available",
     ):
         assert module.lower() in html.lower(), module
-    assert html.count('class="na-card"') >= 4
+    # P14b: bank reconciliation (incl. PDF / OCR) is built; its card now states the local OCR engine's status
+    # from the API instead of "not available". Monte Carlo, benchmarks and the pre-analysis graph remain.
+    assert html.count('class="na-card"') >= 3
+    assert 'id="bsr-pdf-status"' in html and "/api/pdf/ocr-status" in text(FE / "js" / "recon-ui.js")
 
 
 def test_the_frontend_reads_risk_only_from_the_api():

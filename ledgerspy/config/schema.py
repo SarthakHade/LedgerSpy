@@ -958,6 +958,46 @@ class ReconciliationConfig(_Section):
     limits: ReconLimits
 
 
+# ----------------------------------------------------------------------------------- P14b PDF statements
+
+
+class PdfRender(_Section):
+    preview_dpi: int = Field(ge=36, le=600)  # page images for reviewers
+    max_preview_dpi: int = Field(ge=36, le=600)
+    max_pixels: int = Field(
+        ge=100_000
+    )  # any rendered page above this many pixels is refused (not downscaled)
+
+
+class PdfOcr(_Section):
+    engine: Literal["tesseract"]
+    executable_candidates: list[str] = Field(min_length=1)  # PATH name or absolute path; first usable wins
+    languages: list[str] = Field(min_length=1)
+    dpi: int = Field(ge=100, le=600)
+    psm: int = Field(ge=3, le=13)  # Tesseract page segmentation mode
+    page_timeout_seconds: int = Field(ge=1)
+    min_word_confidence: float = Field(ge=0.0, le=100.0)  # words below: reason low_ocr_confidence
+
+
+class PdfLayout(_Section):
+    line_tolerance: float = Field(gt=0.0, le=2.0)  # × median word height: same-line grouping
+    header_gap_factor: float = Field(gt=0.0)  # header words closer than this × height form one cell
+    straddle_share: float = Field(gt=0.0, lt=1.0)  # a word this much over a column boundary is uncertain
+    min_header_roles: int = Field(ge=3)
+
+
+class PdfConfig(_Section):
+    version: int = Field(ge=1)
+    max_pages: int = Field(ge=1)
+    min_text_chars: int = Field(ge=1)  # non-space characters for a page to count as a text page
+    image_page_min_coverage: float = Field(gt=0.0, le=1.0)  # image area share that marks a scanned page
+    worker_timeout_seconds: int = Field(ge=1)  # the whole extraction subprocess
+    render: PdfRender
+    ocr: PdfOcr
+    layout: PdfLayout
+    auto_accept_text_rows: bool  # digital-text rows with every field valid and no warning need no review
+
+
 class LedgerSpyConfig(_Section):
     config_version: Literal[1]
     server: ServerConfig
@@ -976,3 +1016,4 @@ class LedgerSpyConfig(_Section):
     supervised: SupervisedConfig
     graph: GraphConfig
     reconciliation: ReconciliationConfig
+    pdf: PdfConfig

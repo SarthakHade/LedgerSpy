@@ -7,8 +7,9 @@ registry (registered artefacts, status and activation events; all append-only). 
 master files and their records (vendor / customer / employee / group-company masters; immutable, raw values
 only). Migration 6 (P14): datasets may be bank statements (`kind` 'bank_statement'; the table is rebuilt with
 the same columns, rows and triggers because SQLite cannot alter a CHECK constraint) and the append-only
-reconciliation run register. Later phases append migrations for their own tables;
-existing migrations are never edited.
+reconciliation run register. Migration 7 (P14b): datasets may be PDF statements (`format` 'pdf'; rebuilt
+the same way), and PDF extractions, their items and review decisions (all append-only). Later phases append
+migrations for their own tables; existing migrations are never edited.
 
 Migrations run with foreign-key enforcement switched off for the connection (the documented SQLite procedure
 for rebuilding a referenced table) and `PRAGMA foreign_key_check` must be empty before the batch commits.
@@ -394,6 +395,91 @@ MIGRATIONS: list[tuple[int, str, list[str]]] = [
                 created_at        TEXT NOT NULL
             )""",
             *_immutable("reconciliation_runs", "reconciliation runs are append-only"),
+        ],
+    ),
+    (
+        7,
+        "P14b PDF bank statements: pdf dataset format, pdf_extractions, pdf_extraction_items, "
+        "pdf_review_decisions",
+        [
+            # Same columns, order and triggers as migration 6; only the format CHECK gains 'pdf'.
+            """CREATE TABLE datasets_v7 (
+                dataset_id        TEXT PRIMARY KEY,
+                case_id           TEXT NOT NULL REFERENCES cases (case_id),
+                evidence_sha256   TEXT NOT NULL REFERENCES evidence_files (sha256),
+                original_filename TEXT NOT NULL,
+                kind              TEXT NOT NULL CHECK (kind IN ('ledger', 'bank_statement')),
+                format            TEXT NOT NULL CHECK (format IN ('csv', 'xlsx', 'pdf')),
+                format_details    TEXT NOT NULL,
+                header            TEXT NOT NULL,
+                row_count         INTEGER NOT NULL,
+                profile           TEXT NOT NULL,
+                suggestion        TEXT NOT NULL,
+                upload_config_sha256 TEXT NOT NULL,
+                status            TEXT NOT NULL CHECK (status IN ('mapping_required', 'canonicalised')),
+                created_by        TEXT NOT NULL,
+                created_at        TEXT NOT NULL,
+                mapping           TEXT,
+                mapping_sha256    TEXT,
+                adapter           TEXT,
+                adapter_version   TEXT,
+                config_sha256     TEXT,
+                time_basis        TEXT CHECK (time_basis IN ('date', 'datetime', 'simulation_step')),
+                synthetic         INTEGER CHECK (synthetic IN (0, 1)),
+                id_source         TEXT CHECK (id_source IN ('source_column', 'derived')),
+                issue_summary     TEXT,
+                canonicalised_by  TEXT,
+                canonicalised_at  TEXT
+            )""",
+            "INSERT INTO datasets_v7 SELECT * FROM datasets",
+            "DROP TABLE datasets",
+            "ALTER TABLE datasets_v7 RENAME TO datasets",
+            "CREATE TRIGGER datasets_frozen BEFORE UPDATE ON datasets WHEN OLD.status = 'canonicalised' "
+            "BEGIN SELECT RAISE(ABORT, 'a canonicalised dataset is immutable'); END",
+            "CREATE TRIGGER datasets_no_delete BEFORE DELETE ON datasets "
+            "BEGIN SELECT RAISE(ABORT, 'datasets are never deleted'); END",
+            # One extraction run of a PDF dataset's evidence: method per page, engine versions, configuration,
+            # coverage and statement checks. Identified by evidence + configuration + engine; never changed.
+            """CREATE TABLE pdf_extractions (
+                extraction_id   TEXT PRIMARY KEY CHECK (extraction_id GLOB 'PE-[0-9a-f]*'),
+                dataset_id      TEXT NOT NULL REFERENCES datasets (dataset_id),
+                evidence_sha256 TEXT NOT NULL REFERENCES evidence_files (sha256),
+                config_sha256   TEXT NOT NULL,
+                status          TEXT NOT NULL CHECK (status IN ('completed', 'incomplete', 'failed')),
+                engine          TEXT NOT NULL,
+                report          TEXT NOT NULL,
+                items_sha256    TEXT,
+                error           TEXT,
+                created_by      TEXT NOT NULL,
+                created_at      TEXT NOT NULL
+            )""",
+            *_immutable("pdf_extractions", "PDF extractions are immutable"),
+            # Every line of every page, classified, with page, box, source text, cells and confidences.
+            """CREATE TABLE pdf_extraction_items (
+                extraction_id   TEXT NOT NULL REFERENCES pdf_extractions (extraction_id),
+                item_no         INTEGER NOT NULL CHECK (item_no >= 1),
+                item_id         TEXT NOT NULL CHECK (item_id GLOB 'PX-[0-9a-f]*'),
+                page            INTEGER NOT NULL CHECK (page >= 1),
+                kind            TEXT NOT NULL,
+                method          TEXT NOT NULL,
+                review_required INTEGER NOT NULL CHECK (review_required IN (0, 1)),
+                item            TEXT NOT NULL,
+                PRIMARY KEY (extraction_id, item_no),
+                UNIQUE (extraction_id, item_id)
+            )""",
+            *_immutable("pdf_extraction_items", "PDF extraction items are immutable"),
+            # Reviewer decisions, append-only: the latest decision per item is in force until the dataset is
+            # confirmed.
+            """CREATE TABLE pdf_review_decisions (
+                seq             INTEGER PRIMARY KEY AUTOINCREMENT,
+                extraction_id   TEXT NOT NULL REFERENCES pdf_extractions (extraction_id),
+                item_id         TEXT NOT NULL,
+                decision        TEXT NOT NULL CHECK (decision IN ('confirm', 'exclude')),
+                reason          TEXT,
+                decided_by      TEXT NOT NULL,
+                decided_at      TEXT NOT NULL
+            )""",
+            *_immutable("pdf_review_decisions", "review decisions are append-only"),
         ],
     ),
 ]

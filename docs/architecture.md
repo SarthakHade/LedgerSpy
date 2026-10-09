@@ -513,7 +513,10 @@ raw names (+ attributes) → normalise → tokenise → aliases → block → sc
 
 - **As built (P14).** `ledgerspy/reconciliation/` (records, engine, duplicates, balances, findings, service).
   - **Ingest:** CSV / XLSX statements only, as datasets of kind `bank_statement` through the P3 flow; direction
-    semantics confirmed in the mapping. PDF / OCR is P14b.
+    semantics confirmed in the mapping. PDF statements (P14b): `ledgerspy/pdfstatements/` extracts text (PDFium)
+    or runs local Tesseract OCR per page in a subprocess, keeps every line's page / box / text, gates uncertain
+    rows behind reviewer decisions and hands the reviewed table to the same P3 mapping; see
+    [`pdf-extraction.md`](pdf-extraction.md).
   - **Normalise:** P4 views; P12 name rules and canonical entities for counterparties named in narrations;
     reference shapes; masked account keys. Balance continuity is checked per account in statement order.
   - **Candidates:** blocks of scope (confirmed account ↔ ledger filter) × currency × flow; indexed by amount.
@@ -653,6 +656,7 @@ LedgerSpy/
 │   ├── resolution/            # P12: normalize, similarity, records, matching, engine, ledger, masters, service, validation
 │   ├── graph/                 # P13: model (nodes/edges), metrics, cycles, signals (findings), service
 │   ├── reconciliation/        # P14: records, engine (matching), duplicates, balances, findings, service
+│   ├── pdfstatements/         # P14b: pages (PDFium), ocr (Tesseract), layout, validate, extract, worker, service
 │   │                          #   P11: artifact (schema, hash, safe load), registry, train, inference
 │   ├── anomaly/               # P8: eligibility, isolation_forest, robust_stats, evaluation, models, service
 │   ├── forensics/             # models.py, duplicates.py, benford.py, service.py (P7); entity_resolution.py, graph.py,

@@ -15,7 +15,7 @@ This repository is being rebuilt from a hackathon prototype into a working syste
 - `frontend/` is the UI, served by `ledgerspy serve`. Since **P9** it **renders the backend's results only**: the
   in-browser heuristic scorer of the prototype is deleted, and every score, tier, count, chart and explanation comes
   from the local API. Opened as a plain file it says the local service is required. P1's guarantees still hold:
-  - modules that don't exist yet (PDF / OCR statements, Monte Carlo, benchmarking, PDF reports) show "Not available yet";
+  - modules that don't exist yet (Monte Carlo, benchmarking, PDF reports) show "Not available yet";
   - label columns such as `isFraud` are never used;
   - file content is rendered safely;
   - the page makes no non-local requests.
@@ -131,9 +131,20 @@ This repository is being rebuilt from a hackathon prototype into a working syste
     duplicate candidates, unmatched, insufficient data. Every row lands in exactly one traceable result.
   - Balance checks only where the statement supports them; reconciliation findings as a separate evidence family
     (P9 scores unchanged); deterministic runs recorded in an append-only register.
-  - PDF / OCR statements come in P14b.
+  - PDF statements: see P14b below.
 
   See [`docs/reconciliation.md`](docs/reconciliation.md) and [`docs/p14-acceptance.md`](docs/p14-acceptance.md).
+- **P14b PDF statements and OCR** (`ledgerspy/pdfstatements/`, `/api/datasets/{id}/pdf…`, Bank Recon tab):
+  - PDF bank statements are uploaded through the P3 flow, stored byte-for-byte as evidence and extracted
+    locally: embedded text via PDFium (pypdfium2), scanned pages via the local Tesseract executable, mixed PDFs
+    page by page, in a time-limited subprocess.
+  - Every line is kept with its class, page, position and source text. Text, OCR and parse confidences are
+    reported separately; every OCR row and every uncertain row is review-required.
+  - Confirmation (the P3 mapping) is refused until the extraction is complete and every review-required row is
+    confirmed or excluded; confirmed rows then reconcile in P14 unchanged, with their PDF provenance.
+  - Offline install of the dependencies and Tesseract: [`docs/pdf-extraction.md`](docs/pdf-extraction.md) §1.
+
+  See [`docs/pdf-extraction.md`](docs/pdf-extraction.md) and [`docs/p14b-acceptance.md`](docs/p14b-acceptance.md).
 - The original notebooks are in `archive/` for reference. Their evaluation had data leakage and must not be quoted.
 
 See [`docs/requirements.md`](docs/requirements.md) for the requirement-by-requirement status.
@@ -143,7 +154,7 @@ See [`docs/requirements.md`](docs/requirements.md) for the requirement-by-requir
 ```
 ledgerspy/     Python package: config/, canonical/, cases/ (SQLite, audit log, evidence), ingest/, quality/,
                normalize/, synth/, features/, detectors/, forensics/, anomaly/, risk/, supervised/, resolution/, graph/,
-               reconciliation/, api/, cli.py
+               reconciliation/, pdfstatements/, api/, cli.py
 config/        default.yaml — every configurable value (validated, SHA-256 hashed)
 frontend/      UI (index.html, css/, js/) — served by `ledgerspy serve`; renders API results only
 tests/         backend/ (pytest, P2) · frontend/harness.js (Node) + browser_check.py (optional, Playwright)
@@ -216,6 +227,8 @@ python tests/frontend/integrity_panel_check.py  # optional: P4 dashboard against
 | [`docs/p13-acceptance.md`](docs/p13-acceptance.md) | P13 acceptance: P5 findings, PaySim and scale limits, P9 isolation, UI, deviations |
 | [`docs/reconciliation.md`](docs/reconciliation.md) | P14 reconciliation: data contract, scope, normalisation, matching stages, duplicates, balances, findings, API |
 | [`docs/p14-acceptance.md`](docs/p14-acceptance.md) | P14 acceptance: P5 classification and precision, PaySim and scale, determinism, P9 isolation, UI, deviations |
+| [`docs/pdf-extraction.md`](docs/pdf-extraction.md) | P14b PDF / OCR: dependencies and offline install, per-page methods, layout strategy, confidences, review gate, API, limits |
+| [`docs/p14b-acceptance.md`](docs/p14b-acceptance.md) | P14b acceptance: genuine OCR tests, accuracy and runtime measured, review gate, failure handling, deviations |
 | [`docs/synthetic-scenario-matrix.md`](docs/synthetic-scenario-matrix.md) | Feature → scenario → fields → records → detector phase |
 | [`docs/cleanup-log.md`](docs/cleanup-log.md) | What was moved, archived or deleted in the cleanup, and why |
 | [`docs/audits/phase-1-current-state-audit.md`](docs/audits/phase-1-current-state-audit.md) | Detailed audit of the prototype |

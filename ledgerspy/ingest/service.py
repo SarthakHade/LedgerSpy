@@ -5,6 +5,10 @@
     confirm mapping → re-verify evidence hash → validate mapping → check source-ID uniqueness
         → convert every row with the adapter → transactions + labels + ingest_issues (status canonicalised)
 
+P14b: a PDF bank statement is extracted (ledgerspy.pdfstatements, in a subprocess) at upload; the extracted
+table takes the place of the CSV / XLSX reader. Its confirmation is refused until the extraction is complete
+and every review-required item has a decision; only trusted rows are converted.
+
 Every state change is audit-logged in the same transaction as the change.
 """
 
@@ -19,12 +23,14 @@ from ledgerspy.cases import audit, evidence
 from ledgerspy.cases.db import transaction
 from ledgerspy.cases.evidence import StagedUpload
 from ledgerspy.config import EffectiveConfig
+from ledgerspy.errors import LedgerSpyError
 from ledgerspy.hashing import canonical_json, sha256_hex, utc_now_iso
 from ledgerspy.ingest.adapters import CONVERTERS
 from ledgerspy.ingest.errors import IngestError
 from ledgerspy.ingest.mapping import Mapping, Profile, mapping_json, profile_table, suggest, validate_mapping
 from ledgerspy.ingest.readers import TableSource, detect_format, iter_records, open_csv, open_xlsx, reopen
 from ledgerspy.ingest.values import cell_text
+from ledgerspy.pdfstatements import service as pdf_service
 
 # A ledger is analysed (P4–P13); a bank statement (P14) is reconciled against a ledger of the same case.
 SUPPORTED_KINDS = ("ledger", "bank_statement")
@@ -76,12 +82,23 @@ def ingest_upload(
                 "scanned statements come in P14b).",
                 {"supported": list(SUPPORTED_KINDS)},
             )
-        fmt = detect_format(staged.path, filename)
-        src = _open(staged.path, fmt, cfg, sheet, delimiter)
+        fmt = detect_format(staged.path, filename, allow_pdf=kind == "bank_statement")
+        dataset_id = new_dataset_id()
+        pdf_result = None
+        if fmt == "pdf":
+            try:
+                pdf_result = pdf_service.run_extraction(staged.path, staged.sha256, cfg, dataset_id)
+            except LedgerSpyError as exc:
+                raise IngestError(exc.code, exc.message, exc.details, http_status=exc.http_status) from exc
+            src = pdf_service.table_source(staged.path, pdf_result, None)
+        else:
+            src = _open(staged.path, fmt, cfg, sheet, delimiter)
         profile = profile_table(src, cfg.settings)
-        if profile.rows == 0:
+        if profile.rows == 0 and fmt != "pdf":  # a PDF without rows is kept: its extraction report says why
             raise IngestError("no_data_rows", "The file has a header but no data rows.")
         proposal = suggest(profile, cfg.settings, kind)
+        if pdf_result is not None:
+            proposal = pdf_service.pdf_suggestion(proposal, pdf_result)
     except IngestError as exc:
         staged.path.unlink(missing_ok=True)
         if exc.code != "case_not_found":
@@ -101,7 +118,6 @@ def ingest_upload(
                 )
         raise
 
-    dataset_id = new_dataset_id()
     created_at = utc_now_iso()
     with transaction(conn):
         stored_name, newly_stored = evidence.store(conn, staged, "." + fmt, workspace, actor)
@@ -117,7 +133,7 @@ def ingest_upload(
                 filename,
                 kind,
                 fmt,
-                _json(src.details),
+                _json(pdf_service.stored_details(src) if fmt == "pdf" else src.details),
                 _json(src.header),
                 profile.rows,
                 _json(_profile_json(profile)),
@@ -141,7 +157,12 @@ def ingest_upload(
                 "suggested_adapter": proposal["adapter"]["suggested"],
             },
         )
-    return get_dataset(conn, dataset_id) | {"evidence_newly_stored": newly_stored}
+        if pdf_result is not None:
+            pdf_service.insert_extraction(conn, dataset_id, staged.sha256, pdf_result, actor)
+    out = get_dataset(conn, dataset_id) | {"evidence_newly_stored": newly_stored}
+    if pdf_result is not None:
+        out["pdf"] = pdf_service.summary(conn, dataset_id)
+    return out
 
 
 def _profile_json(profile: Profile) -> dict[str, Any]:
@@ -292,7 +313,10 @@ def confirm_mapping(
             http_status=409,
         )
     path = evidence.verify_one(conn, row["evidence_sha256"], workspace)
-    src = reopen(path, row["format"], json.loads(row["format_details"]), cfg.settings.ingest)
+    if row["format"] == "pdf":  # P14b: the reviewed extraction, only trusted rows
+        src = pdf_service.confirm_source(conn, row, path)
+    else:
+        src = reopen(path, row["format"], json.loads(row["format_details"]), cfg.settings.ingest)
     if src.header != json.loads(row["header"]):  # pragma: no cover — guarded by the hash check above
         raise IngestError("evidence_changed", "The evidence header differs from the one recorded at upload.")
     profile = profile_table(src, cfg.settings)

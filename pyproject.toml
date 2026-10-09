@@ -17,6 +17,11 @@ dependencies = [
     "PyYAML==6.0.3",
     "openpyxl==3.1.5",  # XLSX: read-only, cached values only
     "et_xmlfile==2.0.0",
+    # P14b PDF statements. Both are self-contained binary wheels without further Python dependencies (offline
+    # wheelhouse friendly). OCR uses the local Tesseract EXECUTABLE (not a Python package; see
+    # docs/pdf-extraction.md for installation); without it scanned pages are reported as not processed.
+    "pypdfium2==4.30.0",  # PDFium: text extraction with character boxes, page rendering
+    "Pillow==11.3.0",  # page images for OCR and reviewer previews
 ]
 
 [project.optional-dependencies]

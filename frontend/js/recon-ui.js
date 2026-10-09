@@ -7,6 +7,10 @@
    confirmations (bank mapping semantics, scopes, ledger debit meaning) and
    renders the backend's results. Amounts are integer minor units turned
    into exact decimal text. All data-derived text is set with textContent.
+   P14b: PDF statements show the backend's extraction (per-page method,
+   coverage, checks, review-required rows); the reviewer confirms or
+   excludes rows, and the original page is drawn on a canvas. Nothing is
+   parsed or extracted in the browser.
    ============================================================ */
 (function(){
   'use strict';
@@ -22,7 +26,7 @@
     exact_match: 'bg-green', probable_match: 'bg-green', grouped_match: 'bg-green', partial_match: 'bg-amber', ambiguous: 'bg-amber',
     duplicate_candidate: 'bg-red', unmatched_ledger: 'bg-red', unmatched_bank: 'bg-red', insufficient_data: 'bg-neutral', not_applicable: 'bg-neutral',
   };
-  const ST = { datasets: [], ledger: '', bank: '', setup: null, run: null, filters: { status: '', account: '', currency: '', from: '', to: '', q: '' }, page: 1, size: 50 };
+  const ST = { all: [], datasets: [], ledger: '', bank: '', pdfDpi: 110, ocr: null, view: 0, setup: null, run: null, filters: { status: '', account: '', currency: '', from: '', to: '', q: '' }, page: 1, size: 50 };
 
   function minor(m, currency){
     if(m === null || m === undefined) return '—';
@@ -70,7 +74,7 @@
 
   /* ---------------- datasets ---------------- */
   async function loadDatasets(){
-    try { ST.datasets = (await LS_API.get('/api/datasets')).items.filter(d => d.status === 'canonicalised'); }
+    try { ST.all = (await LS_API.get('/api/datasets')).items; ST.datasets = ST.all.filter(d => d.status === 'canonicalised'); }
     catch(e){ setChildren($('bsr-setup'), na('Could not list datasets: ' + e.message)); return; }
     renderPickers();
   }
@@ -84,12 +88,15 @@
     const bs = select('bsr-bank', [['', banks.length ? 'choose a statement…' : 'no bank statement in this case']].concat(banks.map(d => [d.dataset_id, d.original_filename + ' · ' + lsInt(d.row_count) + ' lines'])), ST.bank, 'Bank statement dataset');
     ls.addEventListener('change', () => { ST.ledger = ls.value; ST.bank = ''; renderPickers(); });
     bs.addEventListener('change', () => { ST.bank = bs.value; loadSetup(); });
-    const file = el('input', { type: 'file', id: 'bsr-file', accept: '.csv,.xlsx', style: 'display:none' });
+    const file = el('input', { type: 'file', id: 'bsr-file', accept: '.csv,.xlsx,.pdf', style: 'display:none' });
+    const pending = ST.all.filter(d => d.kind === 'bank_statement' && d.case_id === caseId && d.status === 'mapping_required');
     file.addEventListener('change', () => { if(file.files[0]) importStatement(file.files[0]); file.value = ''; });
     setChildren($('bsr-pickers'), [
       el('div', { class: 'di-toolbar' }, [muted('Ledger'), ls, muted('Bank statement'), bs,
-        button('Import bank statement (CSV / XLSX)', () => { if(!ST.ledger){ say('Choose the ledger first: the statement is imported into its case.'); return; } file.click(); }, false, 'bsr-import'), file]),
-    ]);
+        button('Import bank statement (CSV / XLSX / PDF)', () => { if(!ST.ledger){ say('Choose the ledger first: the statement is imported into its case.'); return; } file.click(); }, false, 'bsr-import'), file]),
+      pending.length ? el('div', { class: 'di-toolbar' }, [muted('Statements awaiting review / mapping:')].concat(pending.map(d =>
+        button(d.original_filename + ' (' + d.format + ')', () => resume(d.dataset_id), false)))) : null,
+    ].filter(Boolean));
     if(ST.ledger && ST.bank) loadSetup(); else setChildren($('bsr-setup'), na(ST.ledger ? 'Import or choose a bank statement of the same case to reconcile.' : 'Import a ledger first (top of the page).'));
   }
   function say(t){ setText('bsr-msg', t); }
@@ -98,10 +105,84 @@
   async function importStatement(f){
     const caseId = (ST.datasets.find(d => d.dataset_id === ST.ledger) || {}).case_id;
     say('Uploading ' + f.name + ' as a bank statement…');
-    try { showMapping(await LS_API.upload(caseId, f, 'bank_statement')); }
-    catch(e){ say('Import refused: ' + errText(e)); }
+    if(/\.pdf$/i.test(f.name)) say('Uploading ' + f.name + ': the local service extracts the text (and runs OCR on scanned pages); this can take a while…');
+    try {
+      const ds = await LS_API.upload(caseId, f, 'bank_statement');
+      if(ds.evidence.format === 'pdf') showPdfReview(ds.dataset_id); else showMapping(ds);
+    } catch(e){ say('Import refused: ' + errText(e)); }
+  }
+  async function resume(id){
+    const ds = await LS_API.get('/api/datasets/' + id);
+    if(ds.evidence.format === 'pdf') showPdfReview(id); else showMapping(ds);
+  }
+
+  /* ---------------- P14b: PDF extraction review (backend data only) ---------------- */
+  async function showPdfReview(id, filter){
+    const my = ++ST.view;
+    filter = filter || 'required';
+    let s, page;
+    try {
+      s = await LS_API.get('/api/datasets/' + id + '/pdf');
+      const q = filter === 'all' ? {} : filter === 'transactions' ? { kind: 'transaction' } : filter === 'unparsed_kind' ? { kind: 'unparsed' } : { review: filter };
+      page = await LS_API.get('/api/datasets/' + id + '/pdf/items' + LS_API.qs(Object.assign({ size: 200 }, q)));
+    } catch(e){ if(my === ST.view) setChildren($('bsr-setup'), na('Extraction not available: ' + errText(e))); return; }
+    if(my !== ST.view) return;
+    const x = s.extraction, ocr = x.engine.ocr || {};
+    const pages = s.pages.map(p => [p.page, p.method, lsInt(p.text_chars), lsShare(p.image_coverage, 0), p.ocr_mean_confidence === undefined || p.ocr_mean_confidence === null ? '—' : String(p.ocr_mean_confidence),
+      lsInt(p.lines), (p.reason ? p.reason + ' ' : '') + (p.warnings || []).join('; ')]);
+    const fsel = select('bsr-pdf-filter', [['required', 'review-required'], ['pending', 'pending decision'], ['transactions', 'all transactions'], ['unparsed', 'unparsed lines'], ['all', 'every line']], filter, 'Rows to show');
+    fsel.addEventListener('change', () => showPdfReview(id, fsel.value === 'unparsed' ? 'unparsed_kind' : fsel.value));
+    const canvas = el('canvas', { id: 'bsr-pdf-canvas', width: '10', height: '10', style: 'max-width:100%;border:1px solid var(--border);display:none' });
+    const rows = page.items.map(it => {
+      const acts = [];
+      if(it.review_required && s.data_state !== 'confirmed'){
+        if(it.kind === 'transaction') acts.push(button('Confirm', () => decide(id, it.item_id, 'confirm', filter), false));
+        acts.push(button(it.kind === 'transaction' ? 'Exclude' : 'Not a transaction', () => decide(id, it.item_id, 'exclude', filter), false));
+      }
+      acts.push(button('Page ' + it.page, () => drawPage(id, it.page, it.bbox, canvas), false));
+      const fields = it.fields ? Object.entries(it.fields).map(([k, v]) => k + ': ' + v).join(' · ') : (it.reason || '');
+      return [it.page, it.kind, it.method, it.text, fields, (it.reasons || []).join(', ') || '—', it.review_state, el('span', null, acts)];
+    });
+    const checks = s.statement.checks || {};
+    setChildren($('bsr-setup'), [
+      el('h4', null, 'PDF extraction review'),
+      muted('Evidence ' + s.evidence.original_filename + ' · sha256 ' + s.evidence.sha256.slice(0, 16) + '… (stored unchanged) · extraction ' + x.extraction_id + ' · status ' + x.status
+        + (x.not_processed_pages.length ? ' · pages NOT processed: ' + x.not_processed_pages.join(', ') : '')),
+      muted('PDF text: PDFium ' + x.engine.pdf.pdfium + ' (pypdfium2 ' + x.engine.pdf.pypdfium2 + ') · OCR: ' + (ocr.used === false ? 'not needed (' + ocr.reason + ')'
+        : ocr.available ? 'Tesseract ' + ocr.version + ', languages ' + (ocr.languages || []).join('+') + ', ' + ocr.dpi + ' dpi' : 'UNAVAILABLE — ' + ocr.reason)),
+      x.warnings.length ? el('div', { class: 'na-card' }, x.warnings.join(' ')) : null,
+      table(['Page', 'Method', 'Text chars', 'Image coverage', 'OCR mean conf.', 'Lines', 'Notes'], pages),
+      muted('Lines by kind: ' + Object.entries(s.coverage.by_kind).map(([k, n]) => k + ' ' + n).join(', ') + ' · transactions ' + s.coverage.transactions + ' · review-required ' + s.coverage.review_required),
+      muted('Statement checks (from the PDF): ' + (s.statement.checks.status === 'evaluated'
+        ? 'opening ' + (checks.checks.opening_matches === null ? 'not stated' : checks.checks.opening_matches ? 'matches' : 'DIFFERS') + ', closing ' + (checks.checks.closing_matches === null ? 'not stated' : checks.checks.closing_matches ? 'matches' : 'DIFFERS') + ', balance breaks ' + checks.breaks.length
+        : 'not evaluated — ' + s.statement.checks.reason)),
+      muted('Data states — extracted: ' + s.states.extracted + ' · reviewed: ' + s.states.reviewed + ' · confirmed: ' + s.states.confirmed + '. Current: ' + s.data_state + '. Review: ' + Object.entries(s.review.by_state).map(([k, n]) => k + ' ' + n).join(', ') + '.'),
+      muted(s.note),
+      el('div', { class: 'di-toolbar', style: 'margin-top:8px' }, [muted('Show'), fsel,
+        button('Re-run extraction', async () => { say('Re-running the extraction…'); try { await LS_API.post('/api/datasets/' + id + '/pdf/extract'); say(''); showPdfReview(id, filter); } catch(e){ say('Not re-run: ' + errText(e)); } }, false, 'bsr-pdf-reextract'),
+        button('Continue to the statement mapping', async () => { if(!s.review.can_confirm){ say('Not yet: the extraction must be complete and every review-required row decided.'); return; } showMapping(await LS_API.get('/api/datasets/' + id)); }, true, 'bsr-pdf-continue')]),
+      el('div', { id: 'bsr-pdf-items' }, table(['Page', 'Kind', 'Method', 'Source text', 'Extracted fields', 'Review reasons', 'State', ''], rows)),
+      page.total > page.items.length ? muted('Showing ' + page.items.length + ' of ' + lsInt(page.total) + ' lines.') : null,
+      canvas,
+    ].filter(Boolean));
+    say('Review the extracted rows against the PDF page before confirming.');
+  }
+  async function decide(id, itemId, decision, filter){
+    try { await LS_API.post('/api/datasets/' + id + '/pdf/review', { decisions: [{ item_id: itemId, decision: decision, reason: 'reviewed in the Bank Recon tab' }] }); showPdfReview(id, filter); }
+    catch(e){ say('Decision refused: ' + errText(e)); }
+  }
+  async function drawPage(id, pageNo, bbox, canvas){
+    try {
+      const bmp = await createImageBitmap(await LS_API.blob('/api/datasets/' + id + '/pdf/pages/' + pageNo + '/image' + LS_API.qs({ dpi: ST.pdfDpi })));
+      canvas.width = bmp.width; canvas.height = bmp.height; canvas.style.display = 'block';
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(bmp, 0, 0);
+      if(bbox){ const k = ST.pdfDpi / 72; ctx.strokeStyle = '#ef4444'; ctx.lineWidth = 2; ctx.strokeRect(bbox[0] * k - 3, bbox[1] * k - 3, (bbox[2] - bbox[0]) * k + 6, (bbox[3] - bbox[1]) * k + 6); }
+      canvas.scrollIntoView({ block: 'nearest' });
+    } catch(e){ say('Page image not available: ' + errText(e)); }
   }
   function showMapping(ds){
+    ++ST.view;
     const ms = ds.mapping_suggestion, proposed = JSON.parse(JSON.stringify(ms.proposed_mapping));
     proposed.bank = proposed.bank || {};
     const sem = (ms.bank || {}).direction_semantics || {};
@@ -118,6 +199,8 @@
       if(item.item === 'bank.debit_means') inputs.debit = select('bsr-debit-means', [['', 'choose…'], ['outflow', 'a debit is money OUT of the account'], ['inflow', 'a debit is money INTO the account']], '', 'Debit meaning');
       if(item.item === 'bank.amount_sign') inputs.sign = select('bsr-amount-sign', [['', 'choose…'], ['positive_inflow', 'positive = money in'], ['positive_outflow', 'positive = money out']], '', 'Amount sign');
       if(item.item === 'currency') inputs.currency = el('input', { type: 'text', id: 'bsr-currency', maxlength: '3', placeholder: 'ISO code stated on the statement (optional)', class: 'col-filter-select' });
+      if(item.item === 'options.date_format' && item.candidates) inputs.dateFormat = select('bsr-date-format', [['', 'choose the date format…']].concat(item.candidates.map(c => [c, c])), '', 'Date format');
+      if(item.item === 'options.decimal_separator') inputs.decimal = select('bsr-decimal', [['', 'choose the decimal separator…'], ['.', 'point (1,234.56)'], [',', 'comma (1.234,56)']], '', 'Decimal separator');
     });
     Object.values(inputs).forEach(n => parts.push(el('div', { class: 'di-toolbar', style: 'margin-top:6px' }, [n])));
     const msg = el('div', { class: 'ls-muted', id: 'bsr-map-msg', style: 'margin-top:8px' });
@@ -126,6 +209,8 @@
         if(inputs.debit){ if(!inputs.debit.value){ msg.textContent = 'Confirm what a debit means first.'; return; } proposed.bank.debit_means = inputs.debit.value; }
         if(inputs.sign){ if(!inputs.sign.value){ msg.textContent = 'Confirm the amount sign first.'; return; } proposed.bank.amount_sign = inputs.sign.value; }
         if(inputs.currency && inputs.currency.value.trim()) proposed.options.currency = inputs.currency.value.trim().toUpperCase();
+        if(inputs.dateFormat){ if(!inputs.dateFormat.value){ msg.textContent = 'Choose the date format first.'; return; } proposed.options.date_format = inputs.dateFormat.value; }
+        if(inputs.decimal){ if(!inputs.decimal.value){ msg.textContent = 'Choose the decimal separator first.'; return; } proposed.options.decimal_separator = inputs.decimal.value; }
         try {
           msg.textContent = 'Confirming…';
           await LS_API.put('/api/datasets/' + ds.dataset_id + '/mapping', proposed);
@@ -142,9 +227,13 @@
 
   /* ---------------- setup: scopes + ledger debit meaning ---------------- */
   async function loadSetup(){
+    const my = ++ST.view;  // a slower, older render never replaces a newer panel (e.g. a PDF review)
     setChildren($('bsr-setup'), na('Loading what must be confirmed…'));
-    try { ST.setup = await LS_API.get('/api/reconciliation/setup' + LS_API.qs({ ledger_dataset_id: ST.ledger, bank_dataset_id: ST.bank })); }
-    catch(e){ setChildren($('bsr-setup'), na('Setup not available: ' + errText(e))); return; }
+    let setup;
+    try { setup = await LS_API.get('/api/reconciliation/setup' + LS_API.qs({ ledger_dataset_id: ST.ledger, bank_dataset_id: ST.bank })); }
+    catch(e){ if(my === ST.view) setChildren($('bsr-setup'), na('Setup not available: ' + errText(e))); return; }
+    if(my !== ST.view) return;
+    ST.setup = setup;
     const s = ST.setup, props = s.proposals.scopes;
     const cols = [['', 'all ledger rows']].concat(s.ledger.scope_columns.map(c => [c, c]));
     const rows = s.bank.accounts.map(a => {
@@ -277,6 +366,15 @@
     } catch(e){ setChildren($('bsr-side'), na('Not available: ' + errText(e))); }
   }
 
+  async function ocrStatus(){
+    try {
+      const o = await LS_API.get('/api/pdf/ocr-status');
+      setText('bsr-pdf-status', o.available ? 'Local OCR available: Tesseract ' + o.version + ' (' + o.languages.join('+') + '). Scanned pages are recognised on this machine; every OCR-derived row needs review.'
+        : 'Local OCR UNAVAILABLE: ' + o.reason + '. Text PDFs still work; scanned pages are reported as not processed.');
+    } catch(e){ setText('bsr-pdf-status', 'OCR status not available: ' + e.message); }
+  }
+
+  ocrStatus();
   loadDatasets();
   document.addEventListener('ls:dataset', ev => { ST.ledger = ev.detail.datasetId; ST.bank = ''; loadDatasets(); });
 })();

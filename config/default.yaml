@@ -724,3 +724,34 @@ reconciliation:
     max_candidates_per_row: 50
     max_page_size: 500
     max_runs_cached: 6
+
+# --------------------------------------------------------------------------------- P14b PDF bank statements
+# Local extraction only (docs/pdf-extraction.md): PDFium (pypdfium2) for text and rendering, Tesseract (local
+# executable) for scanned pages. Nothing leaves the machine. OCR-derived rows are ALWAYS review-required; the
+# OCR engine's confidence is reported but never treated as financial correctness.
+pdf:
+  version: 1
+  max_pages: 200                  # more pages: refused at upload
+  min_text_chars: 20              # a page with at least 20 non-space characters of embedded text is a text page
+  image_page_min_coverage: 0.5    # an image covering >= 50% of the page marks it as scanned
+  worker_timeout_seconds: 900     # the extraction subprocess is killed after 15 minutes (nothing is registered as done)
+  render:
+    preview_dpi: 110              # reviewer page images
+    max_preview_dpi: 200
+    max_pixels: 40000000          # a rendered page above 40 Mpx is refused (OCR or preview), never silently downscaled
+  ocr:
+    engine: tesseract
+    # First usable entry wins: a name on PATH or an absolute path. The Windows path is the UB Mannheim installer's default.
+    executable_candidates: ["tesseract", "C:/Program Files/Tesseract-OCR/tesseract.exe", "/usr/bin/tesseract",
+                            "/usr/local/bin/tesseract", "/opt/homebrew/bin/tesseract"]
+    languages: [eng]              # language data must be installed (tessdata); missing data = OCR unavailable
+    dpi: 300
+    psm: 6                        # a single uniform block of text (statement tables)
+    page_timeout_seconds: 120
+    min_word_confidence: 70       # OCR words below 70 are listed as low confidence on their row
+  layout:
+    line_tolerance: 0.5           # words whose vertical centres differ by < 0.5 x median word height share a line
+    header_gap_factor: 1.2        # header words closer than 1.2 x word height form one header cell ("Value Date")
+    straddle_share: 0.3           # a word extending 30% of its width across a column boundary is uncertain
+    min_header_roles: 3           # a table header needs a date, an amount source and one more recognised column
+  auto_accept_text_rows: true     # digital-text rows with every field valid and no warning need no review

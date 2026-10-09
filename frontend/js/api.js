@@ -47,6 +47,12 @@ const LS_API = (function(){
     get: (path) => call('GET', path),
     post: (path, body) => call('POST', path, body),
     put: (path, body) => call('PUT', path, body),
+    /** Binary GET (P14b page images) as a Blob, with the same token; drawn on a canvas, never as an <img> URL. */
+    blob: async (path) => {
+      const r = await fetch(path, { headers: { 'Authorization': 'Bearer ' + token }, credentials: 'same-origin' });
+      if(!r.ok){ let d = {}; try { d = await r.json(); } catch(e) { d = {}; } const err = new Error((d.error && d.error.message) || ('HTTP ' + r.status)); err.status = r.status; throw err; }
+      return r.blob();
+    },
     upload: (caseId, file, kind) => call('POST', '/api/cases/' + caseId + '/files' + qs({ filename: file.name, kind: kind }), undefined, file),
   };
 })();

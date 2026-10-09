@@ -651,6 +651,7 @@ REASON_TEXT = {
     "outside_scope": "outside every confirmed scope",
     "account_not_in_scope": "a bank account that is not in any confirmed scope",
     "outside_statement_coverage": "its clearing window extends beyond the period the other side covers",
+    "unconfirmed_extraction": "a PDF-extracted line neither auto-accepted nor confirmed by a reviewer",
 }
 
 

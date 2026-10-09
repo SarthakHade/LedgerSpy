@@ -527,6 +527,14 @@ def _compute(conn, cfg: EffectiveConfig, req: RunRequest) -> Run:
         limitations.append("No current P4 integrity run for one of the datasets: data quality is unchecked.")
     if res_sha is None:
         limitations.append("Entity resolution not used: counterparty names are compared by spelling only.")
+    for r in out.results:  # P14b: say where a bank line's values came from when OCR read them
+        ocr = [b["txn_id"] for b in r["bank_rows"] if (b.get("extraction") or {}).get("method") == "ocr"]
+        if ocr:
+            r["limitations"].append(
+                f"Bank line(s) {', '.join(ocr)} were read by OCR from the PDF and confirmed by a reviewer; "
+                "OCR confidence is not financial correctness — check the page image before relying on this "
+                "result."
+            )
     identity = _identity(lv, lrow, bv, brow, req, scopes, cfg, res_sha)
     run_id = "RR-" + sha256_hex(canonical_json(identity))[:16]
     content = {
@@ -840,6 +848,11 @@ def result_detail(conn, run: Run, result_id: str) -> dict[str, Any]:
                     else {},
                     "p4_normalized_values": normalized,
                 }
+                | (
+                    {"pdf_provenance": {k: v for k, v in sorted(extra.items()) if k.startswith("pdf_")}}
+                    if side == "bank" and "pdf_review" in extra
+                    else {}
+                )
             )
     related = [
         s
