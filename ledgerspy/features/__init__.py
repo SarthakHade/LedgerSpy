@@ -7,5 +7,5 @@ none may compute a feature of its own. See docs/feature-registry.md.
 """
 
 # Importing the modules registers their features.
-from ledgerspy.features import deferred, entity, transaction  # noqa: F401
+from ledgerspy.features import deferred, entity, resolution, transaction  # noqa: F401
 from ledgerspy.features.spec import REGISTRY  # noqa: F401

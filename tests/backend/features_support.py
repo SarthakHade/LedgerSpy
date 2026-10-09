@@ -67,6 +67,7 @@ def make(
     mapped: set[str] | None = None,
     p4: dict[str, list[str]] | None = None,
     p4_checks: dict[str, dict[str, str]] | None = None,
+    masters: tuple = (),
     **cfg_overrides: Any,
 ) -> FeatureInput:
     cfg = features_cfg(**cfg_overrides)
@@ -86,11 +87,13 @@ def make(
             cfg=cfg,
             p4_current=p4 is not None,
             p4_checks=p4_checks,
+            masters=bool(masters),
         ),
         cfg=cfg,
         p4_issues=p4 or {},
         p4_run_id="Q-test" if p4 is not None else None,
         p4_checks=p4_checks or {},
+        masters=tuple(masters),
     )
 
 

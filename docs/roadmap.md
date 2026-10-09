@@ -17,7 +17,7 @@ P0 Cleanup ✔
                                               ├─ P8 Anomaly detection ✔
                                               └─ P9 Risk engine v1 + Explainability v1 + UI wired to API ✔  ◄── first end-to-end slice
                                                   ├─ P10 Supervised training/evaluation ✔ ─ P11 Model registry/inference ✔
-                                                  ├─ P12 Entity resolution ─ P13 Graph analysis
+                                                  ├─ P12 Entity resolution ✔ ─ P13 Graph analysis
                                                   ├─ P14 Bank reconciliation (P14b PDF/OCR)  (uses P12 aliases)
                                                   └─ P15 Investigation workflow + case/evidence mgmt
                                                       └─ P16 Reports + local memo assistant
@@ -171,11 +171,19 @@ See [`cleanup-log.md`](cleanup-log.md).
   supervised score is **not** fused into P9 and has no SHAP or UI yet. P10 found no reliable gain over P9, and no
   production-eligible (target-domain) model exists. See the deviations in [`p11-acceptance.md`](p11-acceptance.md).
 
-### P12 — Entity resolution (R6)
+### P12 — Entity resolution (R6) ✔ (done; see [`p12-acceptance.md`](p12-acceptance.md) and [`entity-resolution.md`](entity-resolution.md))
 - **Objective.** The pipeline in `architecture.md` §8, with a similarity matrix API, analyst confirm/reject, and employee–vendor linking.
 - **Dependencies.** P3–P5 (masters), P6.
 - **Tests.** Normalisation table cases ("Stationery L.T.D" ≡ "Stationery Ltd"); blocking recall ≥ target on synthetic pairs; precision/recall of match decisions on synthetic ground truth; analyst decisions persist across reruns.
 - **Acceptance.** Injected look-alike and shared-attribute scenarios are found; the matrix UI shows per-feature evidence and shared payment patterns.
+- **As built.**
+  - Master import (evidence, explicit mapping), deterministic normalisation, identifier-first rule-based decisions,
+    blocking, cannot-link-safe clusters, seven P6 features, resolved P9 grouping, and a read-only API with the
+    similarity evidence.
+  - Look-alike and shared-attribute scenarios surface as `conflicting_identity` / `shared_attribute`, never merged.
+  - Analyst confirm / reject (persisting decisions) is left to P15. The UI shows identity in the counterparty table
+    (no separate matrix screen).
+  - See the deviations in [`p12-acceptance.md`](p12-acceptance.md).
 
 ### P13 — Graph and relationship analysis (R9)
 - **Objective.** Graph build from resolved entities, temporal cycles, reciprocity, fan-in/out percentiles, communities, centrality, concentration, shell/ghost indicators, and a Cytoscape view (node size = risk, glow = centrality).

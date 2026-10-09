@@ -8,7 +8,17 @@ from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from ledgerspy import __version__
-from ledgerspy.api.routes import anomaly, cases, datasets, forensics, health, models, quality, risk
+from ledgerspy.api.routes import (
+    anomaly,
+    cases,
+    datasets,
+    forensics,
+    health,
+    models,
+    quality,
+    resolution,
+    risk,
+)
 from ledgerspy.api.security import SESSION_COOKIE, LocalSecurityMiddleware, build_csp, token_matches
 from ledgerspy.cases.audit import local_actor
 from ledgerspy.config import EffectiveConfig
@@ -58,6 +68,7 @@ def create_app(
     app.include_router(anomaly.router)
     app.include_router(risk.router)
     app.include_router(models.router)  # P11: separate from P9; never feeds risk
+    app.include_router(resolution.router)  # P12: entity resolution (read-only)
 
     @app.get("/", include_in_schema=False)
     def index(request: Request) -> Response:

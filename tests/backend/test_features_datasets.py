@@ -123,7 +123,14 @@ PAYSIM_ENTITY = {
     "ent_share_of_flow",
     "ent_fan_in",
     "ent_fan_out",
+    # P12 resolution of PaySim account codes (exact codes only; master data never applies to them)
+    "ent_canonical_entity_id",
+    "ent_resolution_status",
+    "ent_linked_record_count",
+    "ent_match_confidence",
+    "ent_name_similarity_max",
 }
+MASTER_FEATURES = {"shared_identifier_count", "employee_link_indicator"}  # P12: need imported master data
 
 
 def test_paysim_gets_only_the_features_it_can_support(paysim):
@@ -164,7 +171,9 @@ def test_synthetic_company_gets_the_corporate_feature_matrix(synthetic):
     tx = {s.name for s in implemented(Level.TRANSACTION)}
     assert computed(run.transactions) == tx - {"txn_type", "dq_balance_discontinuity"}  # no type, no balance
     assert run.transactions.status["txn_type"]["reason"] == "no transaction type is mapped"
-    assert computed(run.entities) == {s.name for s in implemented(Level.ENTITY)}
+    # every entity feature except the two that need imported master data (none in this fixture)
+    assert computed(run.entities) == {s.name for s in implemented(Level.ENTITY)} - MASTER_FEATURES
+    assert "no master data" in run.entities.status["shared_identifier_count"]["reason"]
     # without the case calendar and limits, those two features are honestly unavailable
     assert computed(plain.transactions) == tx - {
         "txn_type",
@@ -369,16 +378,16 @@ def test_quality_report_flags_constant_and_sparse_features(synthetic, paysim):
     pay = feature_report.quality_report(paysim[2], paysim[0].cfg.settings.features)
     for rep in (syn, pay):
         s = rep["summary"]
-        assert s["registered"] == 72 == s["computed"] + s["not_available"] + s["not_available_yet"]
-        assert s["not_available_yet"] == 10
+        assert s["registered"] == 77 == s["computed"] + s["not_available"] + s["not_available_yet"]
+        assert s["not_available_yet"] == 8  # P12 implemented shared_identifier_count, employee_link_indicator
         canonical_json(rep)  # computed values only: serialisable, no NaN/Infinity
         for e in rep["transaction_features"] + rep["entity_features"]:
             if e["status"] == "computed":
                 assert e["rows"] >= e["nulls"] >= 0 and "flags" in e
             else:
                 assert e["reason"] and "rows" not in e  # no statistics for what was not computed
-    assert syn["summary"]["computed"] == 60 and "dq_is_normalized" in syn["summary"]["constant"]
-    assert pay["summary"]["computed"] == 29
+    assert syn["summary"]["computed"] == 65 and "dq_is_normalized" in syn["summary"]["constant"]  # P12: +5
+    assert pay["summary"]["computed"] == 34
     assert {"pair_prior_count", "payer_distinct_payees_prior", "is_reciprocal_pair"} <= set(
         pay["summary"]["constant"]
     )

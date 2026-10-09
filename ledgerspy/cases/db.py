@@ -3,8 +3,9 @@
 Migration 1 (P2): schema_version, audit_log, cases. Migration 2 (P3): evidence_files, datasets, transactions,
 labels, ingest_issues. Migration 3 (P4): integrity runs/issues, fixes and decisions, transformations,
 normalised values, plus immutability triggers on the P3 tables. Migration 4 (P11): the supervised model
-registry (registered artefacts, status and activation events; all append-only). Later phases append
-migrations for their own tables;
+registry (registered artefacts, status and activation events; all append-only). Migration 5 (P12): imported
+master files and their records (vendor / customer / employee / group-company masters; immutable, raw values
+only). Later phases append migrations for their own tables;
 existing migrations are never edited.
 """
 
@@ -293,6 +294,43 @@ MIGRATIONS: list[tuple[int, str, list[str]]] = [
                 reason   TEXT NOT NULL
             )""",
             *_immutable("model_activation_events", "model activation events are append-only"),
+        ],
+    ),
+    (
+        5,
+        "P12 master data for entity resolution: master_files, master_records",
+        [
+            # An imported master file: evidence-backed, with the explicit field mapping used. Immutable.
+            """CREATE TABLE master_files (
+                master_file_id  TEXT PRIMARY KEY CHECK (master_file_id GLOB 'MF-[0-9a-f]*'),
+                case_id         TEXT NOT NULL REFERENCES cases (case_id),
+                evidence_sha256 TEXT NOT NULL REFERENCES evidence_files (sha256),
+                original_filename TEXT NOT NULL,
+                entity_type     TEXT NOT NULL
+                                CHECK (entity_type IN ('vendor', 'customer', 'employee', 'group_company')),
+                format          TEXT NOT NULL CHECK (format IN ('csv', 'xlsx')),
+                mapping         TEXT NOT NULL,
+                record_count    INTEGER NOT NULL CHECK (record_count >= 0),
+                imported_by     TEXT NOT NULL,
+                imported_at     TEXT NOT NULL
+            )""",
+            *_immutable("master_files", "imported master files are immutable"),
+            # One row per data record: the raw text of the mapped columns only (never normalised here).
+            """CREATE TABLE master_records (
+                master_file_id TEXT NOT NULL REFERENCES master_files (master_file_id),
+                source_row     INTEGER NOT NULL CHECK (source_row >= 1),
+                record_id      TEXT,
+                name           TEXT,
+                address        TEXT,
+                city           TEXT,
+                phone          TEXT,
+                email          TEXT,
+                bank_account   TEXT,
+                bank_code      TEXT,
+                tax_id         TEXT,
+                PRIMARY KEY (master_file_id, source_row)
+            )""",
+            *_immutable("master_records", "master records are immutable"),
         ],
     ),
 ]

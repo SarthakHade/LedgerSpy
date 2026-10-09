@@ -27,9 +27,11 @@ from ledgerspy.features import matrix
 from ledgerspy.features import service as feature_service
 from ledgerspy.features.data import FeatureInput
 from ledgerspy.features.matrix import FeatureRun, registry_sha256
+from ledgerspy.features.resolution import resolution_of
 from ledgerspy.forensics import service as forensic_service
 from ledgerspy.hashing import canonical_json, sha256_hex
 from ledgerspy.normalize.view import DatasetView, data_version, load_view, overlay_rows
+from ledgerspy.resolution.masters import records_sha256
 from ledgerspy.risk import calibration, entities, explain
 from ledgerspy.risk.fusion import Fused, SignalInput, fuse
 from ledgerspy.risk.models import INSUFFICIENT, NOT_PROBABILITY, RISK_VERSION, SCORED, TIER_RANK, TIERS
@@ -236,7 +238,11 @@ def analyze(
             if raw:
                 names[f"{fr.flow}:{fr.cp}"][raw] += 1
     best_names = {k: sorted(c.items(), key=lambda kv: (-kv[1], kv[0]))[0][0] for k, c in names.items()}
-    ent = entities.aggregate(inp, run, by_txn, sources, best_names, list(signals.values()), rc)
+    res_er = resolution_of(inp) if inp.available(("counterparty",)) is None else None
+    grouping = entities.stream_groups(inp, res_er if rc.entities.grouping == "resolved" else None)
+    if rc.entities.grouping == "name" and res_er is not None:  # annotate, never merge
+        grouping = ({s: s for s in grouping[0]}, entities.stream_groups(inp, res_er)[1])
+    ent = entities.aggregate(inp, run, by_txn, sources, best_names, list(signals.values()), rc, grouping)
     currencies = sorted({r["currency"] for r in rows if r["currency"]})
     currency = currencies[0] if len(currencies) == 1 else None
     for e in ent:  # exact amount text for display (single-currency datasets only)
@@ -244,7 +250,7 @@ def analyze(
         e["exposure"] = _amount_text(e["exposure_amount_minor"], currency, settings) if currency else None
         e["total_amount"] = _amount_text(e["total_amount_minor"], currency, settings) if currency else None
     by_entity = {e["entity_id"]: e for e in ent}
-    stream_to_entity = {e["stream"]: e["entity_id"] for e in ent}
+    stream_to_entity = {s: e["entity_id"] for e in ent for s in e["member_streams"]}
     for fr in inp.rows:
         by_txn[fr.txn_id]["entity_id"] = (
             stream_to_entity.get(f"{fr.flow}:{fr.cp}") if fr.cp and fr.flow else None
@@ -252,6 +258,20 @@ def analyze(
 
     detectors = _detectors(forensic, anomaly, signals, rows, family_of, settings)
     summary = _summary(view, inp, run, rows, ent, detectors, review, readiness, forensic, anomaly, settings)
+    merged = [e for e in ent if len(e["member_streams"]) > 1]
+    summary["entity_grouping"] = {
+        "method": rc.entities.grouping,
+        "description": "streams whose names resolve to one canonical entity through confirmed matches are "
+        "aggregated together (P12); probable, ambiguous and conflicting candidates are never merged"
+        if rc.entities.grouping == "resolved"
+        else "one entity per counterparty stream (P6 party key); resolution shown, never applied",
+        "entities": len(ent),
+        "streams": sum(len(e["member_streams"]) for e in ent),
+        "merged_entities": len(merged),
+        "streams_in_merged_entities": sum(len(e["member_streams"]) for e in merged),
+        "resolution_sha256": res_er.sha256 if res_er is not None else None,
+        "master_records": res_er.stats["records_by_source"].get("master", 0) if res_er is not None else 0,
+    }
     scatter = _scatter(rows, anomaly)
     res = RiskResult(
         identity={},
@@ -589,14 +609,13 @@ def identity(conn: sqlite3.Connection, cfg: EffectiveConfig, dataset_id: str) ->
         "feature_registry_sha256": registry_sha256(),
         "risk_version": RISK_VERSION,
         "detector_versions": json.dumps(anomaly_service.DETECTOR_VERSIONS, sort_keys=True),
+        "masters_sha256": records_sha256(feature_service.masters_for(conn, dataset_id)),
     }
 
 
 def compute(conn: sqlite3.Connection, cfg: EffectiveConfig, dataset_id: str) -> RiskResult:
     view = load_view(conn, dataset_id)
-    inp = feature_service.input_from_view(
-        view, cfg, feature_service.p4_issues(conn, dataset_id, view.data_version)
-    )
+    inp = feature_service.input_for(conn, cfg, view)
     run = matrix.build(inp)
     details = forensic_service.p4_details(conn, inp.p4_run_id, ("balance_continuity",))
     forensic = forensic_service.analyze(inp, run, cfg.settings, details)

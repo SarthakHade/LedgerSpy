@@ -102,6 +102,16 @@ This repository is being rebuilt from a hackathon prototype into a working syste
     changes P9 review risk, and the UI is unchanged.
 
   See [`docs/model-lifecycle.md`](docs/model-lifecycle.md) and [`docs/p11-acceptance.md`](docs/p11-acceptance.md).
+- **P12 entity resolution** (`ledgerspy/resolution/`, `ledgerspy entities …`, `/api/datasets/{id}/resolution…`):
+  - Vendor / customer / employee / group-company masters are imported as evidence with an explicit mapping.
+  - Names and identifiers are normalised deterministically (raw kept). Identifiers decide first; several name
+    metrics feed explicit rules; blocking keeps comparisons small.
+  - Only confirmed matches merge, and conflicts are always surfaced (look-alike vendors, shared bank accounts,
+    employee–vendor links). Clusters are cannot-link-safe and have stable canonical IDs.
+  - Seven P6 features; P9 groups counterparties by resolved entity with transaction scores unchanged.
+  - Validation on P5: 0 false merges.
+
+  See [`docs/entity-resolution.md`](docs/entity-resolution.md) and [`docs/p12-acceptance.md`](docs/p12-acceptance.md).
 - The original notebooks are in `archive/` for reference. Their evaluation had data leakage and must not be quoted.
 
 See [`docs/requirements.md`](docs/requirements.md) for the requirement-by-requirement status.
@@ -110,7 +120,8 @@ See [`docs/requirements.md`](docs/requirements.md) for the requirement-by-requir
 
 ```
 ledgerspy/     Python package: config/, canonical/, cases/ (SQLite, audit log, evidence), ingest/, quality/,
-               normalize/, synth/, features/, detectors/, forensics/, anomaly/, risk/, supervised/, api/, cli.py
+               normalize/, synth/, features/, detectors/, forensics/, anomaly/, risk/, supervised/, resolution/, api/,
+               cli.py
 config/        default.yaml — every configurable value (validated, SHA-256 hashed)
 frontend/      UI (index.html, css/, js/) — served by `ledgerspy serve`; renders API results only
 tests/         backend/ (pytest, P2) · frontend/harness.js (Node) + browser_check.py (optional, Playwright)
@@ -136,6 +147,7 @@ py -3.12 -m venv .venv                          # or: python3.12 -m venv .venv
 .venv/Scripts/ledgerspy evaluate --dataset-id D-… --labels paysim   # P10 supervised experiment (local JSON report)
 .venv/Scripts/ledgerspy model train --dataset-id D-… --labels paysim  # P11: persist one model as an experiment artefact
 .venv/Scripts/ledgerspy model list                                    # registry; also inspect / verify / infer / promote …
+.venv/Scripts/ledgerspy entities validate                             # P12: entity-resolution validation on P5 (false merges)
 ```
 
 The workspace (`workspace/ledgerspy.db`) holds client data and is git-ignored.
@@ -176,6 +188,8 @@ python tests/frontend/integrity_panel_check.py  # optional: P4 dashboard against
 | [`docs/p10-acceptance.md`](docs/p10-acceptance.md) | P10 acceptance: experiments, baselines, leakage checks, deviations |
 | [`docs/model-lifecycle.md`](docs/model-lifecycle.md) | P11 artefact schema, integrity, compatibility, registry, lifecycle, approval gate, inference, security |
 | [`docs/p11-acceptance.md`](docs/p11-acceptance.md) | P11 acceptance: round trips, tampering, compatibility, P9 isolation, performance, deviations |
+| [`docs/entity-resolution.md`](docs/entity-resolution.md) | P12 entity resolution: normalisation, identifiers, similarity, blocking, decision rules, clusters, integration, limitations |
+| [`docs/p12-acceptance.md`](docs/p12-acceptance.md) | P12 acceptance: P5 validation (false merges / splits), adversarial cases, P9 before/after, performance |
 | [`docs/synthetic-scenario-matrix.md`](docs/synthetic-scenario-matrix.md) | Feature → scenario → fields → records → detector phase |
 | [`docs/cleanup-log.md`](docs/cleanup-log.md) | What was moved, archived or deleted in the cleanup, and why |
 | [`docs/audits/phase-1-current-state-audit.md`](docs/audits/phase-1-current-state-audit.md) | Detailed audit of the prototype |

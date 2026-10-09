@@ -248,9 +248,7 @@ def build_inputs(
     conn: sqlite3.Connection, cfg: EffectiveConfig, dataset_id: str
 ) -> tuple[FeatureInput, FeatureRun, dict]:
     view = load_view(conn, dataset_id)
-    inp = feature_service.input_from_view(
-        view, cfg, feature_service.p4_issues(conn, dataset_id, view.data_version)
-    )
+    inp = feature_service.input_for(conn, cfg, view)
     run = matrix.build(inp)
     return inp, run, p4_details(conn, inp.p4_run_id, ("balance_continuity",))
 

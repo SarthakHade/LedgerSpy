@@ -1,9 +1,9 @@
 """Build a feature run for a canonicalised dataset in the workspace.
 
 Inputs are the normalised view (`ledgerspy.normalize.view.load_view`) and, for data-quality features, the
-issues of the latest P4 integrity run of the *current* data version. Nothing else is read: not the `labels`
-table, not `extra`, not any file. The effective configuration (with case overrides) is passed in and hashed
-into the manifest.
+issues of the latest P4 integrity run of the *current* data version, and (P12) the master records imported
+for the dataset's case. Nothing else is read: not the `labels` table, not `extra`, not any file. The
+effective configuration (with case overrides) is passed in and hashed into the manifest.
 """
 
 import json
@@ -60,6 +60,7 @@ def input_from_view(
     view: DatasetView,
     cfg: EffectiveConfig,
     p4: tuple[str | None, dict[str, list[str]], dict[str, dict[str, str]]],
+    masters: tuple = (),
 ) -> FeatureInput:
     fcfg = cfg.settings.features
     profile = fcfg.adapters.get(view.adapter)
@@ -79,14 +80,33 @@ def input_from_view(
             cfg=fcfg,
             p4_current=run_id is not None,
             p4_checks=checks,
+            masters=bool(masters),
         ),
         cfg=fcfg,
         p4_issues=issues,
         p4_run_id=run_id,
         p4_checks=checks,
+        masters=tuple(masters),
+    )
+
+
+def masters_for(conn: sqlite3.Connection, dataset_id: str) -> tuple:
+    """The imported master records of the dataset's case (P12), in a fixed order; () if none."""
+    from ledgerspy.resolution.masters import records_for_case
+
+    row = conn.execute("SELECT case_id FROM datasets WHERE dataset_id = ?", (dataset_id,)).fetchone()
+    return records_for_case(conn, row[0]) if row else ()
+
+
+def input_for(conn: sqlite3.Connection, cfg: EffectiveConfig, view: DatasetView) -> FeatureInput:
+    """The feature input of a dataset view: P4 issues of its data version and its case's master records."""
+    return input_from_view(
+        view,
+        cfg,
+        p4_issues(conn, view.dataset_id, view.data_version),
+        masters=masters_for(conn, view.dataset_id),
     )
 
 
 def build_for_dataset(conn: sqlite3.Connection, cfg: EffectiveConfig, dataset_id: str) -> matrix.FeatureRun:
-    view = load_view(conn, dataset_id)
-    return matrix.build(input_from_view(view, cfg, p4_issues(conn, dataset_id, view.data_version)))
+    return matrix.build(input_for(conn, cfg, load_view(conn, dataset_id)))

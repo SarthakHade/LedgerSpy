@@ -344,6 +344,48 @@ class FeatureReportConfig(_Section):
     min_distinct_values: int = Field(ge=1)
 
 
+# ------------------------------------------------------------------------------------- P12 entity resolution
+
+
+class ResolutionNormalization(_Section):
+    phone_country_code: str = Field(pattern=r"^\d{0,3}$")
+    generic_email_domains: list[str]
+
+
+class ResolutionBlocking(_Section):
+    name_prefix_chars: int = Field(ge=2, le=12)
+    max_block_size: int = Field(ge=2)  # larger blocks are not expanded (counted in the report)
+    exhaustive_max_records: int = Field(ge=0)  # compare all pairs at or below this many records (0: never)
+
+
+class ResolutionThresholds(_Section):
+    probable_name: float = Field(gt=0.0, le=1.0)  # name-only: probable match (review) at or above
+    review_name: float = Field(gt=0.0, le=1.0)  # name-only: ambiguous (review) at or above; below: no match
+    contact_name_min: float = Field(gt=0.0, le=1.0)  # a shared contact identifier needs this name similarity
+    tax_name_min: float = Field(gt=0.0, le=1.0)  # the same tax ID needs this name similarity to confirm
+    typo_token: float = Field(gt=0.0, le=1.0)  # differing words this similar are spelling variants
+    address_same: float = Field(gt=0.0, le=1.0)  # address similarity treated as the same address
+
+    @model_validator(mode="after")
+    def _ordered(self) -> "ResolutionThresholds":
+        if not self.review_name <= self.probable_name:
+            raise ValueError("resolution.thresholds: review_name must not exceed probable_name")
+        return self
+
+
+class ResolutionConfig(_Section):
+    version: int = Field(ge=1)
+    normalization: ResolutionNormalization
+    blocking: ResolutionBlocking
+    thresholds: ResolutionThresholds
+    shared_contact_generic_min: int = Field(
+        ge=2
+    )  # a phone / e-mail used by this many names: a shared contact
+    behaviour_bonus_max: float = Field(
+        ge=0.0, le=0.2
+    )  # supporting evidence never decides; it adds at most this
+
+
 class FeaturesConfig(_Section):
     baseline_window: int = Field(ge=5)
     min_entity_history: int = Field(ge=1)
@@ -359,6 +401,7 @@ class FeaturesConfig(_Section):
     approval_thresholds: list[ApprovalThreshold]
     adapters: dict[str, FeatureAdapterProfile]
     report: FeatureReportConfig
+    resolution: ResolutionConfig
 
 
 # ------------------------------------------------------------------------------------- P7 rules and Benford
@@ -637,6 +680,9 @@ class RiskReview(_Section):
 class RiskEntities(_Section):
     top_k: int = Field(ge=1)
     decay: float = Field(gt=0.0, le=1.0)
+    # P12: "resolved" groups counterparty streams whose names resolve to one canonical entity (confirmed
+    # matches only); "name" keeps the P9 grouping by P6 party key.
+    grouping: Literal["resolved", "name"]
 
 
 class RiskConfig(_Section):

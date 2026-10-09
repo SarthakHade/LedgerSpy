@@ -1,5 +1,5 @@
-"""Command line: `ledgerspy serve`, `audit verify`, `evidence verify`, `synth`, `evaluate` (P10) and
-`model` (P11)."""
+"""Command line: `ledgerspy serve`, `audit verify`, `evidence verify`, `synth`, `evaluate` (P10),
+`model` (P11) and `entities` (P12)."""
 
 import argparse
 import secrets
@@ -276,6 +276,106 @@ def cmd_model(args: argparse.Namespace) -> int:
 STATUS_COMMANDS = {"promote": "candidate", "approve": "approved", "retire": "retired", "demote": "experiment"}
 
 
+def cmd_entities(args: argparse.Namespace) -> int:
+    """P12 entity resolution: import master data, resolve a dataset, run the P5 validation."""
+    import json
+
+    from ledgerspy.cases.audit import local_actor
+    from ledgerspy.cases.db import connect, db_path_for, init_db
+    from ledgerspy.errors import LedgerSpyError
+    from ledgerspy.paths import REPO_ROOT
+    from ledgerspy.resolution import masters, service, validation
+
+    cfg = _load(args, {})
+    sub = args.entities_command
+    if sub == "validate":
+        ref = Path(args.reference) if args.reference else REPO_ROOT / "data" / "synthetic" / "reference"
+        gt = (
+            Path(args.ground_truth)
+            if args.ground_truth
+            else ref / "ground_truth" / "SYNTHETIC_ground_truth.json"
+        )
+        report = validation.run_validation(
+            cfg.settings.features.resolution, ref, gt if gt.is_file() else None
+        )
+        text = json.dumps(report, indent=1, ensure_ascii=False)
+        if args.out:
+            Path(args.out).write_text(text, encoding="utf-8")
+        m = report["master_records"]
+        print("Entity-resolution validation (P5 masters + variants + adversarial cases + P5 ledger)")
+        print(
+            f"  candidate recall {m['candidate_recall']}  auto-match precision "
+            f"{m['auto_match_precision']}  "
+            f"false merges {m['false_merges']}  false splits {m['false_splits']} "
+            f"({m['false_splits_left_for_review']} left for review)"
+        )
+        print(
+            f"  candidate pairs {report['candidates']['candidate_pairs']} of "
+            f"{report['candidates']['possible_pairs']} (reduction "
+            f"{report['candidates']['reduction_ratio']})"
+        )
+        if not args.out:
+            print(text)
+        return 0 if m["false_merges"] == 0 else 1
+    db_path = db_path_for(cfg.settings)
+    actor = local_actor()
+    init_db(db_path, actor)
+    conn = connect(db_path)
+    try:
+        if sub == "import-master":
+            mapping = None
+            if args.map:
+                mapping = {}
+                for item in args.map:
+                    field, sep, column = item.partition("=")
+                    if not sep:
+                        print(f"ERROR: --map expects field=column, got {item!r}", file=sys.stderr)
+                        return 2
+                    mapping[field.strip()] = column.strip()
+            out = masters.import_master(
+                conn,
+                cfg,
+                Path(cfg.settings.workspace.path),
+                args.case_id,
+                Path(args.file),
+                args.entity_type,
+                actor,
+                mapping=mapping,
+                use_suggested=args.use_suggested,
+            )
+        elif sub == "masters":
+            out = masters.list_master_files(conn, args.case_id)
+        else:  # resolve
+            rr = service.run(conn, cfg, args.dataset_id)
+            out = service.summary(rr)
+            if not args.json:
+                st = out["stats"]
+                print(
+                    f"Entity resolution of {args.dataset_id} (resolution sha256 "
+                    f"{out['resolution_sha256'][:16]}…)"
+                )
+                print(
+                    f"  records {st['records_by_source']}  entities {st['entities']} "
+                    f"({st['multi_record_entities']} with several records)  {st['entities_by_status']}"
+                )
+                print(
+                    f"  candidate pairs {st['candidate_pairs']} of {st['possible_pairs']}  "
+                    f"{st['pairs_by_status']}"
+                )
+                for k, v in out["unavailable"].items():
+                    print(f"  unavailable: {k}: {v}")
+                return 0
+    except LedgerSpyError as exc:
+        print(f"ERROR: {exc.message}", file=sys.stderr)
+        if exc.details:
+            print(json.dumps(exc.details, indent=1, ensure_ascii=False), file=sys.stderr)
+        return 1
+    finally:
+        conn.close()
+    print(json.dumps(out, indent=1, ensure_ascii=False, default=str))
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="ledgerspy", description="LedgerSpy offline forensic audit tool")
     parser.add_argument("--version", action="version", version=f"ledgerspy {__version__}")
@@ -366,6 +466,37 @@ def build_parser() -> argparse.ArgumentParser:
     for mp in msub.choices.values():
         common(mp)
         mp.set_defaults(func=cmd_model)
+
+    ents = commands.add_parser("entities", help="P12: master data import and entity resolution")
+    esub = ents.add_subparsers(dest="entities_command", required=True)
+    e_imp = esub.add_parser(
+        "import-master", help="import a vendor / customer / employee / group-company master"
+    )
+    e_imp.add_argument("--case-id", required=True)
+    e_imp.add_argument("--file", required=True)
+    e_imp.add_argument(
+        "--entity-type", required=True, choices=["vendor", "customer", "employee", "group_company"]
+    )
+    e_imp.add_argument(
+        "--map",
+        action="append",
+        metavar="FIELD=COLUMN",
+        help="explicit mapping (record_id, name, address, city, phone, email, bank_account, bank_code, "
+        "tax_id); repeat",
+    )
+    e_imp.add_argument("--use-suggested", action="store_true", help="accept the suggested mapping explicitly")
+    e_list = esub.add_parser("masters", help="master files imported for a case")
+    e_list.add_argument("--case-id", required=True)
+    e_res = esub.add_parser("resolve", help="resolve a dataset's counterparties (summary)")
+    e_res.add_argument("--dataset-id", required=True)
+    e_res.add_argument("--json", action="store_true")
+    e_val = esub.add_parser("validate", help="P5 validation: false merges, false splits, recall, precision")
+    e_val.add_argument("--reference", help="P5 reference directory (default: data/synthetic/reference)")
+    e_val.add_argument("--ground-truth", help="P5 ground truth (evaluation only)")
+    e_val.add_argument("--out", help="write the report here")
+    for ep in esub.choices.values():
+        common(ep)
+        ep.set_defaults(func=cmd_entities)
     return parser
 
 

@@ -9,6 +9,8 @@ from statistics import median
 
 import pytest
 
+from ledgerspy.features.entity import subjects
+from ledgerspy.resolution.records import MasterRecord
 from tests.backend.features_support import make, rec, values
 
 
@@ -510,3 +512,104 @@ def test_dq_balance_discontinuity():
         make([rec(1)]).available(("running_balance",))
         == "no P4 integrity run exists for the current data version"
     )
+
+
+# ------------------------------------------------------------------------------------- P12 entity resolution
+
+
+def _master(etype: str, row: int, **values) -> MasterRecord:
+    return MasterRecord("MF-0000000000000001", etype, row, tuple(sorted(values.items())))
+
+
+ER_MASTERS = (
+    _master(
+        "vendor",
+        1,
+        record_id="V1",
+        name="Ulvane Alloys Private Limited",
+        tax_id="TAX-111",
+        bank_account="BANK0001",
+    ),
+    _master(
+        "vendor", 2, record_id="V2", name="Ulvanee Alloy Pvt Ltd", tax_id="TAX-222", bank_account="BANK0002"
+    ),
+    _master("employee", 3, record_id="E1", name="Deepa Verma", bank_account="BANK0002"),
+)
+
+
+def _er(name: str, masters: tuple = ER_MASTERS) -> dict:
+    payees = [
+        "Javrel Office Supplies Pvt Ltd",
+        "Javrel Office Supplies Pvt Ltd",
+        "Javrel Office Supplies Private Limited",
+        "ABC Trading Ltd",
+        "ABC Traders Ltd",
+        "Ulvane Alloys Pvt Ltd",
+        "Ulvanee Alloy Pvt Ltd",
+        "Deepa Verma",
+    ]
+    inp = make([rec(i, payee=p, at=float(i)) for i, p in enumerate(payees, 1)], masters=masters)
+    return dict(zip(subjects(inp), values(inp, name), strict=True))
+
+
+def test_ent_canonical_entity_id():
+    ids = _er("ent_canonical_entity_id")
+    assert ids["out:javrel office supplies pvt ltd"] == ids["out:javrel office supplies private limited"]
+    assert (
+        ids["out:abc trading ltd"] != ids["out:abc traders ltd"]
+    )  # similar names are never merged on their own
+    assert (
+        ids["out:ulvane alloys pvt ltd"] != ids["out:ulvanee alloy pvt ltd"]
+    )  # look-alike with other identifiers
+    assert all(v.startswith("CE-") for v in ids.values()) and ids == _er("ent_canonical_entity_id")
+
+
+def test_ent_resolution_status():
+    st = _er("ent_resolution_status")
+    assert st["out:javrel office supplies pvt ltd"] == "resolved"
+    assert st["out:abc trading ltd"] == st["out:abc traders ltd"] == "unique"
+    assert st["out:ulvane alloys pvt ltd"] == st["out:ulvanee alloy pvt ltd"] == "conflicting_identity"
+    assert st["out:deepa verma"] == "resolved"  # linked to the one employee with that name
+
+
+def test_ent_linked_record_count():
+    n = _er("ent_linked_record_count")
+    assert n["out:javrel office supplies pvt ltd"] == 2  # two ledger spellings
+    assert (
+        n["out:ulvane alloys pvt ltd"] == n["out:ulvanee alloy pvt ltd"] == 2
+    )  # ledger name + its master record
+    assert n["out:abc trading ltd"] == 1 and n["out:deepa verma"] == 2
+
+
+def test_ent_match_confidence():
+    c = _er("ent_match_confidence")
+    assert c["out:abc trading ltd"] is None  # a single record: nothing was matched
+    assert 0 < c["out:javrel office supplies pvt ltd"] <= 1
+    assert c["out:javrel office supplies pvt ltd"] == c["out:javrel office supplies private limited"]
+
+
+def test_ent_name_similarity_max():
+    s = _er("ent_name_similarity_max")
+    assert 0.6 < s["out:abc trading ltd"] < 0.8  # "trading" vs "traders": below the review threshold
+    assert (
+        s["out:ulvane alloys pvt ltd"] >= 0.8
+    )  # the look-alike's name is close, but it is a separate entity
+    assert s["out:javrel office supplies pvt ltd"] is None  # its only candidate is in its own entity
+
+
+def test_shared_identifier_count():
+    n = _er("shared_identifier_count")
+    assert n["out:ulvanee alloy pvt ltd"] == 1  # V2 shares its bank account with employee E1
+    assert n["out:ulvane alloys pvt ltd"] == 0
+    assert n["out:deepa verma"] == 1
+    assert n["out:javrel office supplies pvt ltd"] is None  # no master record
+    inp = make([rec(1, payee="Vendor A")])
+    assert inp.available(("master_data",)) is not None  # not computed without master data
+
+
+def test_employee_link_indicator():
+    f = _er("employee_link_indicator")
+    assert f["out:ulvanee alloy pvt ltd"] is True
+    assert f["out:ulvane alloys pvt ltd"] is False
+    assert f["out:deepa verma"] is None  # a person
+    assert f["out:javrel office supplies pvt ltd"] is None

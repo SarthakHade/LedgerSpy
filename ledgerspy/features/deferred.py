@@ -11,33 +11,18 @@ deferred(
     "frequency",
     Level.TRANSACTION,
     "Days between the vendor-master onboarding date and the transaction.",
-    "Vendor masters are not ingested as canonical data yet (P3 accepts transaction files only); planned with "
-    "entity resolution (P12). Until then cp_days_since_first gives the relationship age seen in the ledger.",
+    "P12 imports masters for entity resolution with identity fields only (name, address, contacts, bank "
+    "account, tax ID); onboarding dates are not a mapped master field yet. Until then cp_days_since_first "
+    "gives the relationship age seen in the ledger.",
     ("vendor master: onboarding_date",),
-)
-deferred(
-    "shared_identifier_count",
-    "relationship",
-    Level.ENTITY,
-    "Number of other master records (vendors, employees) sharing the entity's address, phone, bank account "
-    "or tax ID.",
-    "Needs vendor/employee masters as canonical entities with attributes (P12 entity resolution).",
-    ("vendor master", "employee master"),
-)
-deferred(
-    "employee_link_indicator",
-    "relationship",
-    Level.ENTITY,
-    "True when a vendor shares an identifier with an employee (address, phone, bank account).",
-    "Needs employee and vendor masters as canonical entities (P12) and the attribute graph (P13).",
-    ("vendor master", "employee master"),
 )
 deferred(
     "entity_linkage_count",
     "relationship",
     Level.ENTITY,
     "Number of entities linked to this one through shared attributes or resolved aliases.",
-    "Needs resolved entities and the relationship graph (P12, P13).",
+    "Needs the relationship graph (P13); P12 provides the resolved entities and their attribute links "
+    "(see shared_identifier_count).",
     ("entities", "entity_aliases"),
 )
 deferred(

@@ -1,8 +1,10 @@
 """What features may read.
 
-`FeatureRow` holds only canonical fields of the normalised view (P3 rows + logged P4 transformations), reduced
-to the forms the definitions need. It has no `extra`, no labels, and no access to any file: label columns are
-split off at ingestion (P3), unmapped columns stay in `extra`, and P5 ground truth is never an input. So no
+`FeatureRow` holds only canonical fields of the normalised view (P3 rows + logged P4 transformations),
+reduced to the forms the definitions need. P12 adds the case's imported master records (`masters`: raw
+mapped values of vendor / customer / employee / group-company masters, stored as evidence), read only by the
+entity-resolution features. It has no `extra`, no labels, and no access to any file: label columns are split
+off at ingestion (P3), unmapped columns stay in `extra`, and P5 ground truth is never an input. So no
 feature can read a label even by accident; the tests prove the matrix is unchanged when labels or extra
 columns change.
 
@@ -69,6 +71,7 @@ CAPABILITIES = {
     "approval_thresholds": "approval thresholds are configured and apply (corporate ledger)",
     "p4_current": "a P4 integrity run exists for the current data version",
     "running_balance": "the current P4 run checked a running-balance column (balance_continuity ran)",
+    "master_data": "master records (vendor / customer / employee / group company) are imported for the case",
 }
 
 
@@ -86,6 +89,8 @@ class FeatureInput:
     p4_run_id: str | None = None
     # Status of each check in that run: check → {"status": ok|issues|not_available, "reason": …}.
     p4_checks: dict[str, dict[str, str]] = field(default_factory=dict)
+    # P12: the case's imported master records (ledgerspy.resolution.records.MasterRecord), in a fixed order.
+    masters: tuple = ()
     cache: dict[str, Any] = field(default_factory=dict)
 
     def available(self, requires: tuple[str, ...]) -> str | None:
@@ -171,6 +176,7 @@ def capabilities(
     cfg: FeaturesConfig,
     p4_current: bool,
     p4_checks: dict[str, dict[str, str]] | None = None,
+    masters: bool = False,
 ) -> dict[str, str | None]:
     profile = cfg.adapters.get(adapter)
     caps: dict[str, str | None] = {}
@@ -225,6 +231,13 @@ def capabilities(
         else f"P4 balance_continuity: {balance['reason']}"
         if balance
         else "the P4 run did not check balances",
+    )
+    need(
+        "master_data",
+        masters and adapter != "paysim",
+        "PaySim party names are simulator account codes; master data does not apply"
+        if adapter == "paysim"
+        else "no master data (vendor / customer / employee master) is imported for the case",
     )
     if profile is None:
         need("counterparty", False, f"no feature profile for adapter '{adapter}' in config features.adapters")

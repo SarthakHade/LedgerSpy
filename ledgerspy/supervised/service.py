@@ -37,9 +37,7 @@ def prepare(
     settings = cfg.settings
     sc = settings.supervised
     view = load_view(conn, dataset_id)
-    inp = feature_service.input_from_view(
-        view, cfg, feature_service.p4_issues(conn, dataset_id, view.data_version)
-    )
+    inp = feature_service.input_for(conn, cfg, view)
     run = matrix.build(inp)
     details = forensic_service.p4_details(conn, inp.p4_run_id, ("balance_continuity",))
     forensic = forensic_service.analyze(inp, run, settings, details)

@@ -99,8 +99,16 @@
   "definition_sha256": "7763c87333d7dcc072e909f50b73af073c1f3ffa74783f43d5640c33467674b0",
   "version": 1
  },
+ "employee_link_indicator": {
+  "definition_sha256": "95395384d9b89f9cd31481f120b3ace0746fba990fa6e4a2d3174ad2e48f3f11",
+  "version": 1
+ },
  "ent_after_hours_share": {
   "definition_sha256": "a89838d3a36461a5e9d3929116664fd5ca1ce3dc85999194aa428ce91f4510e3",
+  "version": 1
+ },
+ "ent_canonical_entity_id": {
+  "definition_sha256": "ca1eb16ca12d56a850837e72bb446c8db338b85da6ad97cfba3cc4e2633cdb89",
   "version": 1
  },
  "ent_fan_in": {
@@ -119,12 +127,20 @@
   "definition_sha256": "d66a7283d269a12e0a0cd560cfa261bede19a1bada5d172c3f91c4956233b98a",
   "version": 1
  },
+ "ent_linked_record_count": {
+  "definition_sha256": "5313f3b27bb7d41761b9d542279c8eab8b3f9a45d9015d7b254cc8da698228a7",
+  "version": 1
+ },
  "ent_log_amount_dispersion": {
   "definition_sha256": "31c9b30c459d882a00a5e33887aa5b7a59c6ad6ffe320b23c7442d6efd1f6e4d",
   "version": 1
  },
  "ent_log_amount_trend": {
   "definition_sha256": "cab8afcaad80353b693792e4bb40f73e24eddbf6dd3b12c3fb03ae4aec5bbe78",
+  "version": 1
+ },
+ "ent_match_confidence": {
+  "definition_sha256": "78ab453a2bd80d443d624151d955bb4c153775073e8e6a82326133521e9d8e23",
   "version": 1
  },
  "ent_max_gap_days": {
@@ -143,6 +159,10 @@
   "definition_sha256": "43e243f0491ac38d083ff5e27bb474d2fa185d9d2d782d6202f571518df4a52c",
   "version": 1
  },
+ "ent_name_similarity_max": {
+  "definition_sha256": "91e73de4dc0ec1c4651c5c0096368ad6510b811b7cc14d1066b66f4af9f86db1",
+  "version": 1
+ },
  "ent_non_working_share": {
   "definition_sha256": "79d3656e8b3540eaf9f2456f8bade685d9ff4b5b55138fdd57c7b5e719a61d5f",
   "version": 1
@@ -157,6 +177,10 @@
  },
  "ent_reference_sequential_share": {
   "definition_sha256": "69b152e7a39ed34589f6d0f99a7232de6bcbac4c7df78254c22e5a2b94b148dd",
+  "version": 1
+ },
+ "ent_resolution_status": {
+  "definition_sha256": "03b9f95064fd3384b0e40a14a0618a414c389ac5a3a610e923a9b4e1df2069c3",
   "version": 1
  },
  "ent_round_share": {
@@ -237,6 +261,10 @@
  },
  "round_level": {
   "definition_sha256": "90d37021ae953d37d928b17665aa887619fd826f1cefb0d25deef3dbcb33f0ce",
+  "version": 1
+ },
+ "shared_identifier_count": {
+  "definition_sha256": "26a407e5e5653f24e250516391787e82229a42bb71859dd3debcbefadd423d70",
   "version": 1
  },
  "threshold_proximity": {

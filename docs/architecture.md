@@ -442,6 +442,14 @@ raw names (+ attributes) → normalise → tokenise → aliases → block → sc
   The current dataset only has synthetic codes (`C123…`/`M123…`), which have no linguistic content. ER is therefore developed on
   explicitly synthetic masters and optionally on real public payee lists (see `data-strategy.md`).
 - **Library.** `rapidfuzz` (fast, offline, C++ backed) for string metrics; `jellyfish` for phonetic keys.
+- **As built (P12).**
+  - **Implementation:** pure-Python metrics (no new dependency); rule-based decisions (identifier-first;
+    conflicts never hidden; person ≠ organisation; only confirmed matches merge) with an evidence score.
+  - **Clustering:** with a cross-pair conflict check.
+  - **Masters:** imported as evidence with an explicit mapping (migration 5).
+  - **Outputs:** resolution exposed as P6 features and a P9 grouping, not as new signals. No alias table or
+    analyst decisions yet (P15).
+  - See [`entity-resolution.md`](entity-resolution.md).
 
 ## 9. Relationship and graph analysis (R9)
 
@@ -614,6 +622,7 @@ LedgerSpy/
 │   │                          #   transaction/entity features, deferred, matrix + manifest, report, registry_lock.json
 │   ├── detectors/             # rules.py (P7)
 │   ├── supervised/            # P10: labels adapter, dataset contract, splits, models, metrics, calibration, experiment
+│   ├── resolution/            # P12: normalize, similarity, records, matching, engine, ledger, masters, service, validation
 │   │                          #   P11: artifact (schema, hash, safe load), registry, train, inference
 │   ├── anomaly/               # P8: eligibility, isolation_forest, robust_stats, evaluation, models, service
 │   ├── forensics/             # models.py, duplicates.py, benford.py, service.py (P7); entity_resolution.py, graph.py,

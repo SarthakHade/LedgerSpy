@@ -30,8 +30,10 @@ DEFERRED = [s for s in REGISTRY.values() if s.status != "implemented"]
 
 
 def test_registry_inventory():
-    assert len(IMPLEMENTED) == 62 and len(DEFERRED) == 10  # P7 added is_off_hours, cp_prior_offhours_months,
-    assert len(implemented(Level.TRANSACTION)) == 43 and len(implemented(Level.ENTITY)) == 19  # dq_balance_*
+    # P7 added is_off_hours, cp_prior_offhours_months, dq_balance_*; P12 added 7 entity-resolution features
+    # (two of them, shared_identifier_count and employee_link_indicator, were deferred to P12).
+    assert len(IMPLEMENTED) == 69 and len(DEFERRED) == 8
+    assert len(implemented(Level.TRANSACTION)) == 43 and len(implemented(Level.ENTITY)) == 26
 
 
 @pytest.mark.parametrize("spec", IMPLEMENTED, ids=lambda s: s.name)

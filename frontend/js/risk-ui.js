@@ -375,14 +375,33 @@ const LS_STATE = { datasetId: null, summary: null, detectors: null, page: 1, siz
   }
 
   /* ---------------- relationships: counterparty risk ---------------- */
+  // P12 identity of a counterparty, exactly as the API reports it (no client-side matching or scores).
+  const LS_IDENTITY = Object.freeze({
+    conflicting_identity: Object.freeze({ cls: 'bg-red',     txt: 'CONFLICTING IDENTITY · review' }),
+    needs_review:         Object.freeze({ cls: 'bg-amber',   txt: 'POSSIBLE MATCH · review' }),
+    resolved:             Object.freeze({ cls: 'bg-green',   txt: 'RESOLVED' }),
+    unique:               Object.freeze({ cls: 'bg-neutral', txt: 'UNIQUE' }),
+  });
+  function identityCell(r){
+    if (!r) return '—';
+    const t = LS_IDENTITY[r.resolution_status] || LS_IDENTITY.unique;
+    let detail = ' ' + lsInt(r.linked_records) + (r.linked_records === 1 ? ' record' : ' records');
+    if (r.merged_streams > 1) detail += ' · ' + lsInt(r.merged_streams) + ' ledger names merged';
+    if (r.master_records) detail += ' · master data';
+    return el('span', null, [el('span', { class: 'badge ' + t.cls }, t.txt), el('span', { class: 'ls-muted' }, detail)]);
+  }
   function renderEntities(s, page){
     setText('rel-stat-total', lsInt(s.entities.total)); setText('rel-stat-medium', lsInt(s.entities.medium_or_higher));
     setText('rel-stat-high', lsInt(s.entities.high_or_critical)); setText('rel-stat-withhigh', lsInt(s.entities.with_high_or_critical_transactions));
-    const rows = page.items.map(e => [lsInt(e.review_rank), e.name + ' (' + e.flow + ')', lsTierBadge(e.tier, e.score), lsInt(e.independent_sources),
-      lsInt(e.transactions_medium_or_higher) + ' / ' + lsInt(e.transactions), lsAmount(e.exposure, e.currency),
+    const rows = page.items.map(e => [lsInt(e.review_rank), e.name + ' (' + e.flow + ')', lsTierBadge(e.tier, e.score), identityCell(e.resolution),
+      lsInt(e.independent_sources), lsInt(e.transactions_medium_or_higher) + ' / ' + lsInt(e.transactions), lsAmount(e.exposure, e.currency),
       e.entity_signals.map(x => x.detector).join(', ') || '—']);
-    setChildren($('re-entities'), [table(['Rank', 'Counterparty', 'Risk', 'Sources', 'Medium+ rows', 'Exposure', 'Counterparty-level signals'], rows),
-      muted('Showing ' + page.items.length + ' of ' + lsInt(page.total) + '. Entity score = noisy-OR of its top transaction scores (each transaction counted once). Names are matched by normalised spelling only; entity resolution arrives in P12.')]);
+    const g = s.entity_grouping;
+    const grouping = g && g.method === 'resolved'
+      ? 'Counterparties are grouped by entity resolution: ledger names are merged only on confirmed matches (' + lsInt(g.merged_entities) + ' merged entities); possible matches and conflicting identities are flagged for review and never merged.'
+      : 'Counterparties are grouped by normalised name only.';
+    setChildren($('re-entities'), [table(['Rank', 'Counterparty', 'Risk', 'Identity', 'Sources', 'Medium+ rows', 'Exposure', 'Counterparty-level signals'], rows),
+      muted('Showing ' + page.items.length + ' of ' + lsInt(page.total) + '. Entity score = noisy-OR of its top transaction scores (each transaction counted once). ' + grouping)]);
   }
 
   /* ---------------- explainability: method + family summary ---------------- */

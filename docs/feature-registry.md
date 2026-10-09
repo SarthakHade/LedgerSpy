@@ -9,7 +9,7 @@ this registry and never compute a feature of their own:
 - P10 models.
 
 **Status:**
-- 62 features are implemented: 43 transaction-level and 19 entity-level. P7 added three (`is_off_hours`, `cp_prior_offhours_months`, `dq_balance_discontinuity`) through the same registry.
+- 69 features are implemented: 43 transaction-level and 26 entity-level. P7 added three (`is_off_hours`, `cp_prior_offhours_months`, `dq_balance_discontinuity`) through the same registry; P12 added seven entity-resolution features (two of them, `shared_identifier_count` and `employee_link_indicator`, were deferred to P12).
 - 10 more are registered as `not_available_yet`, each with the reason, and are never computed.
 - On the P5 synthetic company, 60 are computed; on the PaySim sample, 29.
 
@@ -244,7 +244,7 @@ Which features each future detector uses is mapped in [`synthetic-scenario-matri
 ## Limitations
 
 - **Names are not resolved entities.** Party keys are normalised names (P12 adds resolution). Look-alike vendors and shared bank accounts are therefore invisible to P6 features.
-- **Masters are not canonical yet.** Vendor and employee masters, approver/poster fields, bank reconciliation and locations are not available. The 10 deferred features name the missing input and its phase.
+- **Masters are identity data only.** P12 imports vendor / customer / employee masters for entity resolution (name, address, contacts, bank account, tax ID); approver/poster fields, master dates, bank reconciliation and locations are not available. The 8 deferred features name the missing input and its phase.
 - **Thresholds are not tied to transaction kind.** `threshold_proximity` uses the nearest configured limit above the amount; the canonical data does not say which limit governs a row (claim vs vendor payment).
 - **One clock per dataset.** Point-in-time history uses posting timestamps. Back-dated postings are visible through `posting_lag_days`, but history is not re-ordered by document date.
 - **Bounded baselines.** Medians and MADs use the 200 most recent prior values of a group, and the global baseline is recency-weighted by this window.
@@ -914,6 +914,80 @@ Generated from the registry. Support marks come from real runs on both datasets:
 - **Synthetic ledger:** ✔ · **PaySim:** ✔
 - **Test:** `tests/backend/test_features_units.py::test_ent_txn_count`
 
+### Entity resolution (P12)
+
+Entity-level, post-period: computed from the dataset's entity resolution ([`entity-resolution.md`](entity-resolution.md)), which reads every ledger name and the case's imported master records. Never part of a supervised contract.
+
+**`ent_canonical_entity_id`** · v1 · post_period · category, canonical entity ID (CE-…)
+
+- **Definition:** Canonical entity (P12) of the stream's counterparty name: streams whose names are confirmed matches share it; ambiguous or conflicting candidates never do.
+- **Inputs:** payer_raw/payee_raw, direction, master records (when imported)
+- **Scope:** counterparty stream over the whole dataset (all rows of the period)
+- **Missing:** `null_if_not_applicable` — never null for a stream
+- **Unusual when:** context · **requires:** direction, counterparty · **params:** resolution
+- **Synthetic ledger:** ✔ · **PaySim:** ✔ (exact account codes only)
+- **Test:** `tests/backend/test_features_units.py::test_ent_canonical_entity_id`
+
+**`ent_resolution_status`** · v1 · post_period · category, status
+
+- **Definition:** Resolution status of the stream's counterparty name: unique (no candidate needing review), resolved (merged with confirmed matches), needs_review (a probable or ambiguous candidate exists) or conflicting_identity (a candidate with contradictory identity evidence exists).
+- **Inputs:** payer_raw/payee_raw, direction, master records (when imported)
+- **Scope:** counterparty stream over the whole dataset (all rows of the period)
+- **Missing:** `null_if_not_applicable` — never null for a stream
+- **Unusual when:** context · **requires:** direction, counterparty · **params:** resolution
+- **Synthetic ledger:** ✔ · **PaySim:** ✔ (exact account codes only)
+- **Test:** `tests/backend/test_features_units.py::test_ent_resolution_status`
+
+**`ent_linked_record_count`** · v1 · post_period · int, records
+
+- **Definition:** Number of records (ledger names and master records) in the stream's canonical entity.
+- **Inputs:** payer_raw/payee_raw, direction, master records (when imported)
+- **Scope:** counterparty stream over the whole dataset (all rows of the period)
+- **Missing:** `null_if_not_applicable` — never null for a stream (at least 1: its own name)
+- **Unusual when:** context · **requires:** direction, counterparty · **params:** resolution
+- **Synthetic ledger:** ✔ · **PaySim:** ✔ (exact account codes only)
+- **Test:** `tests/backend/test_features_units.py::test_ent_linked_record_count`
+
+**`ent_match_confidence`** · v1 · post_period · float, evidence score
+
+- **Definition:** Evidence score (0–1, not a probability) of the weakest confirmed match that formed the stream's canonical entity.
+- **Inputs:** payer_raw/payee_raw, direction, master records (when imported)
+- **Scope:** counterparty stream over the whole dataset (all rows of the period)
+- **Missing:** `null_if_not_applicable` — null when the canonical entity has a single record (nothing was matched)
+- **Unusual when:** lower · **requires:** direction, counterparty · **params:** resolution
+- **Synthetic ledger:** ✔ · **PaySim:** ✔ (exact account codes only)
+- **Test:** `tests/backend/test_features_units.py::test_ent_match_confidence`
+
+**`ent_name_similarity_max`** · v1 · post_period · float, similarity 0–1
+
+- **Definition:** Highest name similarity between the stream's counterparty name and a candidate record of a DIFFERENT canonical entity (a near-identical name that was not merged: a possible look-alike).
+- **Inputs:** payer_raw/payee_raw, direction, master records (when imported)
+- **Scope:** counterparty stream over the whole dataset (all rows of the period)
+- **Missing:** `null_if_not_applicable` — null when blocking found no candidate in another canonical entity
+- **Unusual when:** higher · **requires:** direction, counterparty · **params:** resolution
+- **Synthetic ledger:** ✔ · **PaySim:** ✔ (exact account codes only)
+- **Test:** `tests/backend/test_features_units.py::test_ent_name_similarity_max`
+
+**`shared_identifier_count`** · v1 · post_period · int, entities
+
+- **Definition:** Number of other canonical entities that share a tax ID, bank account, phone, e-mail or address with the master records of the stream's canonical entity (links, never merges).
+- **Inputs:** payer_raw/payee_raw, direction, master records (when imported)
+- **Scope:** counterparty stream over the whole dataset (all rows of the period)
+- **Missing:** `null_if_not_applicable` — null when the stream's canonical entity has no master record
+- **Unusual when:** higher · **requires:** direction, counterparty, master_data · **params:** resolution
+- **Synthetic ledger:** ✔ with imported masters · **PaySim:** — (account codes; master data does not apply)
+- **Test:** `tests/backend/test_features_units.py::test_shared_identifier_count`
+
+**`employee_link_indicator`** · v1 · post_period · bool, flag
+
+- **Definition:** True when the stream's canonical entity (an organisation) shares a bank account, phone, e-mail, tax ID or address with an employee master record.
+- **Inputs:** payer_raw/payee_raw, direction, master records (when imported)
+- **Scope:** counterparty stream over the whole dataset (all rows of the period)
+- **Missing:** `null_if_not_applicable` — null when the canonical entity has no master record or is itself a person
+- **Unusual when:** true · **requires:** direction, counterparty, master_data · **params:** resolution
+- **Synthetic ledger:** ✔ with imported masters · **PaySim:** — (account codes; master data does not apply)
+- **Test:** `tests/backend/test_features_units.py::test_employee_link_indicator`
+
 ### Not available yet (registered, never computed)
 
 | Feature | Level | Meaning | Why not yet |
@@ -922,9 +996,7 @@ Generated from the registry. Support marks come from real runs on both datasets:
 | `approver_is_poster` | transaction | True when the same user posted and approved the transaction (segregation of duties). | Approver and poster are not canonical fields: in the synthetic ledger they are unmapped columns ('Approved By', 'Posted By') kept verbatim in `extra`, which features never read. Needs canonical user fields first. |
 | `bank_match_status` | transaction | Whether a ledger payment has a matching bank line (matched / date-shifted / fee / missing). | Needs ledger-to-bank reconciliation (P14). |
 | `benford_subgroup_deviation` | entity | How far a subgroup's leading-digit distribution departs from Benford's law. | A dataset/subgroup statistical test, not a per-row feature; it belongs to the Benford module (P7). |
-| `employee_link_indicator` | entity | True when a vendor shares an identifier with an employee (address, phone, bank account). | Needs employee and vendor masters as canonical entities (P12) and the attribute graph (P13). |
-| `entity_linkage_count` | entity | Number of entities linked to this one through shared attributes or resolved aliases. | Needs resolved entities and the relationship graph (P12, P13). |
+| `entity_linkage_count` | entity | Number of entities linked to this one through shared attributes or resolved aliases. | Needs the relationship graph (P13); P12 provides the resolved entities and their attribute links (see shared_identifier_count). |
 | `geo_distance` | transaction | Distance between the counterparty's location and the company's operating locations. | No location data in the canonical transaction (the vendor master city is not ingested; no geocoding offline). |
-| `shared_identifier_count` | entity | Number of other master records (vendors, employees) sharing the entity's address, phone, bank account or tax ID. | Needs vendor/employee masters as canonical entities with attributes (P12 entity resolution). |
 | `user_after_hours_share` | entity | Share of a posting user's transactions made after hours (per-user time-pattern profile). | Needs a canonical posting-user field (see approver_is_poster). |
-| `vendor_master_age_days` | transaction | Days between the vendor-master onboarding date and the transaction. | Vendor masters are not ingested as canonical data yet (P3 accepts transaction files only); planned with entity resolution (P12). Until then cp_days_since_first gives the relationship age seen in the ledger. |
+| `vendor_master_age_days` | transaction | Days between the vendor-master onboarding date and the transaction. | P12 imports masters for entity resolution with identity fields only (name, address, contacts, bank account, tax ID); onboarding dates are not a mapped master field yet. Until then cp_days_since_first gives the relationship age seen in the ledger. |

@@ -243,6 +243,29 @@ features:
   report:
     max_missing_share: 0.5      # "excessive missingness" above this share of rows
     min_distinct_values: 2      # fewer distinct non-null values → "constant"
+  # P12 entity resolution (docs/entity-resolution.md); also feeds the P6 entity-resolution features.
+  # Deterministic, evidence-based entity resolution (docs/entity-resolution.md). Decisions are rules over explicit
+  # evidence; only `confirmed_match` merges records. Thresholds were set from the definitions below, not tuned on
+  # the P5 ground truth (which is read only by the evaluation).
+  resolution:
+    version: 1
+    normalization:
+      phone_country_code: "91"      # removed from the front of a phone number when present
+      generic_email_domains: [gmail.com, googlemail.com, yahoo.com, yahoo.co.in, outlook.com, hotmail.com, live.com,
+                              rediffmail.com, icloud.com, protonmail.com, aol.com, mail.com, zoho.com]
+    blocking:
+      name_prefix_chars: 4          # first characters of the core name (catches "Quor-ven" ~ "Quorven")
+      max_block_size: 50            # a block with more records is not expanded (counted; see recall in the report)
+      exhaustive_max_records: 0     # 0: always block (the evaluation compares blocking with all pairs)
+    thresholds:
+      probable_name: 0.92           # name-only evidence: probable match (needs review) at or above
+      review_name: 0.80             # name-only evidence: ambiguous (needs review) at or above; below: no match
+      contact_name_min: 0.85        # a shared phone / e-mail / bank account supports a match only with names this close
+      tax_name_min: 0.60            # the same tax ID confirms only with names at least this close
+      typo_token: 0.80              # a differing word this close to one in the other name is a spelling variant
+      address_same: 0.85            # address similarity at or above: the same address
+    shared_contact_generic_min: 3   # a phone or e-mail used by ≥ 3 differently named records is a shared contact
+    behaviour_bonus_max: 0.05       # shared payment behaviour is supporting evidence only: at most +0.05, never decides
 
 # ---------------------------------------------------------------------------------------------
 # P7 — forensic rules. Each rule reads P6 registry features (never raw files, labels or ground truth) and emits
@@ -540,6 +563,7 @@ risk:
   entities:
     top_k: 3
     decay: 0.5
+    grouping: resolved            # P12: merge streams only for confirmed entity matches; "name" = P9 behaviour
   max_contributors: 5             # contributors listed in an explanation (all remain in the detail)
 
 # ---------------------------------------------------------------------------------------------
@@ -621,3 +645,4 @@ supervised:
   # size changes speed and memory only, never a score.
   inference:
     batch_size: 2048
+
