@@ -20,6 +20,7 @@ from ledgerspy.api.routes import (
     pdf,
     quality,
     reconciliation,
+    reports,
     resolution,
     risk,
 )
@@ -78,6 +79,8 @@ def create_app(
     app.include_router(pdf.router)  # P14b: PDF statement extraction and review
     # P15: investigation workflow (assessments never change findings)
     app.include_router(investigations.router)
+    # P16: audit reports (read-only over their sources; artefacts are versioned)
+    app.include_router(reports.router)
 
     @app.get("/", include_in_schema=False)
     def index(request: Request) -> Response:

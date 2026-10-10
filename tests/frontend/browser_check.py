@@ -15,6 +15,8 @@ API, then drives the real page in headless Chromium:
   A11 (P14) bank reconciliation shows the reconciliation API's results; PDF/OCR is labelled P14b
   A12 (P14b) a PDF statement's extraction review shows the PDF API's rows, page image and decisions
   A13 (P15) an investigation opened from a finding: link, note (rendered as text), transition, decision via API
+  A14 (P16) reports: a case-report preview equals the API's content, a stored draft memo is versioned and
+      downloads as escaped HTML with its recorded SHA-256
 
 Requires: playwright + Chromium (no download at runtime).
 Usage (from repo root):  python tests/frontend/browser_check.py [--screenshots DIR]
@@ -520,8 +522,74 @@ def main() -> int:
                 and ver["ok"],
                 json.dumps({"status": state["status"], "events": acts, "offered": offered}),
             )
+            # ---------------- A14 (P16): reports from the reports API ----------------
+            page.click('button.tab-btn[onclick*="tab-rep"]')
+            page.wait_for_selector("#rep-type", timeout=60000)
+            page.select_option("#rep-case", case_id)
+            page.wait_for_selector(f"#rep-inv-{ivid}", timeout=60000)
+            page.check(f"#rep-inv-{ivid}")
+            page.click("#rep-preview")
+            page.wait_for_function(
+                r"() => /PREVIEW \(not stored\)/.test(document.getElementById('rep-preview-body').textContent)",
+                timeout=120000,
+            )
+            pv = api(base, token, "POST", "/api/reports/preview",
+                     {"report_type": "case_investigation", "investigation_ids": [ivid]})["content"]
+            shown = page.evaluate(
+                "() => ({ text: document.getElementById('rep-preview-body').textContent,"
+                " imgs: document.querySelectorAll('#rep-preview-body img').length, xss: window.__xss === undefined })"
+            )
+            check(
+                "A14",
+                "A case-report preview shows the API's content; findings and analyst records apart; a hostile note "
+                "stays text",
+                pv["content_sha256"] in shown["text"]
+                and "Automated findings (indicators" in shown["text"]
+                and "Analyst assessments (recorded decisions)" in shown["text"]
+                and "Bank fee needs the remittance advice." in shown["text"]
+                and "<img src=x" in shown["text"]
+                and shown["imgs"] == 0
+                and shown["xss"],
+                json.dumps({"sha": pv["content_sha256"][:16], "imgs": shown["imgs"]}),
+            )
+            page.select_option("#rep-type", "audit_memo")
+            page.wait_for_selector(f"#rep-inv-{ivid}", timeout=60000)
+            if not page.is_checked(f"#rep-inv-{ivid}"):
+                page.check(f"#rep-inv-{ivid}")
+            for _ in range(2):  # generate twice: two versions, the first one kept
+                page.click("#rep-generate")
+                page.wait_for_function(
+                    "() => /Stored audit memo version/.test(document.getElementById('rep-msg').textContent)",
+                    timeout=120000,
+                )
+                msg = page.evaluate("() => document.getElementById('rep-msg').textContent")
+                page.evaluate("() => { document.getElementById('rep-msg').textContent = ''; }")
+            memos = api(base, token, "GET", f"/api/reports?case_id={case_id}&report_type=audit_memo")["items"]
+            latest = memos[0]
+            dl = page.evaluate(
+                "async (id) => { const b = await LS_API.blob('/api/reports/' + id + '/download?format=html');"
+                " const buf = await crypto.subtle.digest('SHA-256', await b.arrayBuffer());"
+                " return { text: await b.text(), sha: [...new Uint8Array(buf)].map(x => x.toString(16).padStart(2, '0')).join('') }; }",
+                latest["report_id"],
+            )
+            listed = page.evaluate("() => document.getElementById('rep-list').textContent")
+            check(
+                "A14",
+                "A stored draft memo is versioned, listed, and downloads as escaped HTML matching its recorded hash",
+                len(memos) == 2
+                and [m["version"] for m in memos] == [2, 1]
+                and latest["status"] == "draft"
+                and "version 2" in msg
+                and latest["report_id"] in listed
+                and dl["sha"] == latest["artifacts"]["html"]["sha256"]
+                and "DRAFT" in dl["text"]
+                and "<img src=x" not in dl["text"]
+                and "&lt;img src=x" in dl["text"]
+                and "default-src 'none'" in dl["text"],
+                json.dumps({"versions": [m["version"] for m in memos], "sha_ok": dl["sha"] == latest["artifacts"]["html"]["sha256"]}),
+            )
             heights = {}
-            for tab in ["tab-ov", "tab-di", "tab-fi", "tab-bsr", "tab-tr", "tab-an", "tab-re", "tab-ex"]:
+            for tab in ["tab-ov", "tab-di", "tab-fi", "tab-bsr", "tab-tr", "tab-an", "tab-re", "tab-ex", "tab-rep"]:
                 page.click(f'button.tab-btn[onclick*="{tab}"]')
                 page.wait_for_timeout(120)
                 heights[tab] = page.evaluate(

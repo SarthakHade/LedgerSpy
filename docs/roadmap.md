@@ -20,7 +20,7 @@ P0 Cleanup ✔
                                                   ├─ P12 Entity resolution ✔ ─ P13 Graph analysis ✔
                                                   ├─ P14 Bank reconciliation ✔ (P14b PDF/OCR ✔)  (uses P12 aliases)
                                                   └─ P15 Investigation workflow + case/evidence mgmt ✔
-                                                      └─ P16 Reports + local memo assistant
+                                                      └─ P16 Reports + local memo assistant ✔
                                                           ├─ P17 Investigation assistant (optional)
                                                           ├─ P18 Monte Carlo cash-flow (data-gated)
                                                           └─ P19 Benchmarking (data-gated)
@@ -253,11 +253,31 @@ See [`cleanup-log.md`](cleanup-log.md).
     multi-user assignment.
   - See [`p15-acceptance.md`](p15-acceptance.md).
 
-### P16 — Reporting and local audit memo assistant (R11, R15)
+### P16 — Reporting and local audit memo assistant (R11, R15) ✔ (done; see [`p16-acceptance.md`](p16-acceptance.md), [`reporting.md`](reporting.md))
 - **Objective.** Report model, deterministic memo NLG with finding citations, JSON preview, ReportLab PDF with hashes, run manifest, methodology and limitations.
 - **Dependencies.** P15.
 - **Tests.** Every number in the memo exists in the report model (automated cross-check); sections with no data say so; the PDF opens and its hash is stored; golden-file test for the template.
 - **Acceptance.** One-click memo and PDF generated from a real case, with no static text other than templates.
+- **As built.**
+  - **Report types:** case investigation report, bank reconciliation report, draft audit memo and evidence
+    manifest, built read-only from P15 investigations, the P14 run register and run results, P14b extraction
+    rows and the P2 evidence store. No second analytics or reconciliation engine.
+  - **Claims:** every material statement carries its origin (automated / analyst / computed), its records
+    with verification state and source location, its evidence files with SHA-256 and verification, and
+    contradicting evidence. Traceability is `traceable` / `unverified` / `no_reference`, never "true".
+  - **Totals:** per dataset / account and currency only; rebuilt from row-level results and checked against
+    the run's own totals. Grouped matches and doubly linked transactions count once.
+  - **Stale and unconfirmed data:** stale runs are shown as superseded, never as current; unconfirmed
+    extraction values never enter totals.
+  - **Memo:** deterministic templates, fixed sections, every number cross-checked against the report model
+    (golden-file test for the template). Always a draft: no approval workflow exists.
+  - **Dismissed findings:** excluded from the memo's material findings and listed separately as dismissed
+    (retained, with the decision).
+  - **Artefacts:** JSON + escaped self-contained HTML + editable Markdown, versioned (never overwritten),
+    read-only, hash-checked on every read, in an append-only register (migration 9) with an audit entry.
+  - **Not done:** **PDF** (and DOCX): no PDF library is installed and none was added; the HTML prints to PDF
+    from a browser. No run comparison. No local language-model assistant (P17).
+  - See [`p16-acceptance.md`](p16-acceptance.md).
 
 ### P17 — Investigation assistant (optional, R20)
 - **Objective.** The chat panel answers only through API queries (summary, top entities, why-flagged using explanation objects). It never generates numbers itself.

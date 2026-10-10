@@ -549,6 +549,17 @@ raw names (+ attributes) → normalise → tokenise → aliases → block → sc
 - **Renderers.** The same report model goes to JSON (UI preview and copy) and to PDF via **ReportLab** (pure-Python wheels, works
   offline on Windows without system libraries). The PDF's SHA-256 is stored in `reports`.
 - **Never fabricated.** Sections with no findings say so explicitly ("No reconciliation performed: no bank statement supplied").
+- **As built (P16).** `ledgerspy/reports/` and migration 9; see [`reporting.md`](reporting.md).
+  - **Report types:** case investigation, bank reconciliation, draft audit memo, evidence manifest. They are
+    built from P15 investigations (not from a separate findings table) and the P14 run register.
+  - **Claims:** each carries origin, records with verification state and source location, evidence
+    hashes, and contradicting evidence.
+  - **Memo:** sentence templates live in code, not configuration (a configuration change would alter the
+    P9 identity hash). Every number is cross-checked against the report model. Dismissed findings are
+    listed separately, not cited as material. The optional local-LLM step is not built (P17).
+  - **Renderers:** JSON, escaped self-contained HTML and Markdown. **No ReportLab PDF:** the library is not
+    installed and P16 adds no dependency. Artefact hashes are stored in `reports`, which is append-only and
+    versioned.
 
 ## 12. Case, investigation and evidence management (R13, R14)
 
@@ -677,7 +688,7 @@ LedgerSpy/
 │   ├── risk/                  # P9: fusion, calibration (tiers + volume guard), entities, explain, service
 │   ├── explain/               # later: SHAP wrappers for supervised models (P10/P11); P9 explanations live in risk/
 │   ├── cases/                 # sqlite store, evidence, audit log, findings
-│   ├── reports/               # report model, memo NLG, PDF renderer
+│   ├── reports/               # P16: model (vocabulary, limits), build (content, claims, memo), render, store
 │   ├── synth/                 # P5 deterministic synthetic company + scenarios + separate ground truth
 │   ├── api/                   # FastAPI app, routes, schemas
 │   ├── hashing.py, paths.py   # canonical JSON + SHA-256; repository paths

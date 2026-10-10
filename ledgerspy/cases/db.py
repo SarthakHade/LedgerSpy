@@ -10,7 +10,8 @@ the same columns, rows and triggers because SQLite cannot alter a CHECK constrai
 reconciliation run register. Migration 7 (P14b): datasets may be PDF statements (`format` 'pdf'; rebuilt
 the same way), and PDF extractions, their items and review decisions (all append-only). Migration 8 (P15):
 investigation cases inside an engagement case, their evidence links (immutable, removals append-only), notes,
-decisions and events (append-only), and OCR correction overlays (append-only). Later phases append
+decisions and events (append-only), and OCR correction overlays (append-only). Migration 9 (P16): the
+append-only register of generated report artefacts. Later phases append
 migrations for their own tables; existing migrations are never edited.
 
 Migrations run with foreign-key enforcement switched off for the connection (the documented SQLite procedure
@@ -601,6 +602,37 @@ MIGRATIONS: list[tuple[int, str, list[str]]] = [
                 created_at       TEXT NOT NULL
             )""",
             *_immutable("ocr_corrections", "OCR corrections are append-only"),
+        ],
+    ),
+    (
+        9,
+        "P16 audit reporting: reports (append-only register of generated report artefacts)",
+        [
+            # One row per generated artefact set. Regenerating a report creates a new version (a new row and
+            # new files); earlier versions are never overwritten. The files live in <workspace>/reports/ under
+            # names derived from report_id only, read-only, with their SHA-256 recorded here.
+            """CREATE TABLE reports (
+                report_id          TEXT PRIMARY KEY CHECK (report_id GLOB 'RP-*'),
+                report_type        TEXT NOT NULL CHECK (report_type IN ('case_investigation',
+                                   'bank_reconciliation', 'audit_memo', 'evidence_manifest')),
+                subject_key        TEXT NOT NULL,
+                case_id            TEXT REFERENCES cases (case_id),
+                version            INTEGER NOT NULL CHECK (version >= 1),
+                status             TEXT NOT NULL CHECK (status IN ('generated', 'draft')),
+                params             TEXT NOT NULL,
+                provenance         TEXT NOT NULL,
+                content_sha256     TEXT NOT NULL CHECK (length(content_sha256) = 64),
+                artifacts          TEXT NOT NULL,
+                schema_version     INTEGER NOT NULL,
+                format_version     INTEGER NOT NULL,
+                config_sha256      TEXT NOT NULL,
+                previous_report_id TEXT REFERENCES reports (report_id),
+                generated_by       TEXT NOT NULL,
+                generated_at       TEXT NOT NULL,
+                UNIQUE (report_type, subject_key, version)
+            )""",
+            *_immutable("reports", "generated reports are append-only"),
+            "CREATE INDEX reports_by_case ON reports (case_id, generated_at)",
         ],
     ),
 ]

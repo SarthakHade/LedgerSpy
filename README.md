@@ -157,6 +157,15 @@ This repository is being rebuilt from a hackathon prototype into a working syste
     (tamper-evident, not tamper-proof against someone who controls the database file).
 
   See [`docs/investigations.md`](docs/investigations.md) and [`docs/p15-acceptance.md`](docs/p15-acceptance.md).
+- **P16 audit reports** (`ledgerspy/reports/`, `/api/reports…`, Reports tab):
+  - Case investigation reports, bank reconciliation reports, draft audit memos and evidence manifests, built
+    read-only from the stored records by deterministic templates.
+  - Every claim keeps its origin (automated indicator / analyst record), its records, source locations and
+    evidence hashes; stale runs and unconfirmed OCR values are flagged and never presented as current facts.
+  - Memos are always drafts; every number they state is cross-checked against the report model.
+  - JSON, escaped HTML and Markdown artefacts, versioned and hash-checked. PDF / DOCX are not built.
+
+  See [`docs/reporting.md`](docs/reporting.md) and [`docs/p16-acceptance.md`](docs/p16-acceptance.md).
 - The original notebooks are in `archive/` for reference. Their evaluation had data leakage and must not be quoted.
 
 See [`docs/requirements.md`](docs/requirements.md) for the requirement-by-requirement status.
@@ -166,7 +175,7 @@ See [`docs/requirements.md`](docs/requirements.md) for the requirement-by-requir
 ```
 ledgerspy/     Python package: config/, canonical/, cases/ (SQLite, audit log, evidence), ingest/, quality/,
                normalize/, synth/, features/, detectors/, forensics/, anomaly/, risk/, supervised/, resolution/, graph/,
-               reconciliation/, pdfstatements/, investigations/, api/, cli.py
+               reconciliation/, pdfstatements/, investigations/, reports/, api/, cli.py
 config/        default.yaml — every configurable value (validated, SHA-256 hashed)
 frontend/      UI (index.html, css/, js/) — served by `ledgerspy serve`; renders API results only
 tests/         backend/ (pytest, P2) · frontend/harness.js (Node) + browser_check.py (optional, Playwright)
@@ -243,6 +252,8 @@ python tests/frontend/integrity_panel_check.py  # optional: P4 dashboard against
 | [`docs/p14b-acceptance.md`](docs/p14b-acceptance.md) | P14b acceptance: genuine OCR tests, accuracy and runtime measured, review gate, failure handling, deviations |
 | [`docs/investigations.md`](docs/investigations.md) | P15 investigations: lifecycle, evidence links, decisions, OCR corrections, audit semantics, API, limitations |
 | [`docs/p15-acceptance.md`](docs/p15-acceptance.md) | P15 acceptance: lifecycle, scope and security tests, correction invalidation, P9 isolation, pagination, UI |
+| [`docs/reporting.md`](docs/reporting.md) | P16 reporting: report types, claims and traceability, aggregation rules, memo, stale data, formats, storage, API, limitations |
+| [`docs/p16-acceptance.md`](docs/p16-acceptance.md) | P16 acceptance: traceability, totals, stale / unconfirmed data, memo cross-check, versioning, artefact safety, P9 isolation |
 | [`docs/synthetic-scenario-matrix.md`](docs/synthetic-scenario-matrix.md) | Feature → scenario → fields → records → detector phase |
 | [`docs/cleanup-log.md`](docs/cleanup-log.md) | What was moved, archived or deleted in the cleanup, and why |
 | [`docs/audits/phase-1-current-state-audit.md`](docs/audits/phase-1-current-state-audit.md) | Detailed audit of the prototype |

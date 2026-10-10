@@ -208,6 +208,7 @@
       <button class="tab-btn" onclick="switchTab('tab-re', this)">Relationships</button>
       <button class="tab-btn" onclick="switchTab('tab-ex', this)">Explainability</button>
       <button class="tab-btn" onclick="switchTab('tab-iv', this)">Investigations</button>
+      <button class="tab-btn" onclick="switchTab('tab-rep', this)">Reports</button>
     </div>
 
     <!-- TAB: DATA INTEGRITY (P4, backend) -->
@@ -466,6 +467,23 @@
        </div>
     </div>
 
+    <!-- TAB: REPORTS (P16, backend). Filled by js/reports-ui.js from /api/reports only. -->
+    <div class="tab-content" id="tab-rep">
+       <div class="t-card" id="rep-app" style="margin-bottom:24px">
+         <h3>Audit Reports <span>P16 · case reports, reconciliation reports, draft memos, evidence manifests</span></h3>
+         <div class="ls-muted">Reports are built from the stored records only. Automated findings are indicators that require review, not proof of fraud; analyst assessments and conclusions are reproduced as recorded. Every claim lists its records and evidence hashes; stale, changed or unconfirmed sources are flagged.</div>
+         <div id="rep-controls" style="margin-top:10px"><div class="na-inline">Loading…</div></div>
+         <div class="ls-muted" id="rep-msg" role="status"></div>
+       </div>
+       <div class="t-card" style="margin-bottom:24px">
+         <div id="rep-preview-body"><div class="na-inline">Choose a report and press Preview.</div></div>
+       </div>
+       <div class="t-card">
+         <h3>Stored reports <span>versioned · hash-checked</span></h3>
+         <div id="rep-list"><div class="na-inline">Loading…</div></div>
+       </div>
+    </div>
+
     <!-- TAB E: EXPLAINABILITY -->
     <div class="tab-content" id="tab-ex">
       <div class="t-card" style="max-width:920px;margin:0 auto">
@@ -595,11 +613,11 @@
       <div class="report-doc" id="print-doc">
         <h1>Findings Summary</h1>
         <p style="text-align:center;font-family:var(--mono);font-size:0.7rem;margin-bottom:32px;color:var(--txt3)">RENDERED FROM THE BACKEND ANALYSIS</p>
-        <p>No analysis yet. After an analysis this lists the review queue's top transactions, dataset-level findings, unavailable detectors and the volume-guard status — each as returned by the API. The narrative audit memo arrives in roadmap P16.</p>
+        <p>No analysis yet. After an analysis this lists the review queue's top transactions, dataset-level findings, unavailable detectors and the volume-guard status — each as returned by the API. The evidence-backed draft audit memo and case reports are in the Reports tab.</p>
       </div>
       <div style="display:flex;gap:12px">
         <button class="btn btn-primary" style="flex:1" id="memo-copy-btn" disabled>⧉ Copy Summary Text</button>
-        <button class="btn btn-secondary" style="flex:1" disabled title="Not yet implemented — PDF generation arrives in roadmap P16">↓ PDF — not yet available</button>
+        <button class="btn btn-secondary" style="flex:1" disabled title="PDF export is not built (no PDF library is installed); the Reports tab exports HTML, Markdown and JSON">↓ PDF — not available (see Reports tab)</button>
       </div>
     </div>
   </div>
@@ -618,6 +636,7 @@
 <script src="js/graph-ui.js"></script>
 <script src="js/recon-ui.js"></script>
 <script src="js/investigations-ui.js"></script>
+<script src="js/reports-ui.js"></script>
 <script src="js/chatbot-ui.js"></script>
 <script src="js/integrity-panel.js"></script>
 </body>

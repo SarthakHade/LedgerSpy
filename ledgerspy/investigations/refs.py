@@ -423,8 +423,8 @@ _RESOLVERS = {
 assert set(_RESOLVERS) == set(LINK_TYPES)  # noqa: S101 — every link type has a resolver
 
 
-def verify(conn, cfg: EffectiveConfig, case_id: str, link: dict[str, Any]) -> dict[str, Any]:
-    """Resolve a stored link again: current / changed / stale / missing (never raises for these states)."""
+def check(conn, cfg: EffectiveConfig, case_id: str, link: dict[str, Any]) -> tuple[dict[str, Any], Any]:
+    """`verify` plus the record's current snapshot (None unless it still resolves). P16 reports use it."""
     try:
         now = resolve(
             conn, cfg, case_id, link["link_type"], link["dataset_id"], link["run_id"], link["ref_id"]
@@ -437,11 +437,16 @@ def verify(conn, cfg: EffectiveConfig, case_id: str, link: dict[str, Any]) -> di
             if exc.http_status == 404
             else "unavailable"
         )
-        return {"state": state, "reason": exc.message}
+        return {"state": state, "reason": exc.message}, None
     if now["snapshot_sha256"] == link["snapshot_sha256"]:
-        return {"state": "current", "reason": None}
+        return {"state": "current", "reason": None}, now["snapshot"]
     return {
         "state": "changed",
         "reason": "the referenced record differs from what was linked",
         "current_snapshot": now["snapshot"],
-    }
+    }, now["snapshot"]
+
+
+def verify(conn, cfg: EffectiveConfig, case_id: str, link: dict[str, Any]) -> dict[str, Any]:
+    """Resolve a stored link again: current / changed / stale / missing (never raises for these states)."""
+    return check(conn, cfg, case_id, link)[0]
