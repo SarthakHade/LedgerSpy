@@ -517,6 +517,8 @@ const LS_STATE = { datasetId: null, summary: null, detectors: null, page: 1, siz
       ex.data_quality_flags.forEach(f => parts.push(el('div', { class: 'ls-contrib' }, [el('div', null, f.detector_label), muted(f.explanation)])));
     }
     parts.push(el('div', { class: 'detail-h' }, 'Limitations'), el('ul', { class: 'ls-list' }, ex.limitations.map(l => el('li', null, l))));
+    // P15: open an investigation from this automated finding (the score itself is never changed)
+    if(window.LS_INV && LS_STATE.datasetId) parts.push(window.LS_INV.button({ link_type: 'risk_transaction', dataset_id: LS_STATE.datasetId, ref_id: t.txn_id }, 'P9 risk row ' + t.txn_id));
     return parts;
   }
   window.lsRenderExplanation = renderExplanation;

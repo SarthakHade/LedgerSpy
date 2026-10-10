@@ -299,7 +299,7 @@ def bank_rows(
         extra = row.get("extra") or {}
         if "pdf_review" in extra:  # P14b: only reviewed / auto-accepted extracted lines are trusted input
             r.extraction = {k: extra.get("pdf_" + k) for k in ("method", "page", "review", "item_id")}
-            if extra["pdf_review"] not in ("auto_accepted", "reviewer_confirmed"):
+            if extra["pdf_review"] not in ("auto_accepted", "reviewer_confirmed", "reviewer_corrected"):
                 r.reasons.append("unconfirmed_extraction")
         if account_mapped and acc is None:
             r.reasons.append("missing_account")

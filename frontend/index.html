@@ -207,6 +207,7 @@
       <button class="tab-btn" onclick="switchTab('tab-an', this)">Anomalies</button>
       <button class="tab-btn" onclick="switchTab('tab-re', this)">Relationships</button>
       <button class="tab-btn" onclick="switchTab('tab-ex', this)">Explainability</button>
+      <button class="tab-btn" onclick="switchTab('tab-iv', this)">Investigations</button>
     </div>
 
     <!-- TAB: DATA INTEGRITY (P4, backend) -->
@@ -451,6 +452,20 @@
       </div>
     </div>
 
+    <!-- TAB: INVESTIGATIONS (P15, backend). Filled by js/investigations-ui.js from /api/investigations only. -->
+    <div class="tab-content" id="tab-iv">
+       <div class="t-card" id="iv-app" style="margin-bottom:24px">
+         <h3>Investigations <span>P15 · cases, evidence, analyst decisions</span></h3>
+         <div class="ls-muted">Automated findings are indicators that require review, not proof of fraud. Analyst decisions are recorded assessments with a rationale; they never change an automated finding, a risk score or source data.</div>
+         <div id="iv-controls" style="margin-top:10px"></div>
+         <div class="ls-muted" id="iv-msg" role="status"></div>
+         <div id="iv-list"><div class="na-inline">Loading investigations…</div></div>
+       </div>
+       <div class="t-card">
+         <div id="iv-detail"><div class="na-inline">Open or create an investigation.</div></div>
+       </div>
+    </div>
+
     <!-- TAB E: EXPLAINABILITY -->
     <div class="tab-content" id="tab-ex">
       <div class="t-card" style="max-width:920px;margin:0 auto">
@@ -602,6 +617,7 @@
 <script src="js/risk-ui.js"></script>
 <script src="js/graph-ui.js"></script>
 <script src="js/recon-ui.js"></script>
+<script src="js/investigations-ui.js"></script>
 <script src="js/chatbot-ui.js"></script>
 <script src="js/integrity-panel.js"></script>
 </body>

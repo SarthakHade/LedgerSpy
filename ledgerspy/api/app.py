@@ -15,6 +15,7 @@ from ledgerspy.api.routes import (
     forensics,
     graph,
     health,
+    investigations,
     models,
     pdf,
     quality,
@@ -75,6 +76,8 @@ def create_app(
     app.include_router(graph.router)  # P13: relationship graph (read-only; separate from P9 scores)
     app.include_router(reconciliation.router)  # P14: ledger ↔ bank reconciliation (separate from P9 scores)
     app.include_router(pdf.router)  # P14b: PDF statement extraction and review
+    # P15: investigation workflow (assessments never change findings)
+    app.include_router(investigations.router)
 
     @app.get("/", include_in_schema=False)
     def index(request: Request) -> Response:

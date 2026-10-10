@@ -14,6 +14,7 @@ API, then drives the real page in headless Chromium:
   A10 (P13) the relationship graph is drawn from the graph API
   A11 (P14) bank reconciliation shows the reconciliation API's results; PDF/OCR is labelled P14b
   A12 (P14b) a PDF statement's extraction review shows the PDF API's rows, page image and decisions
+  A13 (P15) an investigation opened from a finding: link, note (rendered as text), transition, decision via API
 
 Requires: playwright + Chromium (no download at runtime).
 Usage (from repo root):  python tests/frontend/browser_check.py [--screenshots DIR]
@@ -463,6 +464,61 @@ def main() -> int:
                 and after["review"]["pending"] == summ["review"]["pending"] - 1
                 and after["review"]["can_confirm"] is False,
                 json.dumps(after["review"]["by_state"]),
+            )
+            # ---------------- A13 (P15): investigation workflow from a reconciliation finding ----------------
+            page.click('button.tab-btn[onclick*="tab-bsr"]')
+            page.click("#bsr-results tbody tr.main-row >> nth=0")
+            page.wait_for_selector("#bsr-detail >> text=Open investigation from this finding", timeout=60000)
+            page.click("#bsr-detail >> text=Open investigation from this finding")
+            page.wait_for_selector("#iv-create", timeout=60000)
+            page.fill("#iv-title", "Partial match review")
+            page.click("#iv-create")
+            page.wait_for_function("() => /Linked evidence/.test(document.getElementById('iv-detail').textContent)",
+                                   timeout=60000)
+            invs = api(base, token, "GET", f"/api/investigations?case_id={case_id}")["items"]
+            iv = next(x for x in invs if x["title"] == "Partial match review")
+            ivid = iv["investigation_id"]
+            xss = '<img src=x onerror="window.__xss=1"> remittance advice checked'
+            page.fill("#iv-note", xss)
+            page.click("#iv-note-add")
+            page.wait_for_function("() => /remittance advice checked/.test(document.getElementById('iv-notes').textContent)",
+                                   timeout=60000)
+            note_ok = page.evaluate(
+                "() => ({ text: document.getElementById('iv-notes').textContent.includes('<img src=x'),"
+                " imgs: document.querySelectorAll('#iv-notes img').length, xss: window.__xss === undefined })"
+            )
+            ivlinks = api(base, token, "GET", f"/api/investigations/{ivid}/links")["items"]
+            check(
+                "A13",
+                "An investigation opened from a reconciliation finding links it; a hostile note renders as text",
+                len(ivlinks) == 1 and ivlinks[0]["link_type"] == "reconciliation_result"
+                and note_ok == {"text": True, "imgs": 0, "xss": True},
+                json.dumps(note_ok),
+            )
+            page.click("#iv-detail >> text=→ in review")
+            page.click("#iv-t-confirm")
+            page.wait_for_function("() => /in review/.test(document.getElementById('iv-detail').textContent)",
+                                   timeout=60000)
+            page.click("#iv-links >> text=Decide")
+            page.select_option("#iv-d-action", "further_investigation_required")
+            page.fill("#iv-d-rationale", "Bank fee needs the remittance advice.")
+            page.click("#iv-d-save")
+            page.wait_for_function("() => /Bank fee needs the remittance advice/.test("
+                                   "document.getElementById('iv-detail').textContent)", timeout=60000)
+            state = api(base, token, "GET", f"/api/investigations/{ivid}")
+            decs = api(base, token, "GET", f"/api/investigations/{ivid}/decisions")["items"]
+            acts = [e["event"] for e in api(base, token, "GET", f"/api/investigations/{ivid}/activity")["items"]]
+            ver = api(base, token, "GET", "/api/audit/verify")
+            offered = page.evaluate("() => [...document.querySelectorAll('#iv-detail button')].map(b => b.textContent)"
+                                    ".filter(t => t.startsWith('→'))")
+            check(
+                "A13",
+                "Status and decision changes go through the API, only valid transitions are offered, audit verifies",
+                state["status"] == "in_review" and len(decs) == 1 and decs[0]["unresolved"]
+                and acts == ["created", "linked", "note_added", "status_changed", "decision_recorded"]
+                and sorted(offered) == sorted("→ " + t.replace("_", " ") for t in state["allowed_transitions"])
+                and ver["ok"],
+                json.dumps({"status": state["status"], "events": acts, "offered": offered}),
             )
             heights = {}
             for tab in ["tab-ov", "tab-di", "tab-fi", "tab-bsr", "tab-tr", "tab-an", "tab-re", "tab-ex"]:

@@ -447,8 +447,8 @@ raw names (+ attributes) → normalise → tokenise → aliases → block → sc
     conflicts never hidden; person ≠ organisation; only confirmed matches merge) with an evidence score.
   - **Clustering:** with a cross-pair conflict check.
   - **Masters:** imported as evidence with an explicit mapping (migration 5).
-  - **Outputs:** resolution exposed as P6 features and a P9 grouping, not as new signals. No alias table or
-    analyst decisions yet (P15).
+  - **Outputs:** resolution exposed as P6 features and a P9 grouping, not as new signals. No alias table; analyst
+    decisions are recorded in P15 and never merge.
   - See [`entity-resolution.md`](entity-resolution.md).
 
 ## 9. Relationship and graph analysis (R9)
@@ -516,7 +516,8 @@ raw names (+ attributes) → normalise → tokenise → aliases → block → sc
     semantics confirmed in the mapping. PDF statements (P14b): `ledgerspy/pdfstatements/` extracts text (PDFium)
     or runs local Tesseract OCR per page in a subprocess, keeps every line's page / box / text, gates uncertain
     rows behind reviewer decisions and hands the reviewed table to the same P3 mapping; see
-    [`pdf-extraction.md`](pdf-extraction.md).
+    [`pdf-extraction.md`](pdf-extraction.md). Misread PDF rows can be corrected in P15 as explicit overlays; a
+    correction after confirmation makes dependent runs stale ([`investigations.md`](investigations.md) §5).
   - **Normalise:** P4 views; P12 name rules and canonical entities for counterparties named in narrations;
     reference shapes; masked account keys. Balance continuity is checked per account in statement order.
   - **Candidates:** blocks of scope (confirmed account ↔ ledger filter) × currency × flow; indexed by amount.
@@ -571,6 +572,16 @@ raw names (+ attributes) → normalise → tokenise → aliases → block → sc
   - Logged actions: imports, mapping changes, cleaning decisions, runs, status changes, report generation.
 - **Reproducibility.** The run manifest holds input file hashes, mapping hash, config hash, model artefact hashes, the code version (package version + git commit) and library versions.
   - Re-running the manifest reproduces scores bit-for-bit (fixed seeds).
+- **As built (P15).** `ledgerspy/investigations/` and migration 8; see [`investigations.md`](investigations.md).
+  - **Two levels:** the P2 engagement case (`C-`) owns datasets and runs and is the reference scope; an
+    investigation (`IV-`) inside it carries the lifecycle Open → In review ⇄ Awaiting evidence → Concluded →
+    Closed, with reasons for concluding, closing and re-opening.
+  - **Findings are not copied.** They stay with their engines; a case links them by scope-checked reference
+    with a snapshot hash. The finding status (New / Under review / Confirmed / Dismissed / Escalated) is derived
+    from append-only analyst decisions; the automated finding never changes.
+  - **Audit:** each write appends a P2 audit entry and an `investigation_events` row pointing at it; links,
+    removals, notes, decisions, events and OCR corrections are append-only by trigger.
+  - **Not built:** attachments other than evidence-file links, run comparison, report exclusion (P16).
 
 ## 13. Security strategy
 
@@ -656,7 +667,9 @@ LedgerSpy/
 │   ├── resolution/            # P12: normalize, similarity, records, matching, engine, ledger, masters, service, validation
 │   ├── graph/                 # P13: model (nodes/edges), metrics, cycles, signals (findings), service
 │   ├── reconciliation/        # P14: records, engine (matching), duplicates, balances, findings, service
-│   ├── pdfstatements/         # P14b: pages (PDFium), ocr (Tesseract), layout, validate, extract, worker, service
+│   ├── pdfstatements/         # P14b: pages (PDFium), ocr (Tesseract), layout, validate, extract, worker, service;
+│   │                          #   P15: corrections (OCR correction overlays)
+│   ├── investigations/        # P15: model (lifecycle, vocabulary), refs (scoped references), service
 │   │                          #   P11: artifact (schema, hash, safe load), registry, train, inference
 │   ├── anomaly/               # P8: eligibility, isolation_forest, robust_stats, evaluation, models, service
 │   ├── forensics/             # models.py, duplicates.py, benford.py, service.py (P7); entity_resolution.py, graph.py,

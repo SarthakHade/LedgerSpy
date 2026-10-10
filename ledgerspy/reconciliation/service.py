@@ -27,7 +27,7 @@ from ledgerspy.config.loader import EffectiveConfig
 from ledgerspy.errors import LedgerSpyError
 from ledgerspy.features.data import party_key
 from ledgerspy.hashing import canonical_json, sha256_hex, utc_now_iso
-from ledgerspy.normalize.view import DatasetView, load_view
+from ledgerspy.normalize.view import DatasetView, data_version, load_view, overlay_rows
 from ledgerspy.reconciliation import balances, duplicates, engine, findings
 from ledgerspy.reconciliation.records import (
     TEXT_FIELDS,
@@ -660,9 +660,27 @@ def start(conn, cfg: EffectiveConfig, req: RunRequest, actor: str) -> Run:
 
 def get_run(conn, cfg: EffectiveConfig, run_id: str) -> Run:
     with _LOCK:
-        if run_id in _CACHE:
-            _CACHE.move_to_end(run_id)
-            return _CACHE[run_id]
+        cached = _CACHE.get(run_id)
+    if cached is not None:
+        # a cached run is served only while its inputs are unchanged (P15: e.g. no OCR correction since)
+        rec = _record(conn, run_id)
+        ident = cached.identity
+        for side in ("ledger", "bank"):
+            ds = ident[side]["dataset_id"]
+            if data_version(overlay_rows(conn, ds)) != ident[side]["data_version"]:
+                with _LOCK:
+                    _CACHE.pop(run_id, None)
+                raise LedgerSpyError(
+                    "inputs_changed",
+                    f"the {side} dataset's normalised data changed after this run (P4 transformations, e.g. "
+                    "an OCR correction); start a new run — the recorded run stays in the register",
+                    {"run_id": run_id},
+                    http_status=409,
+                )
+        if rec is not None:
+            with _LOCK:
+                _CACHE.move_to_end(run_id)
+            return cached
     rec = _record(conn, run_id)
     if rec is None:
         raise LedgerSpyError("run_not_found", "reconciliation run not found", http_status=404)
@@ -698,10 +716,12 @@ def list_runs(conn, ledger_id: str | None, bank_id: str | None) -> dict[str, Any
     clause = " WHERE " + " AND ".join(where) if where else ""
     sql = "SELECT * FROM reconciliation_runs" + clause  # noqa: S608 — fixed fragments only
     rows = conn.execute(sql + " ORDER BY created_at DESC, run_id", args).fetchall()
+    stale = stale_run_ids(conn)
     return {
         "items": [
             {
                 "run_id": r["run_id"],
+                "stale": r["run_id"] in stale,
                 "case_id": r["case_id"],
                 "ledger_dataset_id": r["ledger_dataset_id"],
                 "bank_dataset_id": r["bank_dataset_id"],
@@ -713,6 +733,25 @@ def list_runs(conn, ledger_id: str | None, bank_id: str | None) -> dict[str, Any
             for r in rows
         ]
     }
+
+
+def stale_run_ids(conn, dataset_id: str | None = None) -> set[str]:
+    """P15: recorded runs whose ledger or bank data changed since (e.g. an OCR correction applied as a P4
+    transformation). Their recorded results are no longer valid: `get_run` refuses them (`inputs_changed`)."""
+    versions: dict[str, str] = {}
+    out = set()
+    sql, args = "SELECT run_id, identity FROM reconciliation_runs", []
+    if dataset_id:
+        sql, args = sql + " WHERE ledger_dataset_id = ? OR bank_dataset_id = ?", [dataset_id, dataset_id]
+    for r in conn.execute(sql, args):
+        ident = json.loads(r["identity"])
+        for side in ("ledger", "bank"):
+            ds = ident[side]["dataset_id"]
+            if ds not in versions:
+                versions[ds] = data_version(overlay_rows(conn, ds))
+            if ident[side]["data_version"] != versions[ds]:
+                out.add(r["run_id"])
+    return out
 
 
 def _brief(run: Run) -> dict[str, Any]:
@@ -862,19 +901,40 @@ def result_detail(conn, run: Run, result_id: str) -> dict[str, Any]:
         or set(s["bank_txn_ids"]) & set(r["bank_txn_ids"])
     ]
     groups = [g for g in run.duplicates if g["group_id"] in set(r["duplicate_group_ids"])]
+    from ledgerspy.investigations.service import decisions_on
+
     return {
         "run_id": run.run_id,
         "result": r,
         "source_evidence": evidence,
         "findings": related,
         "duplicate_groups": groups,
+        # P15: recorded analyst decisions on this result (read-only; the computed result above is unchanged)
+        "analyst_decisions": [
+            d for d in decisions_on(conn, "reconciliation_result", result_id) if d["run_id"] == run.run_id
+        ],
         "note": NOTE,
     }
 
 
-def duplicates_page(run: Run, side: str | None, page: int, size: int) -> dict[str, Any]:
+def duplicates_page(run: Run, side: str | None, page: int, size: int, conn=None) -> dict[str, Any]:
     items = [g for g in run.duplicates if side is None or g["side"] == side]
     items = sorted(items, key=lambda g: (g["first_date"], g["group_id"]))
+    # P15: analyst decisions on each group (candidates stay candidates in the run itself)
+    if conn is not None:
+        from ledgerspy.investigations.service import decisions_on
+
+        items = [
+            g
+            | {
+                "analyst_decisions": [
+                    d
+                    for d in decisions_on(conn, "duplicate_group", g["group_id"])
+                    if d["run_id"] == run.run_id
+                ]
+            }
+            for g in items
+        ]
     return {
         "run_id": run.run_id,
         "note": "Duplicate CANDIDATES: nothing is excluded or deleted; confirming a "

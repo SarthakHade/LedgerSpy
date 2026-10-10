@@ -121,6 +121,45 @@ async def pdf_reextract(dataset_id: DatasetId, request: Request) -> Any:
         return _rejected(exc)
 
 
+class CorrectionIn(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    field: Literal[
+        "date", "value_date", "description", "reference", "debit", "credit", "amount", "drcr", "balance"
+    ]
+    value: str = Field(min_length=1, max_length=500)
+    rationale: str = Field(min_length=3, max_length=2000)
+
+
+@router.post("/api/datasets/{dataset_id}/pdf/items/{item_id}/corrections", status_code=201)
+def pdf_correct(dataset_id: DatasetId, item_id: ItemId, body: CorrectionIn, request: Request, db: Db) -> Any:
+    """P15: correct one extracted field as an overlay (original kept; see pdfstatements.corrections)."""
+    from ledgerspy.pdfstatements import corrections
+
+    try:
+        return corrections.correct(
+            db,
+            request.app.state.config,
+            dataset_id,
+            item_id,
+            body.field,
+            body.value,
+            body.rationale,
+            request.app.state.actor,
+        )
+    except LedgerSpyError as exc:
+        return _rejected(exc)
+
+
+@router.get("/api/datasets/{dataset_id}/pdf/corrections")
+def pdf_corrections(
+    dataset_id: DatasetId, db: Db, item_id: Annotated[str | None, Query(pattern=r"^PX-[0-9a-f]{16}$")] = None
+) -> Any:
+    from ledgerspy.pdfstatements import corrections
+
+    return corrections.list_for(db, dataset_id, item_id)
+
+
 @router.get("/api/datasets/{dataset_id}/pdf/pages/{page_no}/image")
 async def pdf_page_image(
     dataset_id: DatasetId,

@@ -119,7 +119,7 @@ def run_duplicates(
     size: Size = 100,
 ) -> Any:
     try:
-        return service.duplicates_page(_run(request, db, run_id), side, page, _size(request, size))
+        return service.duplicates_page(_run(request, db, run_id), side, page, _size(request, size), db)
     except LedgerSpyError as exc:
         return _rejected(exc)
 

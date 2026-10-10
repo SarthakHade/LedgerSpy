@@ -19,7 +19,7 @@ P0 Cleanup ✔
                                                   ├─ P10 Supervised training/evaluation ✔ ─ P11 Model registry/inference ✔
                                                   ├─ P12 Entity resolution ✔ ─ P13 Graph analysis ✔
                                                   ├─ P14 Bank reconciliation ✔ (P14b PDF/OCR ✔)  (uses P12 aliases)
-                                                  └─ P15 Investigation workflow + case/evidence mgmt
+                                                  └─ P15 Investigation workflow + case/evidence mgmt ✔
                                                       └─ P16 Reports + local memo assistant
                                                           ├─ P17 Investigation assistant (optional)
                                                           ├─ P18 Monte Carlo cash-flow (data-gated)
@@ -181,7 +181,7 @@ See [`cleanup-log.md`](cleanup-log.md).
     blocking, cannot-link-safe clusters, seven P6 features, resolved P9 grouping, and a read-only API with the
     similarity evidence.
   - Look-alike and shared-attribute scenarios surface as `conflicting_identity` / `shared_attribute`, never merged.
-  - Analyst confirm / reject (persisting decisions) is left to P15. The UI shows identity in the counterparty table
+  - Analyst confirm / reject is recorded as a P15 decision (`entity_link_accepted` / `rejected`), never a merge. The UI shows identity in the counterparty table
     (no separate matrix screen).
   - See the deviations in [`p12-acceptance.md`](p12-acceptance.md).
 
@@ -226,14 +226,32 @@ See [`cleanup-log.md`](cleanup-log.md).
   - **Confidence gating:** separate text / OCR / parse confidences; every OCR row and every uncertain row is
     review-required; the P3 confirmation is refused until each is confirmed or excluded; an unconfirmed
     extracted line can never be matched (the roadmap's "low-confidence OCR line is never auto-matched").
-  - **Not done:** value correction of misread rows (P15), other layout strategies, Dr/Cr-signed balance checks.
+  - **Not done:** other layout strategies, Dr/Cr-signed balance checks. Value correction of misread rows was
+    added in P15.
   - See [`p14b-acceptance.md`](p14b-acceptance.md).
 
-### P15 — Investigation workflow, case and evidence management (R13, R14)
+### P15 — Investigation workflow, case and evidence management (R13, R14) ✔ (done; see [`p15-acceptance.md`](p15-acceptance.md), [`investigations.md`](investigations.md))
 - **Objective.** Case lifecycle, finding statuses (New / Under review / Confirmed / Dismissed with reason / Escalated), notes, server-side paging and filtering, an evidence panel, audit-log viewer, and run comparison.
 - **Dependencies.** P2, P9 (P12–P14 enrich it).
 - **Tests.** Every state change is audit-logged; dismissed findings are excluded from reports but retained; pagination is correct on 100k rows.
 - **Acceptance.** An analyst can go from a flagged row to a confirmed finding with notes; the audit trail verifies.
+- **As built.**
+  - **Cases:** investigations (`IV-`) inside an engagement case, with a documented lifecycle (open / in review /
+    awaiting evidence / concluded / closed). Invalid transitions are refused; concluding, closing and
+    re-opening need a reason; outcomes include `inconclusive`; nothing auto-closes.
+  - **Evidence links:** 17 reference types (transactions, P9 rows / entities / signals, P12 entities, P13 graph
+    objects, P14 runs / results / findings / duplicates, evidence files, PDF pages / rows). Scope-checked,
+    snapshotted with a SHA-256, re-verified on demand (current / changed / stale / missing); unlinking is an
+    append-only removal.
+  - **Notes and decisions:** append-only; finding statuses New / Under review / Confirmed / Dismissed /
+    Escalated follow from the latest decision. Automated outputs (P9 scores, detectors, matches) never change.
+  - **OCR corrections:** explicit append-only overlays; after confirmation one logged P4 transformation, which
+    makes dependent reconciliation runs stale.
+  - **Audit:** every write has a hash-chained audit entry and an event; `GET /api/audit/verify`; deterministic
+    case summary and evidence manifest.
+  - **Not done:** run comparison; exclusion of dismissed findings from reports (P16, no reports exist yet);
+    multi-user assignment.
+  - See [`p15-acceptance.md`](p15-acceptance.md).
 
 ### P16 — Reporting and local audit memo assistant (R11, R15)
 - **Objective.** Report model, deterministic memo NLG with finding citations, JSON preview, ReportLab PDF with hashes, run manifest, methodology and limitations.

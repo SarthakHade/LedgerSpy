@@ -8,7 +8,9 @@ master files and their records (vendor / customer / employee / group-company mas
 only). Migration 6 (P14): datasets may be bank statements (`kind` 'bank_statement'; the table is rebuilt with
 the same columns, rows and triggers because SQLite cannot alter a CHECK constraint) and the append-only
 reconciliation run register. Migration 7 (P14b): datasets may be PDF statements (`format` 'pdf'; rebuilt
-the same way), and PDF extractions, their items and review decisions (all append-only). Later phases append
+the same way), and PDF extractions, their items and review decisions (all append-only). Migration 8 (P15):
+investigation cases inside an engagement case, their evidence links (immutable, removals append-only), notes,
+decisions and events (append-only), and OCR correction overlays (append-only). Later phases append
 migrations for their own tables; existing migrations are never edited.
 
 Migrations run with foreign-key enforcement switched off for the connection (the documented SQLite procedure
@@ -480,6 +482,125 @@ MIGRATIONS: list[tuple[int, str, list[str]]] = [
                 decided_at      TEXT NOT NULL
             )""",
             *_immutable("pdf_review_decisions", "review decisions are append-only"),
+        ],
+    ),
+    (
+        8,
+        "P15 investigation workflow: investigations, links, link removals, notes, decisions, events, "
+        "OCR corrections",
+        [
+            # An investigation case inside an engagement case (`cases`, the scope of its evidence). Status,
+            # priority and texts change only through the service, each change audit-logged and recorded in
+            # investigation_events; rows are never deleted.
+            """CREATE TABLE investigations (
+                investigation_id  TEXT PRIMARY KEY CHECK (investigation_id GLOB 'IV-*'),
+                case_id           TEXT NOT NULL REFERENCES cases (case_id),
+                title             TEXT NOT NULL CHECK (length(title) BETWEEN 1 AND 200),
+                description       TEXT NOT NULL,
+                priority          TEXT NOT NULL CHECK (priority IN ('low', 'medium', 'high', 'critical')),
+                status            TEXT NOT NULL
+                    CHECK (status IN ('open', 'in_review', 'awaiting_evidence', 'concluded', 'closed')),
+                outcome           TEXT CHECK (outcome IN ('concerns_substantiated', 'no_issue_identified',
+                                                           'inconclusive', 'referred')),
+                conclusion        TEXT,
+                closure_rationale TEXT,
+                created_by        TEXT NOT NULL,
+                created_at        TEXT NOT NULL,
+                updated_by        TEXT NOT NULL,
+                updated_at        TEXT NOT NULL
+            )""",
+            "CREATE TRIGGER investigations_no_delete BEFORE DELETE ON investigations "
+            "BEGIN SELECT RAISE(ABORT, 'investigations are never deleted'); END",
+            "CREATE INDEX investigations_by_case ON investigations (case_id, created_at)",
+            # A reference to an existing record (never a copy of it): type, dataset / run, record ID, a small
+            # snapshot of what was linked and the SHA-256 of the full referenced object at link time.
+            """CREATE TABLE investigation_links (
+                link_id          TEXT PRIMARY KEY CHECK (link_id GLOB 'LK-*'),
+                investigation_id TEXT NOT NULL REFERENCES investigations (investigation_id),
+                link_type        TEXT NOT NULL,
+                dataset_id       TEXT REFERENCES datasets (dataset_id),
+                run_id           TEXT REFERENCES reconciliation_runs (run_id),
+                ref_id           TEXT NOT NULL,
+                scope_key        TEXT NOT NULL,
+                snapshot         TEXT NOT NULL,
+                snapshot_sha256  TEXT NOT NULL CHECK (length(snapshot_sha256) = 64),
+                reason           TEXT NOT NULL CHECK (length(reason) >= 3),
+                annotation       TEXT,
+                created_by       TEXT NOT NULL,
+                created_at       TEXT NOT NULL
+            )""",
+            *_immutable("investigation_links", "investigation links are immutable"),
+            "CREATE INDEX investigation_links_by_inv ON investigation_links (investigation_id, created_at)",
+            # Unlinking removes only the case link (never the evidence); a removed link stays in history.
+            """CREATE TABLE investigation_link_removals (
+                link_id     TEXT PRIMARY KEY REFERENCES investigation_links (link_id),
+                reason      TEXT NOT NULL CHECK (length(reason) >= 3),
+                removed_by  TEXT NOT NULL,
+                removed_at  TEXT NOT NULL
+            )""",
+            *_immutable("investigation_link_removals", "link removals are append-only"),
+            """CREATE TABLE investigation_notes (
+                note_id          TEXT PRIMARY KEY CHECK (note_id GLOB 'NT-*'),
+                investigation_id TEXT NOT NULL REFERENCES investigations (investigation_id),
+                link_id          TEXT REFERENCES investigation_links (link_id),
+                body             TEXT NOT NULL CHECK (length(body) BETWEEN 1 AND 10000),
+                created_by       TEXT NOT NULL,
+                created_at       TEXT NOT NULL
+            )""",
+            *_immutable("investigation_notes", "investigation notes are append-only"),
+            # An analyst decision on the investigation or on one linked subject. The latest decision on a
+            # subject is its current assessment; earlier ones stay. Automated outputs are never changed by
+            # a decision.
+            """CREATE TABLE investigation_decisions (
+                decision_id      TEXT PRIMARY KEY CHECK (decision_id GLOB 'DC-*'),
+                investigation_id TEXT NOT NULL REFERENCES investigations (investigation_id),
+                link_id          TEXT REFERENCES investigation_links (link_id),
+                action           TEXT NOT NULL,
+                rationale        TEXT NOT NULL CHECK (length(rationale) >= 3),
+                payload          TEXT NOT NULL,
+                supporting       TEXT NOT NULL,
+                contradicting    TEXT NOT NULL,
+                unresolved       INTEGER NOT NULL CHECK (unresolved IN (0, 1)),
+                created_by       TEXT NOT NULL,
+                created_at       TEXT NOT NULL
+            )""",
+            *_immutable("investigation_decisions", "investigation decisions are append-only"),
+            # Every meaningful action on an investigation, in order, with the audit-log entry that records it.
+            """CREATE TABLE investigation_events (
+                seq              INTEGER PRIMARY KEY AUTOINCREMENT,
+                investigation_id TEXT NOT NULL REFERENCES investigations (investigation_id),
+                event            TEXT NOT NULL,
+                from_status      TEXT,
+                to_status        TEXT,
+                subject_id       TEXT,
+                details          TEXT NOT NULL,
+                audit_seq        INTEGER NOT NULL REFERENCES audit_log (seq),
+                actor            TEXT NOT NULL,
+                ts               TEXT NOT NULL
+            )""",
+            *_immutable("investigation_events", "investigation events are append-only"),
+            "CREATE INDEX investigation_events_by_inv ON investigation_events (investigation_id, seq)",
+            # OCR (PDF extraction) field corrections: an overlay, never a change of the PDF or the extraction.
+            # Before confirmation the extracted table uses the latest correction; after confirmation it is
+            # applied as one logged P4 transformation (transformation_id).
+            """CREATE TABLE ocr_corrections (
+                correction_id    TEXT PRIMARY KEY CHECK (correction_id GLOB 'OC-*'),
+                dataset_id       TEXT NOT NULL REFERENCES datasets (dataset_id),
+                extraction_id    TEXT NOT NULL REFERENCES pdf_extractions (extraction_id),
+                item_id          TEXT NOT NULL,
+                field            TEXT NOT NULL,
+                original_value   TEXT,
+                corrected_value  TEXT NOT NULL,
+                rationale        TEXT NOT NULL CHECK (length(rationale) >= 3),
+                page             INTEGER NOT NULL,
+                source_text      TEXT NOT NULL,
+                stage            TEXT NOT NULL CHECK (stage IN ('before_confirmation', 'after_confirmation')),
+                transformation_id TEXT REFERENCES transformations (transformation_id),
+                investigation_id TEXT REFERENCES investigations (investigation_id),
+                created_by       TEXT NOT NULL,
+                created_at       TEXT NOT NULL
+            )""",
+            *_immutable("ocr_corrections", "OCR corrections are append-only"),
         ],
     ),
 ]

@@ -44,7 +44,9 @@ PROVENANCE = [
     "pdf_review",
     "pdf_extraction_id",
 ]
-TRUSTED = ("auto_accepted", "reviewer_confirmed")
+TRUSTED = ("auto_accepted", "reviewer_confirmed", "reviewer_corrected")
+# P15: original + corrected values of overlaid fields (JSON), else empty
+CORRECTIONS_COLUMN = "pdf_corrections"
 ROLE_COLUMNS = [
     ("date", "Txn Date"),
     ("value_date", "Value Dt"),
@@ -165,9 +167,18 @@ def _column_names(items: list[dict[str, Any]]) -> dict[str, str]:
     return names
 
 
-def table(result: dict[str, Any], decisions: dict[str, str] | None) -> tuple[list[str], list[list[Any]]]:
+def table(
+    result: dict[str, Any],
+    decisions: dict[str, str] | None,
+    corrections: dict[str, dict[str, dict[str, Any]]] | None = None,
+    with_corrections_column: bool = True,
+) -> tuple[list[str], list[list[Any]]]:
     """The extracted table (header + rows). decisions=None: every transaction (upload preview); otherwise only
-    auto-accepted or reviewer-confirmed transactions, excluded ones dropped."""
+    auto-accepted or reviewer-confirmed transactions, excluded ones dropped. `corrections` (P15, item → role →
+    {value, original, correction_id}) overlays reviewer corrections: the cell takes the corrected value, the
+    original stays in the extraction and in the `pdf_corrections` provenance column, and the row is
+    `reviewer_corrected`. Datasets uploaded before P15 have no such column (with_corrections_column=False)."""
+    corrections = corrections or {}
     items = result["items"]
     names = _column_names(items)
     txns = [x for x in items if x["kind"] == "transaction"]
@@ -179,6 +190,8 @@ def table(result: dict[str, Any], decisions: dict[str, str] | None) -> tuple[lis
         [names[r] for r in roles] + (["Currency"] if has_cur else []) + (["Account No"] if has_acc else [])
     )
     header += [f"Other: {o}" for o in others] + PROVENANCE
+    if with_corrections_column:
+        header.append(CORRECTIONS_COLUMN)
     rows = []
     for t in txns:
         if decisions is not None:
@@ -188,7 +201,10 @@ def table(result: dict[str, Any], decisions: dict[str, str] | None) -> tuple[lis
             review = "reviewer_confirmed" if t["review_required"] else "auto_accepted"
         else:
             review = "review_required" if t["review_required"] else "auto_accepted"
-        f = t["fields"]
+        fix = corrections.get(t["item_id"], {})
+        if fix and decisions is not None:
+            review = "reviewer_corrected"
+        f = dict(t["fields"]) | {r: c["value"] for r, c in fix.items()}
         row: list[Any] = [f.get(r) for r in roles]
         if has_cur:
             row.append(t["context"].get("currency"))
@@ -205,12 +221,20 @@ def table(result: dict[str, Any], decisions: dict[str, str] | None) -> tuple[lis
             review,
             result["extraction_id"],
         ]
+        if with_corrections_column:
+            row.append(json.dumps(fix, sort_keys=True) if fix else None)
         rows.append(row)
     return header, rows
 
 
-def table_source(path: Path, result: dict[str, Any], decisions: dict[str, str] | None) -> TableSource:
-    header, rows = table(result, decisions)
+def table_source(
+    path: Path,
+    result: dict[str, Any],
+    decisions: dict[str, str] | None,
+    corrections: dict[str, dict[str, dict[str, Any]]] | None = None,
+    with_corrections_column: bool = True,
+) -> TableSource:
+    header, rows = table(result, decisions, corrections, with_corrections_column)
     details = {
         "extraction_id": result["extraction_id"],
         "pages": len(result["pages"]),
@@ -415,9 +439,27 @@ def gate(conn, row) -> tuple[dict[str, Any], dict[str, str]]:
     return result, {k: v["decision"] for k, v in decs.items()}
 
 
+def pending_corrections(conn, extraction_id: str) -> dict[str, dict[str, dict[str, Any]]]:
+    """Latest before-confirmation correction per (item, field) of an extraction (P15 overlay)."""
+    out: dict[str, dict[str, dict[str, Any]]] = {}
+    for r in conn.execute(
+        "SELECT * FROM ocr_corrections WHERE extraction_id = ? AND stage = 'before_confirmation' "
+        "ORDER BY created_at, correction_id",
+        (extraction_id,),
+    ):
+        out.setdefault(r["item_id"], {})[r["field"]] = {
+            "value": r["corrected_value"],
+            "original": r["original_value"],
+            "correction_id": r["correction_id"],
+        }
+    return out
+
+
 def confirm_source(conn, row, path: Path) -> TableSource:
     result, decs = gate(conn, row)
-    src = table_source(path, result, decs)
+    has_col = CORRECTIONS_COLUMN in json.loads(row["header"])
+    fixes = pending_corrections(conn, result["extraction_id"]) if has_col else {}
+    src = table_source(path, result, decs, fixes, has_col)
     if len(src.details["_rows"]) < 2:
         raise IngestError(
             "pdf_no_trusted_rows", "every transaction row was excluded: nothing to confirm", http_status=409

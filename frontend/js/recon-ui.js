@@ -341,6 +341,8 @@
           ? [c.ledger_txn_id, c.bank_txn_id, lsScore(c.evidence_score), minor(c.amount_difference_minor, x.scope.currency), c.date_difference_days]
           : [c.settlement, c.components.join(', '), '—', '—', '—'])) : null,
         d.findings.length ? muted('Findings: ' + d.findings.map(s => s.rule_id + ' (' + s.severity + ')').join(', ')) : null,
+        (d.analyst_decisions || []).length ? muted('Analyst decisions (recorded; this computed result is unchanged): ' + d.analyst_decisions.map(a => a.action_text + ' — ' + a.rationale).join(' | ')) : null,
+        window.LS_INV ? window.LS_INV.button({ link_type: 'reconciliation_result', run_id: ST.run.run_id, ref_id: x.result_id }, 'reconciliation result ' + x.result_id) : null,
         x.limitations.length ? muted('Limitations: ' + x.limitations.join(' ')) : null,
       ].filter(Boolean));
     } catch(e){ setChildren($('bsr-detail'), na('Detail not available: ' + errText(e))); }
