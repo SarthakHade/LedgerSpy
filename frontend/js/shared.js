@@ -34,6 +34,7 @@ function el(tag, attrs, children){
       if(v === undefined || v === null) return;
       if(k === 'class') node.className = v;
       else if(k === 'text') node.textContent = v;
+      else if(k === 'style') node.style.cssText = v;  // CSSOM: allowed by the strict CSP (P20); attributes are not
       else node.setAttribute(k, v);
     });
   }
@@ -111,4 +112,11 @@ function lsHash01(i){
 /* Node test-harness export (ignored in the browser). */
 if(typeof module !== 'undefined' && module.exports){
   module.exports = { LS_TIER, escapeHtml, lsGroupDigits, lsAmount, lsInt, lsShare, lsScore, lsHash01 };
+}
+
+/* P20 strict CSP (style-src 'self'): the page's own static styles are kept in data-style and applied once
+   through the CSSOM, which the policy allows; style="" attributes in markup are blocked by it. Same
+   precedence as before (inline), so scripts that later change an element's style behave as they did. */
+if(typeof document !== 'undefined' && document.querySelectorAll){
+  document.querySelectorAll('[data-style]').forEach(n => { n.style.cssText = n.getAttribute('data-style'); });
 }

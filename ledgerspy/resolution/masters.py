@@ -119,7 +119,7 @@ def import_master(
     if conn.execute("SELECT 1 FROM cases WHERE case_id = ?", (case_id,)).fetchone() is None:
         raise MasterImportError("case_not_found", f"no case {case_id}", http_status=404)
     ing = cfg.settings.ingest
-    filename = filename or Path(path).name
+    filename = evidence.check_original_filename(filename or Path(path).name)
     staged = evidence.stage_file(Path(path), workspace, ing.max_file_bytes)
     try:
         fmt = detect_format(staged.path, filename)

@@ -11,6 +11,7 @@ from typing import Annotated, Any, Literal
 from fastapi import APIRouter, Query, Request
 from fastapi import Path as PathParam
 
+from ledgerspy.api.limits import Page
 from ledgerspy.api.routes.cases import Db
 from ledgerspy.api.routes.datasets import CaseId, DatasetId, _rejected
 from ledgerspy.errors import LedgerSpyError
@@ -24,7 +25,6 @@ EntityStatus = Literal["unique", "resolved", "needs_review", "conflicting_identi
 PairStatus = Literal[
     "confirmed_match", "probable_match", "ambiguous", "conflicting_identity", "shared_attribute", "no_match"
 ]
-Page = Annotated[int, Query(ge=1)]
 Size = Annotated[int, Query(ge=1, le=500)]
 Search = Annotated[str | None, Query(min_length=1, max_length=100)]
 

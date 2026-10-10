@@ -92,7 +92,7 @@ def main() -> int:
             page.add_init_script("window.__csp=[];document.addEventListener('securitypolicyviolation',"
                                  "e=>window.__csp.push(e.violatedDirective));")
             page.goto(url)
-            page.click("button.tab-btn[onclick*=\"tab-di\"]")
+            page.click("button.tab-btn[data-tab=\"tab-di\"]")
             page.wait_for_selector("#di-backend-score")
 
             shown = page.evaluate("""() => {

@@ -11,6 +11,7 @@ from typing import Annotated, Any, Literal
 from fastapi import APIRouter, Query, Request
 from fastapi import Path as PathParam
 
+from ledgerspy.api.limits import Page
 from ledgerspy.api.routes.cases import Db
 from ledgerspy.api.routes.datasets import DatasetId, _rejected
 from ledgerspy.errors import LedgerSpyError
@@ -43,7 +44,6 @@ NodeType = Literal[
 ]
 Sort = Literal["exposure", "pagerank", "betweenness", "degree", "label"]
 CycleStatus = Literal["review", "ordered_low_retention", "insufficient_data", "not_time_ordered"]
-Page = Annotated[int, Query(ge=1)]
 Size = Annotated[int, Query(ge=1, le=5000)]
 From = Annotated[date | None, Query(alias="from")]
 To = Annotated[date | None, Query(alias="to")]

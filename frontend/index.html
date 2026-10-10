@@ -19,7 +19,7 @@
 <!-- ABOUT OVERLAY -->
 <div id="about-overlay">
   <div class="about-modal">
-    <button class="about-close" onclick="document.getElementById('about-overlay').classList.remove('show')">&times;</button>
+    <button class="about-close" data-action="about-close">&times;</button>
     <div class="about-tag">🔍 Forensic Intelligence Platform</div>
     <h1 class="about-h1">What is <span>LedgerSpy</span>?</h1>
     <p class="about-lead">LedgerSpy is a forensic audit tool for company ledgers, intended for internal auditors, fraud investigators and compliance teams. It runs entirely on this machine: the page talks only to the local LedgerSpy service started with <code>ledgerspy serve</code>, which stores evidence, runs every analysis and returns the results this page displays.</p>
@@ -48,7 +48,7 @@
 
 <!-- 1. NAVBAR -->
 <nav id="navbar">
-  <div class="nav-logo" onclick="window.scrollTo({top:0,behavior:'smooth'})">
+  <div class="nav-logo" data-action="scroll-top">
     <div class="nav-logo-icon">
       <!-- Professional LedgerSpy Logo SVG -->
       <svg width="44" height="44" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -71,10 +71,10 @@
     <li><a href="#analysis">Analysis</a></li>
     <li><a href="#transactions">Transactions</a></li>
     <li><a href="#insights">Insights</a></li>
-    <li><a href="#" onclick="document.getElementById('about-overlay').classList.add('show');return false;">About</a></li>
+    <li><a href="#" data-action="about-open">About</a></li>
   </ul>
   <!-- AI Mascot / ChatBot trigger -->
-  <div class="ai-mascot" id="ai-mascot" onclick="toggleChatbot()" title="Assistant">
+  <div class="ai-mascot" id="ai-mascot" data-action="chat-toggle" title="Assistant">
     <div class="mascot-pulse"></div>
     <div class="mascot-ring"></div>
     <svg viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -108,27 +108,27 @@
     </div>
 
     <!-- Dataset picker (datasets already imported into this workspace) -->
-    <div class="ls-picker" id="dataset-picker" style="display:none">
+    <div class="ls-picker" id="dataset-picker" data-style="display:none">
       <label for="dataset-select" class="filter-label">Dataset</label>
       <select class="col-filter-select" id="dataset-select"></select>
-      <button class="btn btn-primary" id="run-btn" type="button" style="padding:14px 30px;font-size:0.85rem">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:8px"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M15 3v18M3 9h18M3 15h18"/></svg>
+      <button class="btn btn-primary" id="run-btn" type="button" data-style="padding:14px 30px;font-size:0.85rem">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" data-style="margin-right:8px"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M15 3v18M3 9h18M3 15h18"/></svg>
         Analyse dataset
       </button>
     </div>
 
     <!-- Upload: the file goes to the local service (evidence store), never processed in the browser -->
-    <div class="upload-zone" id="upload-zone" style="display:none">
-      <div style="font-size:24px; margin-bottom:12px">📂</div>
-      <div style="font-family:var(--mono); font-size:0.85rem; color:var(--txt2)">
-        Import a <strong style="color:var(--amber)">.csv / .xlsx</strong> ledger<br>
-        <span style="font-size:0.7rem; color:var(--txt3)">Sent to the local LedgerSpy service on this machine · stored as immutable evidence</span>
+    <div class="upload-zone" id="upload-zone" data-style="display:none">
+      <div data-style="font-size:24px; margin-bottom:12px">📂</div>
+      <div data-style="font-family:var(--mono); font-size:0.85rem; color:var(--txt2)">
+        Import a <strong data-style="color:var(--amber)">.csv / .xlsx</strong> ledger<br>
+        <span data-style="font-size:0.7rem; color:var(--txt3)">Sent to the local LedgerSpy service on this machine · stored as immutable evidence</span>
       </div>
-      <input type="file" id="file-input" style="display:none" accept=".csv,.txt,.xlsx,text/csv">
+      <input type="file" id="file-input" data-style="display:none" accept=".csv,.txt,.xlsx,text/csv">
     </div>
 
     <!-- Mapping confirmation (proposed by the backend; the analyst confirms) -->
-    <div class="t-card" id="mapping-card" style="display:none;margin-top:18px">
+    <div class="t-card" id="mapping-card" data-style="display:none;margin-top:18px">
       <h3>Confirm column mapping <span id="mapping-file"></span></h3>
       <div id="mapping-body"></div>
     </div>
@@ -141,7 +141,7 @@
       <div class="fp-scan-status" id="fp-status">Standby</div>
     </div>
 
-    <div class="heuristic-notice" id="risk-notice" style="display:none">
+    <div class="heuristic-notice" id="risk-notice" data-style="display:none">
       <strong id="risk-notice-title">Review priority, not probability</strong> — <span id="risk-notice-text"></span>
     </div>
 
@@ -173,17 +173,17 @@
           </svg>
           <div class="fg-text">
             <div class="fg-score"><span id="fg-n">—</span></div>
-            <div style="font-size:0.55rem;color:var(--txt2);text-transform:uppercase;letter-spacing:0.1em;margin-top:4px" id="fg-label">High+ / budget</div>
+            <div data-style="font-size:0.55rem;color:var(--txt2);text-transform:uppercase;letter-spacing:0.1em;margin-top:4px" id="fg-label">High+ / budget</div>
           </div>
         </div>
 
-        <div style="flex:1">
-          <div style="font-size:1.1rem;font-weight:600;margin-bottom:8px">Result</div>
-          <div style="font-size:0.85rem;color:var(--txt2);line-height:1.6;margin-bottom:12px" id="hero-findings">
+        <div data-style="flex:1">
+          <div data-style="font-size:1.1rem;font-weight:600;margin-bottom:8px">Result</div>
+          <div data-style="font-size:0.85rem;color:var(--txt2);line-height:1.6;margin-bottom:12px" id="hero-findings">
             No analysis yet. Choose or import a dataset and run the analysis.
           </div>
-          <div style="height:2px;background:var(--border);width:100%;position:relative" title="Share of scored rows in the medium tier or above">
-            <div style="position:absolute;left:0;top:0;height:100%;background:var(--red);width:0%;animation:slide 1.5s ease" id="mini-loader"></div>
+          <div data-style="height:2px;background:var(--border);width:100%;position:relative" title="Share of scored rows in the medium tier or above">
+            <div data-style="position:absolute;left:0;top:0;height:100%;background:var(--red);width:0%;animation:slide 1.5s ease" id="mini-loader"></div>
           </div>
         </div>
       </div>
@@ -199,16 +199,16 @@
   <div id="ae-lock">
     <!-- Tabs Nav -->
     <div class="tab-list">
-      <button class="tab-btn active" onclick="switchTab('tab-ov', this)">Overview</button>
-      <button class="tab-btn" onclick="switchTab('tab-di', this)">Data Integrity</button>
-      <button class="tab-btn" onclick="switchTab('tab-fi', this)">Findings</button>
-      <button class="tab-btn" onclick="switchTab('tab-bsr', this)">Bank Recon</button>
-      <button class="tab-btn" onclick="switchTab('tab-tr', this)">Trends</button>
-      <button class="tab-btn" onclick="switchTab('tab-an', this)">Anomalies</button>
-      <button class="tab-btn" onclick="switchTab('tab-re', this)">Relationships</button>
-      <button class="tab-btn" onclick="switchTab('tab-ex', this)">Explainability</button>
-      <button class="tab-btn" onclick="switchTab('tab-iv', this)">Investigations</button>
-      <button class="tab-btn" onclick="switchTab('tab-rep', this)">Reports</button>
+      <button class="tab-btn active" data-tab="tab-ov">Overview</button>
+      <button class="tab-btn" data-tab="tab-di">Data Integrity</button>
+      <button class="tab-btn" data-tab="tab-fi">Findings</button>
+      <button class="tab-btn" data-tab="tab-bsr">Bank Recon</button>
+      <button class="tab-btn" data-tab="tab-tr">Trends</button>
+      <button class="tab-btn" data-tab="tab-an">Anomalies</button>
+      <button class="tab-btn" data-tab="tab-re">Relationships</button>
+      <button class="tab-btn" data-tab="tab-ex">Explainability</button>
+      <button class="tab-btn" data-tab="tab-iv">Investigations</button>
+      <button class="tab-btn" data-tab="tab-rep">Reports</button>
     </div>
 
     <!-- TAB: DATA INTEGRITY (P4, backend) -->
@@ -218,7 +218,7 @@
          <div id="di-summary"><div class="na-inline">Run the analysis to show the readiness of the analysed dataset.</div></div>
        </div>
        <!-- P4: integrity report computed by the ledgerspy backend. Filled by js/integrity-panel.js from API data only. -->
-       <div class="t-card" id="di-backend" style="margin-top:24px">
+       <div class="t-card" id="di-backend" data-style="margin-top:24px">
          <h3>Backend Integrity Report <span>P4 · computed by ledgerspy</span></h3>
          <div id="di-backend-body"><div class="na-inline">Loading backend report…</div></div>
        </div>
@@ -230,11 +230,11 @@
         <h3>Detectors <span>status, coverage and signals</span></h3>
         <div id="fi-detectors"><div class="na-inline">Run the analysis to list the detectors.</div></div>
       </div>
-      <div class="t-card" style="margin-top:24px">
+      <div class="t-card" data-style="margin-top:24px">
         <h3>Dataset-level findings <span>counterparty and subgroup evidence</span></h3>
         <div id="fi-dataset"><div class="na-inline">Run the analysis to list findings.</div></div>
       </div>
-      <div class="t-card" style="margin-top:24px">
+      <div class="t-card" data-style="margin-top:24px">
         <h3>Benford analysis <span>investigative lead, never proof</span></h3>
         <div id="fi-benford"><div class="na-inline">Run the analysis to show the Benford tests.</div></div>
       </div>
@@ -242,25 +242,25 @@
 
     <!-- TAB: BANK RECONCILIATION (P14, backend). Filled by js/recon-ui.js from /api/reconciliation only. -->
     <div class="tab-content" id="tab-bsr">
-       <div class="t-card" id="bsr-app" style="margin-bottom:24px">
+       <div class="t-card" id="bsr-app" data-style="margin-bottom:24px">
          <h3>Bank Statement Reconciliation <span>P14 · ledger vs statement, computed by ledgerspy</span></h3>
          <div id="bsr-pickers"><div class="na-inline">Loading datasets…</div></div>
          <div class="ls-muted" id="bsr-msg" role="status"></div>
          <div id="bsr-setup"></div>
-         <div class="t-card" id="bsr-p14b" style="margin-top:12px">
+         <div class="t-card" id="bsr-p14b" data-style="margin-top:12px">
            <strong>PDF statements (P14b):</strong> text PDFs are read locally; scanned pages need the local OCR engine. Every extracted row keeps its page, position and source text, and uncertain rows must be reviewed before the statement is confirmed.
            <div class="ls-muted" id="bsr-pdf-status">Checking the local OCR engine…</div>
          </div>
        </div>
-       <div class="t-card" style="margin-bottom:24px">
+       <div class="t-card" data-style="margin-bottom:24px">
          <h3>Reconciliation summary <span>counts and amounts per currency from the backend</span></h3>
          <div id="bsr-summary"><div class="na-inline">No reconciliation run yet. Choose a ledger and a bank statement, confirm the scope and run it.</div></div>
        </div>
-       <div class="t-card" id="bsr-results-card" hidden style="margin-bottom:24px">
+       <div class="t-card" id="bsr-results-card" hidden data-style="margin-bottom:24px">
          <h3>Results <span>every ledger row and bank line appears exactly once</span></h3>
          <div id="bsr-filters"></div>
          <div id="bsr-results"></div>
-         <div id="bsr-detail" style="margin-top:12px"></div>
+         <div id="bsr-detail" data-style="margin-top:12px"></div>
        </div>
        <div class="t-card">
          <h3>Balances, duplicates and findings <span>separate evidence family; P9 scores unchanged</span></h3>
@@ -271,117 +271,117 @@
     <!-- TAB A: OVERVIEW -->
     <div class="tab-content active" id="tab-ov">
       <div class="t-grid-2">
-        <div class="t-card" style="text-align:center">
+        <div class="t-card" data-style="text-align:center">
           <h3>Risk Distribution <span id="ov-total">No analysis yet</span></h3>
-          <svg width="220" height="220" viewBox="0 0 220 220" style="display:block;margin:0 auto">
+          <svg width="220" height="220" viewBox="0 0 220 220" data-style="display:block;margin:0 auto">
             <circle cx="110" cy="110" r="80" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="28"/>
             <!-- Segments are sized from the API tier counts (order: critical → high → medium → low → not assessed) -->
-            <circle id="donut-critical" cx="110" cy="110" r="80" fill="none" stroke="#ef4444" stroke-width="28" stroke-dasharray="0 503" style="transform:rotate(-90deg);transform-origin:110px 110px"/>
-            <circle id="donut-high" cx="110" cy="110" r="80" fill="none" stroke="#f87171" stroke-width="28" stroke-dasharray="0 503" style="transform:rotate(-90deg);transform-origin:110px 110px"/>
-            <circle id="donut-medium" cx="110" cy="110" r="80" fill="none" stroke="#f59e0b" stroke-width="28" stroke-dasharray="0 503" style="transform:rotate(-90deg);transform-origin:110px 110px"/>
-            <circle id="donut-low" cx="110" cy="110" r="80" fill="none" stroke="#34d399" stroke-width="28" stroke-dasharray="0 503" style="transform:rotate(-90deg);transform-origin:110px 110px"/>
-            <circle id="donut-insufficient" cx="110" cy="110" r="80" fill="none" stroke="#64748b" stroke-width="28" stroke-dasharray="0 503" style="transform:rotate(-90deg);transform-origin:110px 110px"/>
+            <circle id="donut-critical" cx="110" cy="110" r="80" fill="none" stroke="#ef4444" stroke-width="28" stroke-dasharray="0 503" data-style="transform:rotate(-90deg);transform-origin:110px 110px"/>
+            <circle id="donut-high" cx="110" cy="110" r="80" fill="none" stroke="#f87171" stroke-width="28" stroke-dasharray="0 503" data-style="transform:rotate(-90deg);transform-origin:110px 110px"/>
+            <circle id="donut-medium" cx="110" cy="110" r="80" fill="none" stroke="#f59e0b" stroke-width="28" stroke-dasharray="0 503" data-style="transform:rotate(-90deg);transform-origin:110px 110px"/>
+            <circle id="donut-low" cx="110" cy="110" r="80" fill="none" stroke="#34d399" stroke-width="28" stroke-dasharray="0 503" data-style="transform:rotate(-90deg);transform-origin:110px 110px"/>
+            <circle id="donut-insufficient" cx="110" cy="110" r="80" fill="none" stroke="#64748b" stroke-width="28" stroke-dasharray="0 503" data-style="transform:rotate(-90deg);transform-origin:110px 110px"/>
             <circle cx="110" cy="110" r="64" fill="#0d1427"/>
             <text id="donut-total" x="110" y="104" font-family="DM Mono, monospace" font-size="22" fill="#e2e8f0" text-anchor="middle" font-weight="bold">—</text>
             <text x="110" y="122" font-family="DM Mono, monospace" font-size="10" fill="#94a3b8" text-anchor="middle">TRANSACTIONS</text>
           </svg>
-          <div style="display:flex;justify-content:center;flex-wrap:wrap;gap:14px;margin-top:20px;font-size:0.78rem;font-family:var(--mono)">
-            <span style="color:#ef4444" id="leg-critical">&#9632; Critical —</span>
-            <span style="color:var(--red)" id="leg-high">&#9632; High —</span>
-            <span style="color:var(--amber)" id="leg-medium">&#9632; Medium —</span>
-            <span style="color:var(--green)" id="leg-low">&#9632; Low —</span>
-            <span style="color:var(--txt3)" id="leg-insufficient">&#9632; Not assessed —</span>
+          <div data-style="display:flex;justify-content:center;flex-wrap:wrap;gap:14px;margin-top:20px;font-size:0.78rem;font-family:var(--mono)">
+            <span data-style="color:#ef4444" id="leg-critical">&#9632; Critical —</span>
+            <span data-style="color:var(--red)" id="leg-high">&#9632; High —</span>
+            <span data-style="color:var(--amber)" id="leg-medium">&#9632; Medium —</span>
+            <span data-style="color:var(--green)" id="leg-low">&#9632; Low —</span>
+            <span data-style="color:var(--txt3)" id="leg-insufficient">&#9632; Not assessed —</span>
           </div>
 
-          <div style="margin-top:24px;display:grid;grid-template-columns:1fr 1fr;gap:12px;text-align:left">
-            <div style="background:var(--bg3);border-radius:10px;padding:14px">
-              <div style="font-family:var(--mono);font-size:0.65rem;color:var(--txt3);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px">Avg High/Critical Amount</div>
-              <div style="font-size:1.1rem;font-weight:700;color:var(--red)" id="qs-avg-high">—</div>
+          <div data-style="margin-top:24px;display:grid;grid-template-columns:1fr 1fr;gap:12px;text-align:left">
+            <div data-style="background:var(--bg3);border-radius:10px;padding:14px">
+              <div data-style="font-family:var(--mono);font-size:0.65rem;color:var(--txt3);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px">Avg High/Critical Amount</div>
+              <div data-style="font-size:1.1rem;font-weight:700;color:var(--red)" id="qs-avg-high">—</div>
             </div>
-            <div style="background:var(--bg3);border-radius:10px;padding:14px">
-              <div style="font-family:var(--mono);font-size:0.65rem;color:var(--txt3);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px">Amount in Medium+ Rows</div>
-              <div style="font-size:1.1rem;font-weight:700;color:var(--amber)" id="qs-high-amt">—</div>
+            <div data-style="background:var(--bg3);border-radius:10px;padding:14px">
+              <div data-style="font-family:var(--mono);font-size:0.65rem;color:var(--txt3);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px">Amount in Medium+ Rows</div>
+              <div data-style="font-size:1.1rem;font-weight:700;color:var(--amber)" id="qs-high-amt">—</div>
             </div>
-            <div style="background:var(--bg3);border-radius:10px;padding:14px" title="High + critical share of scored rows, against the configured review budget. Not a precision/accuracy measure.">
-              <div style="font-family:var(--mono);font-size:0.65rem;color:var(--txt3);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px">High+ Share / Budget</div>
-              <div style="font-size:1.1rem;font-weight:700;color:var(--cyan)" id="qs-flag-rate">—</div>
+            <div data-style="background:var(--bg3);border-radius:10px;padding:14px" title="High + critical share of scored rows, against the configured review budget. Not a precision/accuracy measure.">
+              <div data-style="font-family:var(--mono);font-size:0.65rem;color:var(--txt3);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px">High+ Share / Budget</div>
+              <div data-style="font-size:1.1rem;font-weight:700;color:var(--cyan)" id="qs-flag-rate">—</div>
             </div>
-            <div style="background:var(--bg3);border-radius:10px;padding:14px">
-              <div style="font-family:var(--mono);font-size:0.65rem;color:var(--txt3);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px">Counterparties with High+ Rows</div>
-              <div style="font-size:1.1rem;font-weight:700;color:var(--txt)" id="qs-payees">—</div>
+            <div data-style="background:var(--bg3);border-radius:10px;padding:14px">
+              <div data-style="font-family:var(--mono);font-size:0.65rem;color:var(--txt3);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px">Counterparties with High+ Rows</div>
+              <div data-style="font-size:1.1rem;font-weight:700;color:var(--txt)" id="qs-payees">—</div>
             </div>
           </div>
         </div>
 
-        <div class="t-card" style="display:flex;flex-direction:column;gap:24px">
+        <div class="t-card" data-style="display:flex;flex-direction:column;gap:24px">
           <div class="t-card exposure-card">
-            <div style="font-family:var(--mono);font-size:0.75rem;color:var(--txt3);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:12px">Amount in High / Critical Rows</div>
-            <div style="font-size:3rem;font-weight:800;color:var(--amber);line-height:1;margin-bottom:12px;text-shadow:0 0 20px rgba(245,158,11,0.2)" id="exp-val">—</div>
-            <div style="font-size:0.85rem;color:var(--txt2);margin-bottom:24px" id="exp-desc">Run the analysis to compute.</div>
+            <div data-style="font-family:var(--mono);font-size:0.75rem;color:var(--txt3);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:12px">Amount in High / Critical Rows</div>
+            <div data-style="font-size:3rem;font-weight:800;color:var(--amber);line-height:1;margin-bottom:12px;text-shadow:0 0 20px rgba(245,158,11,0.2)" id="exp-val">—</div>
+            <div data-style="font-size:0.85rem;color:var(--txt2);margin-bottom:24px" id="exp-desc">Run the analysis to compute.</div>
           </div>
-          <div style="height:1px;background:var(--border);"></div>
+          <div data-style="height:1px;background:var(--border);"></div>
           <div>
-            <div style="font-family:var(--mono);font-size:0.72rem;color:var(--txt3);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:14px">Score Distribution <span style="text-transform:none">(scored rows per 10-point band)</span></div>
+            <div data-style="font-family:var(--mono);font-size:0.72rem;color:var(--txt3);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:14px">Score Distribution <span data-style="text-transform:none">(scored rows per 10-point band)</span></div>
             <div id="ov-histogram"><div class="na-inline">Run the analysis to compute.</div></div>
           </div>
-          <div style="height:1px;background:var(--border);"></div>
-          <div style="padding-top:8px">
-            <div style="font-family:var(--mono);font-size:0.72rem;color:var(--cyan);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:14px;display:flex;align-items:center;gap:6px">
+          <div data-style="height:1px;background:var(--border);"></div>
+          <div data-style="padding-top:8px">
+            <div data-style="font-family:var(--mono);font-size:0.72rem;color:var(--cyan);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:14px;display:flex;align-items:center;gap:6px">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
               Industry Benchmark
             </div>
             <div class="na-card"><strong>Not available.</strong> Comparing this ledger with a sector rate needs a genuine, definition-matched benchmark source, which LedgerSpy does not have. No comparison is shown rather than an invented one (roadmap P19, data-dependent).</div>
           </div>
-          <div style="height:1px;background:var(--border);"></div>
-          <button class="btn btn-secondary" style="align-self:flex-start" onclick="document.getElementById('insights').scrollIntoView({behavior:'smooth'})">Jump to Findings Summary &darr;</button>
+          <div data-style="height:1px;background:var(--border);"></div>
+          <button class="btn btn-secondary" data-style="align-self:flex-start" data-action="scroll-insights">Jump to Findings Summary &darr;</button>
         </div>
       </div>
     </div>
 
     <!-- TAB B: TRENDS -->
     <div class="tab-content" id="tab-tr">
-      <div class="t-card" style="margin-bottom:24px">
+      <div class="t-card" data-style="margin-bottom:24px">
         <h3>Transactions per Month by Tier <span>posting date</span></h3>
-        <div style="display:flex;gap:16px;margin-bottom:14px">
-          <span style="font-family:var(--mono);font-size:0.72rem;display:flex;align-items:center;gap:6px"><span style="width:12px;height:3px;background:var(--cyan);opacity:0.65;display:inline-block;border-radius:2px"></span>Low</span>
-          <span style="font-family:var(--mono);font-size:0.72rem;display:flex;align-items:center;gap:6px"><span style="width:12px;height:3px;background:var(--amber);display:inline-block;border-radius:2px"></span>Medium</span>
-          <span style="font-family:var(--mono);font-size:0.72rem;display:flex;align-items:center;gap:6px"><span style="width:12px;height:3px;background:var(--red);display:inline-block;border-radius:2px"></span>High + critical</span>
+        <div data-style="display:flex;gap:16px;margin-bottom:14px">
+          <span data-style="font-family:var(--mono);font-size:0.72rem;display:flex;align-items:center;gap:6px"><span data-style="width:12px;height:3px;background:var(--cyan);opacity:0.65;display:inline-block;border-radius:2px"></span>Low</span>
+          <span data-style="font-family:var(--mono);font-size:0.72rem;display:flex;align-items:center;gap:6px"><span data-style="width:12px;height:3px;background:var(--amber);display:inline-block;border-radius:2px"></span>Medium</span>
+          <span data-style="font-family:var(--mono);font-size:0.72rem;display:flex;align-items:center;gap:6px"><span data-style="width:12px;height:3px;background:var(--red);display:inline-block;border-radius:2px"></span>High + critical</span>
         </div>
-        <div id="trends-monthly-bars" style="height:260px;padding:24px 16px 40px;display:flex;align-items:flex-end;gap:5px;background:var(--bg0);border-radius:8px;border:1px solid var(--border);overflow:visible;position:relative">
-          <div style="width:100%;text-align:center;color:var(--txt3);font-size:0.8rem;margin-bottom:100px;">Run the analysis to compute monthly volumes.</div>
+        <div id="trends-monthly-bars" data-style="height:260px;padding:24px 16px 40px;display:flex;align-items:flex-end;gap:5px;background:var(--bg0);border-radius:8px;border:1px solid var(--border);overflow:visible;position:relative">
+          <div data-style="width:100%;text-align:center;color:var(--txt3);font-size:0.8rem;margin-bottom:100px;">Run the analysis to compute monthly volumes.</div>
         </div>
-        <p id="trends-monthly-alert" style="margin-top:14px;font-size:0.84rem;color:var(--txt2);line-height:1.6">Monthly series need real calendar dates; simulation steps are not grouped into months.</p>
+        <p id="trends-monthly-alert" data-style="margin-top:14px;font-size:0.84rem;color:var(--txt2);line-height:1.6">Monthly series need real calendar dates; simulation steps are not grouped into months.</p>
       </div>
       <div class="t-grid-2">
         <div class="t-card">
           <h3>Benford's Law &mdash; First Digit <span>P7 test</span></h3>
           <div class="graph-wrap">
-          <div style="font-size:0.78rem;color:var(--txt3);margin-bottom:14px">Expected (Benford) vs observed first-digit frequency of this dataset's amounts, from the backend Benford test.</div>
-          <div id="benford-bars" style="display:flex;align-items:flex-end;gap:5px;height:150px">
-            <div class="na-inline" style="align-self:center;width:100%">Run the analysis to show the digit distribution.</div>
+          <div data-style="font-size:0.78rem;color:var(--txt3);margin-bottom:14px">Expected (Benford) vs observed first-digit frequency of this dataset's amounts, from the backend Benford test.</div>
+          <div id="benford-bars" data-style="display:flex;align-items:flex-end;gap:5px;height:150px">
+            <div class="na-inline" data-style="align-self:center;width:100%">Run the analysis to show the digit distribution.</div>
           </div>
-          <div style="display:flex;gap:12px;margin-top:10px">
-            <span style="font-family:var(--mono);font-size:0.68rem;display:flex;align-items:center;gap:5px"><span style="width:10px;height:8px;background:var(--cyan);opacity:0.25;display:inline-block;border-radius:1px"></span>Benford Expected</span>
-            <span style="font-family:var(--mono);font-size:0.68rem;display:flex;align-items:center;gap:5px"><span style="width:10px;height:8px;background:var(--cyan);display:inline-block;border-radius:1px"></span>Observed</span>
-            <span style="font-family:var(--mono);font-size:0.68rem;display:flex;align-items:center;gap:5px"><span style="width:10px;height:8px;background:var(--red);display:inline-block;border-radius:1px"></span>Significantly over-represented (backend z-test)</span>
+          <div data-style="display:flex;gap:12px;margin-top:10px">
+            <span data-style="font-family:var(--mono);font-size:0.68rem;display:flex;align-items:center;gap:5px"><span data-style="width:10px;height:8px;background:var(--cyan);opacity:0.25;display:inline-block;border-radius:1px"></span>Benford Expected</span>
+            <span data-style="font-family:var(--mono);font-size:0.68rem;display:flex;align-items:center;gap:5px"><span data-style="width:10px;height:8px;background:var(--cyan);display:inline-block;border-radius:1px"></span>Observed</span>
+            <span data-style="font-family:var(--mono);font-size:0.68rem;display:flex;align-items:center;gap:5px"><span data-style="width:10px;height:8px;background:var(--red);display:inline-block;border-radius:1px"></span>Significantly over-represented (backend z-test)</span>
           </div>
-          <p id="benford-note" style="margin-top:12px;font-size:0.82rem;color:var(--txt2);line-height:1.6">No analysis yet.</p>
+          <p id="benford-note" data-style="margin-top:12px;font-size:0.82rem;color:var(--txt2);line-height:1.6">No analysis yet.</p>
           </div>
         </div>
 
         <div class="t-card">
           <h3>Top Counterparties by Exposure <span>medium-or-higher rows</span></h3>
-          <div id="trends-top-vendors" style="display:flex;flex-direction:column;gap:14px">
-            <div style="color:var(--txt3);font-size:0.85rem">Run the analysis to list counterparties.</div>
+          <div id="trends-top-vendors" data-style="display:flex;flex-direction:column;gap:14px">
+            <div data-style="color:var(--txt3);font-size:0.85rem">Run the analysis to list counterparties.</div>
           </div>
-          <div style="margin-top:18px;padding:14px;background:var(--bg3);border-radius:10px;border-left:3px solid var(--amber)">
-            <div style="font-family:var(--mono);font-size:0.68rem;color:var(--amber);margin-bottom:4px">AMOUNT IN MEDIUM+ ROWS</div>
-            <div id="trends-total-exposure" style="font-size:1.5rem;font-weight:700;color:var(--txt)">&mdash;</div>
-            <div id="trends-exposure-desc" style="font-size:0.75rem;color:var(--txt3);margin-top:2px">Run the analysis to compute.</div>
+          <div data-style="margin-top:18px;padding:14px;background:var(--bg3);border-radius:10px;border-left:3px solid var(--amber)">
+            <div data-style="font-family:var(--mono);font-size:0.68rem;color:var(--amber);margin-bottom:4px">AMOUNT IN MEDIUM+ ROWS</div>
+            <div id="trends-total-exposure" data-style="font-size:1.5rem;font-weight:700;color:var(--txt)">&mdash;</div>
+            <div id="trends-exposure-desc" data-style="font-size:0.75rem;color:var(--txt3);margin-top:2px">Run the analysis to compute.</div>
           </div>
         </div>
 
-        <div class="t-card" style="grid-column:1/-1;margin-top:24px">
+        <div class="t-card" data-style="grid-column:1/-1;margin-top:24px">
           <h3>Monte Carlo Going Concern Stress Test <span>Cash-Flow Simulation</span></h3>
           <div class="na-card"><strong>Not available yet.</strong> A going-concern simulation needs the company's cash-flow history (at least ~24 months of inflows/outflows and an opening cash balance), which a transaction ledger alone does not provide. When supplied (roadmap P18), LedgerSpy will run thousands of simulated 12-month futures and show the survival probability with percentile bands. No projection is shown until then.</div>
         </div>
@@ -392,22 +392,22 @@
     <div class="tab-content" id="tab-an">
       <div class="t-card">
         <h3>Review-Risk Score vs Amount <span>click a point for its explanation</span></h3>
-        <div style="position:relative;width:100%;background:#03050a;border-radius:8px;border:1px solid var(--border);overflow:hidden;" id="scatter-box">
-          <svg id="scatter-svg" viewBox="0 0 800 350" width="100%" preserveAspectRatio="xMidYMid meet" style="display:block;">
+        <div data-style="position:relative;width:100%;background:#03050a;border-radius:8px;border:1px solid var(--border);overflow:hidden;" id="scatter-box">
+          <svg id="scatter-svg" viewBox="0 0 800 350" width="100%" preserveAspectRatio="xMidYMid meet" data-style="display:block;">
             <text x="10" y="20" fill="#475569" font-family="DM Mono, monospace" font-size="10">AMOUNT ↑ (log scale)</text>
             <text x="620" y="345" fill="#475569" font-family="DM Mono, monospace" font-size="10">REVIEW-RISK SCORE 0 → 100</text>
             <line x1="40" y1="10" x2="40" y2="330" stroke="rgba(255,255,255,0.05)" stroke-width="1"/>
             <line x1="40" y1="330" x2="790" y2="330" stroke="rgba(255,255,255,0.05)" stroke-width="1"/>
           </svg>
         </div>
-        <p id="scatter-note" style="margin-top:12px;font-size:0.8rem;color:var(--txt3)">Run the analysis to plot.</p>
+        <p id="scatter-note" data-style="margin-top:12px;font-size:0.8rem;color:var(--txt3)">Run the analysis to plot.</p>
         <div id="ano-tt" class="tooltip"></div>
-        <div class="anomaly-panel" style="display:none" id="ano-panel">
-          <div style="font-family:var(--mono);color:var(--red);font-size:0.75rem;margin-bottom:8px"><span id="ap-label">SELECTED: </span><span id="ap-id"></span></div>
+        <div class="anomaly-panel" data-style="display:none" id="ano-panel">
+          <div data-style="font-family:var(--mono);color:var(--red);font-size:0.75rem;margin-bottom:8px"><span id="ap-label">SELECTED: </span><span id="ap-id"></span></div>
           <div id="ap-body"></div>
         </div>
       </div>
-      <div class="t-card" style="margin-top:24px">
+      <div class="t-card" data-style="margin-top:24px">
         <h3>Anomaly Detectors <span>P8 · label-free</span></h3>
         <div id="an-detectors"><div class="na-inline">Run the analysis to list the anomaly detectors.</div></div>
       </div>
@@ -415,36 +415,36 @@
 
     <!-- TAB D: RELATIONSHIPS -->
     <div class="tab-content" id="tab-re">
-      <div class="na-card" id="re-graph-na" style="margin-bottom:24px">
+      <div class="na-card" id="re-graph-na" data-style="margin-bottom:24px">
         <strong>Entity graph not available yet.</strong> The relationship graph is built by the local LedgerSpy service from the analysed dataset's payments and P12 entity resolution. Run the analysis to load it; nothing is drawn before that.
       </div>
-      <div class="t-card" id="re-graph-card" style="margin-bottom:24px">
+      <div class="t-card" id="re-graph-card" data-style="margin-bottom:24px">
         <h3>Relationship Graph <span>evidence for review, not proof</span></h3>
         <div id="re-graph-controls" class="ls-muted"></div>
-        <div id="re-graph-summary" class="ls-muted" style="margin:8px 0"></div>
-        <div style="display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:16px">
+        <div id="re-graph-summary" class="ls-muted" data-style="margin:8px 0"></div>
+        <div data-style="display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:16px">
           <div id="re-graph-canvas"><div class="na-inline">Run the analysis to build the graph.</div></div>
           <div id="re-graph-detail"><div class="na-inline">Select a node, an edge or a cycle.</div></div>
         </div>
-        <div id="re-graph-cycles" style="margin-top:16px"></div>
-        <div id="re-graph-findings" style="margin-top:16px"></div>
+        <div id="re-graph-cycles" data-style="margin-top:16px"></div>
+        <div id="re-graph-findings" data-style="margin-top:16px"></div>
       </div>
-      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px">
-        <div style="background:var(--bg2);border:1px solid rgba(248,113,113,0.25);border-radius:12px;padding:16px">
-          <div style="font-family:var(--mono);font-size:0.6rem;color:var(--txt3);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px">Counterparties assessed</div>
-          <div style="font-size:2rem;font-weight:700;color:var(--txt)" id="rel-stat-total">—</div>
+      <div data-style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px">
+        <div data-style="background:var(--bg2);border:1px solid rgba(248,113,113,0.25);border-radius:12px;padding:16px">
+          <div data-style="font-family:var(--mono);font-size:0.6rem;color:var(--txt3);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px">Counterparties assessed</div>
+          <div data-style="font-size:2rem;font-weight:700;color:var(--txt)" id="rel-stat-total">—</div>
         </div>
-        <div style="background:var(--bg2);border:1px solid rgba(245,158,11,0.25);border-radius:12px;padding:16px">
-          <div style="font-family:var(--mono);font-size:0.6rem;color:var(--txt3);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px">Medium or higher</div>
-          <div style="font-size:2rem;font-weight:700;color:var(--amber)" id="rel-stat-medium">—</div>
+        <div data-style="background:var(--bg2);border:1px solid rgba(245,158,11,0.25);border-radius:12px;padding:16px">
+          <div data-style="font-family:var(--mono);font-size:0.6rem;color:var(--txt3);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px">Medium or higher</div>
+          <div data-style="font-size:2rem;font-weight:700;color:var(--amber)" id="rel-stat-medium">—</div>
         </div>
-        <div style="background:var(--bg2);border:1px solid rgba(248,113,113,0.25);border-radius:12px;padding:16px">
-          <div style="font-family:var(--mono);font-size:0.6rem;color:var(--txt3);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px">High or critical</div>
-          <div style="font-size:2rem;font-weight:700;color:var(--red)" id="rel-stat-high">—</div>
+        <div data-style="background:var(--bg2);border:1px solid rgba(248,113,113,0.25);border-radius:12px;padding:16px">
+          <div data-style="font-family:var(--mono);font-size:0.6rem;color:var(--txt3);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px">High or critical</div>
+          <div data-style="font-size:2rem;font-weight:700;color:var(--red)" id="rel-stat-high">—</div>
         </div>
-        <div style="background:var(--bg2);border:1px solid rgba(34,211,238,0.15);border-radius:12px;padding:16px">
-          <div style="font-family:var(--mono);font-size:0.6rem;color:var(--txt3);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px">With high+ transactions</div>
-          <div style="font-size:2rem;font-weight:700;color:var(--cyan)" id="rel-stat-withhigh">—</div>
+        <div data-style="background:var(--bg2);border:1px solid rgba(34,211,238,0.15);border-radius:12px;padding:16px">
+          <div data-style="font-family:var(--mono);font-size:0.6rem;color:var(--txt3);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px">With high+ transactions</div>
+          <div data-style="font-size:2rem;font-weight:700;color:var(--cyan)" id="rel-stat-withhigh">—</div>
         </div>
       </div>
       <div class="t-card">
@@ -455,10 +455,10 @@
 
     <!-- TAB: INVESTIGATIONS (P15, backend). Filled by js/investigations-ui.js from /api/investigations only. -->
     <div class="tab-content" id="tab-iv">
-       <div class="t-card" id="iv-app" style="margin-bottom:24px">
+       <div class="t-card" id="iv-app" data-style="margin-bottom:24px">
          <h3>Investigations <span>P15 · cases, evidence, analyst decisions</span></h3>
          <div class="ls-muted">Automated findings are indicators that require review, not proof of fraud. Analyst decisions are recorded assessments with a rationale; they never change an automated finding, a risk score or source data.</div>
-         <div id="iv-controls" style="margin-top:10px"></div>
+         <div id="iv-controls" data-style="margin-top:10px"></div>
          <div class="ls-muted" id="iv-msg" role="status"></div>
          <div id="iv-list"><div class="na-inline">Loading investigations…</div></div>
        </div>
@@ -469,13 +469,13 @@
 
     <!-- TAB: REPORTS (P16, backend). Filled by js/reports-ui.js from /api/reports only. -->
     <div class="tab-content" id="tab-rep">
-       <div class="t-card" id="rep-app" style="margin-bottom:24px">
+       <div class="t-card" id="rep-app" data-style="margin-bottom:24px">
          <h3>Audit Reports <span>P16 · case reports, reconciliation reports, draft memos, evidence manifests</span></h3>
          <div class="ls-muted">Reports are built from the stored records only. Automated findings are indicators that require review, not proof of fraud; analyst assessments and conclusions are reproduced as recorded. Every claim lists its records and evidence hashes; stale, changed or unconfirmed sources are flagged.</div>
-         <div id="rep-controls" style="margin-top:10px"><div class="na-inline">Loading…</div></div>
+         <div id="rep-controls" data-style="margin-top:10px"><div class="na-inline">Loading…</div></div>
          <div class="ls-muted" id="rep-msg" role="status"></div>
        </div>
-       <div class="t-card" style="margin-bottom:24px">
+       <div class="t-card" data-style="margin-bottom:24px">
          <div id="rep-preview-body"><div class="na-inline">Choose a report and press Preview.</div></div>
        </div>
        <div class="t-card">
@@ -486,11 +486,11 @@
 
     <!-- TAB E: EXPLAINABILITY -->
     <div class="tab-content" id="tab-ex">
-      <div class="t-card" style="max-width:920px;margin:0 auto">
+      <div class="t-card" data-style="max-width:920px;margin:0 auto">
         <h3>How the Score Is Built <span id="ex-risk-label">No analysis yet</span></h3>
-        <p style="font-size:0.85rem;color:var(--txt2);margin-bottom:24px" id="ex-desc">Run the analysis to see the scoring method and which evidence families lead the flagged rows. Contributions are an exact breakdown of the fused score (not SHAP).</p>
+        <p data-style="font-size:0.85rem;color:var(--txt2);margin-bottom:24px" id="ex-desc">Run the analysis to see the scoring method and which evidence families lead the flagged rows. Contributions are an exact breakdown of the fused score (not SHAP).</p>
         <div id="ex-bars"></div>
-        <div id="ex-method" style="margin-top:24px"></div>
+        <div id="ex-method" data-style="margin-top:24px"></div>
       </div>
     </div>
 
@@ -504,7 +504,7 @@
 
   <div class="lock-blur" id="tv-lock">
     <div class="t-controls">
-      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <div data-style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
         <span class="filter-label">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
             <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
@@ -528,12 +528,12 @@
       </select>
     </div>
 
-    <div class="search-row" style="margin-bottom:20px">
+    <div class="search-row" data-style="margin-bottom:20px">
       <div class="search-wrap">
         <span class="s-icon">🔍</span>
         <input type="text" class="search-box" id="search-in" placeholder="Search transaction ID, payer, payee or reference…" aria-label="Search transactions">
       </div>
-      <span id="search-count-pill" class="search-count-pill" style="display:none"></span>
+      <span id="search-count-pill" class="search-count-pill" data-style="display:none"></span>
     </div>
 
     <div class="tx-table-wrap">
@@ -552,7 +552,7 @@
         <tbody id="tx-body"></tbody>
       </table>
     </div>
-    <div class="di-toolbar" id="tx-pager" style="margin-top:14px"></div>
+    <div class="di-toolbar" id="tx-pager" data-style="margin-top:14px"></div>
   </div>
 </section>
 
@@ -567,7 +567,7 @@
       <div class="ch-name">LedgerSpy Assistant</div>
       <div class="ch-status">Rule-based · reads the backend analysis</div>
     </div>
-    <button class="chat-close" onclick="toggleChatbot()" title="Close">&times;</button>
+    <button class="chat-close" data-action="chat-toggle" title="Close">&times;</button>
   </div>
   <div class="chat-messages" id="chat-messages">
     <div class="chat-msg bot">
@@ -577,14 +577,14 @@
     </div>
   </div>
   <div class="chat-suggestions" id="chat-suggestions">
-    <button class="chat-sug" onclick="chatSuggest(this)">📊 Show summary</button>
-    <button class="chat-sug" onclick="chatSuggest(this)">⚠️ High risk transactions</button>
-    <button class="chat-sug" onclick="chatSuggest(this)">🔍 Explain risk score</button>
-    <button class="chat-sug" onclick="chatSuggest(this)">💡 Benford</button>
+    <button class="chat-sug" data-action="chat-suggest">📊 Show summary</button>
+    <button class="chat-sug" data-action="chat-suggest">⚠️ High risk transactions</button>
+    <button class="chat-sug" data-action="chat-suggest">🔍 Explain risk score</button>
+    <button class="chat-sug" data-action="chat-suggest">💡 Benford</button>
   </div>
   <div class="chat-input-area">
-    <input type="text" class="chat-input" id="chat-input" placeholder="Ask about the analysis, or 'why is <ID> flagged?'" onkeydown="if(event.key==='Enter')sendChat()">
-    <button class="chat-send" onclick="sendChat()" title="Send">▶</button>
+    <input type="text" class="chat-input" id="chat-input" placeholder="Ask about the analysis, or 'why is <ID> flagged?'" data-action-enter="chat-send">
+    <button class="chat-send" data-action="chat-send" title="Send">▶</button>
   </div>
 </div>
 
@@ -594,39 +594,39 @@
   <div class="h2">Findings <span>Summary</span></div>
 
   <div class="insights-grid lock-blur" id="rp-lock">
-    <div style="display:flex;flex-direction:column;gap:24px">
-      <div class="t-card" style="border-left:4px solid var(--amber)">
-        <div style="font-family:var(--mono);font-size:0.75rem;color:var(--txt3);margin-bottom:8px">AMOUNT IN HIGH / CRITICAL ROWS</div>
-        <div style="font-size:2rem;font-weight:700;color:var(--txt)" id="insights-total-fraud">—</div>
+    <div data-style="display:flex;flex-direction:column;gap:24px">
+      <div class="t-card" data-style="border-left:4px solid var(--amber)">
+        <div data-style="font-family:var(--mono);font-size:0.75rem;color:var(--txt3);margin-bottom:8px">AMOUNT IN HIGH / CRITICAL ROWS</div>
+        <div data-style="font-size:2rem;font-weight:700;color:var(--txt)" id="insights-total-fraud">—</div>
       </div>
       <div class="t-card">
-        <div style="font-family:var(--mono);font-size:0.75rem;color:var(--txt3);margin-bottom:8px">COUNTERPARTIES WITH HIGH+ ROWS</div>
-        <div style="font-size:1.5rem;font-weight:600;color:var(--txt)" id="insights-vendors">—</div>
+        <div data-style="font-family:var(--mono);font-size:0.75rem;color:var(--txt3);margin-bottom:8px">COUNTERPARTIES WITH HIGH+ ROWS</div>
+        <div data-style="font-size:1.5rem;font-weight:600;color:var(--txt)" id="insights-vendors">—</div>
       </div>
-      <div class="t-card" style="background:var(--red-dim);border:1px solid rgba(248,113,113,0.3)">
-        <div style="font-family:var(--mono);font-size:0.75rem;color:var(--red);margin-bottom:8px">LEADING EVIDENCE FAMILY (FLAGGED ROWS)</div>
-        <div style="font-size:1.1rem;font-weight:600;color:var(--txt)" id="insights-pattern">Pending analysis…</div>
+      <div class="t-card" data-style="background:var(--red-dim);border:1px solid rgba(248,113,113,0.3)">
+        <div data-style="font-family:var(--mono);font-size:0.75rem;color:var(--red);margin-bottom:8px">LEADING EVIDENCE FAMILY (FLAGGED ROWS)</div>
+        <div data-style="font-size:1.1rem;font-weight:600;color:var(--txt)" id="insights-pattern">Pending analysis…</div>
       </div>
     </div>
 
     <div class="report-panel">
       <div class="report-doc" id="print-doc">
         <h1>Findings Summary</h1>
-        <p style="text-align:center;font-family:var(--mono);font-size:0.7rem;margin-bottom:32px;color:var(--txt3)">RENDERED FROM THE BACKEND ANALYSIS</p>
+        <p data-style="text-align:center;font-family:var(--mono);font-size:0.7rem;margin-bottom:32px;color:var(--txt3)">RENDERED FROM THE BACKEND ANALYSIS</p>
         <p>No analysis yet. After an analysis this lists the review queue's top transactions, dataset-level findings, unavailable detectors and the volume-guard status — each as returned by the API. The evidence-backed draft audit memo and case reports are in the Reports tab.</p>
       </div>
-      <div style="display:flex;gap:12px">
-        <button class="btn btn-primary" style="flex:1" id="memo-copy-btn" disabled>⧉ Copy Summary Text</button>
-        <button class="btn btn-secondary" style="flex:1" disabled title="PDF export is not built (no PDF library is installed); the Reports tab exports HTML, Markdown and JSON">↓ PDF — not available (see Reports tab)</button>
+      <div data-style="display:flex;gap:12px">
+        <button class="btn btn-primary" data-style="flex:1" id="memo-copy-btn" disabled>⧉ Copy Summary Text</button>
+        <button class="btn btn-secondary" data-style="flex:1" disabled title="PDF export is not built (no PDF library is installed); the Reports tab exports HTML, Markdown and JSON">↓ PDF — not available (see Reports tab)</button>
       </div>
     </div>
   </div>
 </section>
 
 <!-- Footer -->
-<footer style="padding:40px 5%;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;background:var(--bg0);margin-top:60px">
-  <div style="font-family:var(--mono);font-size:0.85rem;color:var(--txt3);">Ledger<em>Spy</em> — Forensic Audit</div>
-  <div style="font-family:var(--mono);font-size:0.75rem;color:var(--txt3)">Analysed by the local LedgerSpy service · review-risk scores are priorities, not probabilities</div>
+<footer data-style="padding:40px 5%;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;background:var(--bg0);margin-top:60px">
+  <div data-style="font-family:var(--mono);font-size:0.85rem;color:var(--txt3);">Ledger<em>Spy</em> — Forensic Audit</div>
+  <div data-style="font-family:var(--mono);font-size:0.75rem;color:var(--txt3)">Analysed by the local LedgerSpy service · review-risk scores are priorities, not probabilities</div>
 </footer>
 
 <script src="js/shared.js"></script>

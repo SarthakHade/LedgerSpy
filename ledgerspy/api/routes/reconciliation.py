@@ -13,6 +13,7 @@ from typing import Annotated, Any, Literal
 from fastapi import APIRouter, Query, Request
 from fastapi import Path as PathParam
 
+from ledgerspy.api.limits import Page
 from ledgerspy.api.routes.cases import Db
 from ledgerspy.api.routes.datasets import _rejected
 from ledgerspy.errors import LedgerSpyError
@@ -27,7 +28,6 @@ ResultId = Annotated[str, PathParam(pattern=r"^RM-[0-9a-f]{16}$")]
 Status = Literal[engine.STATUSES]  # type: ignore[valid-type]
 Rule = Literal[findings.RULES]  # type: ignore[valid-type]
 Severity = Literal["low", "medium", "high"]
-Page = Annotated[int, Query(ge=1)]
 Size = Annotated[int, Query(ge=1, le=5000)]
 From = Annotated[date | None, Query(alias="from")]
 To = Annotated[date | None, Query(alias="to")]

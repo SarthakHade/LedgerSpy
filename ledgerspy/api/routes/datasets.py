@@ -12,6 +12,7 @@ from fastapi import Path as PathParam
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse
 
+from ledgerspy.api.limits import Page
 from ledgerspy.api.routes.cases import Db
 from ledgerspy.cases import evidence
 from ledgerspy.cases.db import connect
@@ -101,7 +102,7 @@ def confirm_mapping(dataset_id: DatasetId, mapping: Mapping, request: Request, d
 def list_transactions(
     dataset_id: DatasetId,
     db: Db,
-    page: Annotated[int, Query(ge=1)] = 1,
+    page: Page = 1,
     size: Annotated[int, Query(ge=1, le=500)] = 100,
     view: Annotated[Literal["normalized", "canonical"], Query()] = "normalized",
 ) -> Any:

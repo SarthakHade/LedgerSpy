@@ -11,6 +11,7 @@ from fastapi import APIRouter, Query, Request
 from fastapi import Path as PathParam
 from fastapi.responses import JSONResponse
 
+from ledgerspy.api.limits import Page
 from ledgerspy.api.routes.cases import Db
 from ledgerspy.api.routes.datasets import DatasetId, _rejected
 from ledgerspy.errors import LedgerSpyError
@@ -53,7 +54,7 @@ def risk_transactions(
     dataset_id: DatasetId,
     request: Request,
     db: Db,
-    page: Annotated[int, Query(ge=1)] = 1,
+    page: Page = 1,
     size: Annotated[int, Query(ge=1, le=500)] = 50,
     tier: Annotated[TierFilter | None, Query()] = None,
     q: Annotated[str | None, Query(min_length=1, max_length=100)] = None,
@@ -81,7 +82,7 @@ def risk_entities(
     dataset_id: DatasetId,
     request: Request,
     db: Db,
-    page: Annotated[int, Query(ge=1)] = 1,
+    page: Page = 1,
     size: Annotated[int, Query(ge=1, le=500)] = 50,
     tier: Annotated[Literal["low", "medium", "high", "critical"] | None, Query()] = None,
     q: Annotated[str | None, Query(min_length=1, max_length=100)] = None,

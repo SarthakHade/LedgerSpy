@@ -57,3 +57,26 @@ function switchTab(id, btn){
     setTimeout(()=>{ document.querySelectorAll('.fac-bar-fill').forEach(b=>{ if(b.dataset.w) b.style.width=b.dataset.w+'%'; }); }, 100);
   }
 }
+
+/* P20 strict CSP (script-src 'self'): no inline handlers. Page controls carry data-tab / data-action and are
+   dispatched here. */
+if(typeof document !== 'undefined' && document.addEventListener){
+  document.addEventListener('click', e => {
+    const t = e.target && e.target.closest ? e.target.closest('[data-tab],[data-action]') : null;
+    if(!t) return;
+    if(t.dataset.tab){ switchTab(t.dataset.tab, t); return; }
+    switch(t.dataset.action){
+      case 'about-open': e.preventDefault(); document.getElementById('about-overlay').classList.add('show'); break;
+      case 'about-close': document.getElementById('about-overlay').classList.remove('show'); break;
+      case 'scroll-top': window.scrollTo({ top: 0, behavior: 'smooth' }); break;
+      case 'scroll-insights': document.getElementById('insights').scrollIntoView({ behavior: 'smooth' }); break;
+      case 'chat-toggle': toggleChatbot(); break;
+      case 'chat-suggest': chatSuggest(t); break;
+      case 'chat-send': sendChat(); break;
+      default: break;
+    }
+  });
+  document.addEventListener('keydown', e => {
+    if(e.key === 'Enter' && e.target && e.target.dataset && e.target.dataset.actionEnter === 'chat-send') sendChat();
+  });
+}

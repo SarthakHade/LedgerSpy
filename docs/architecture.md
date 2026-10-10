@@ -616,7 +616,13 @@ raw names (+ attributes) → normalise → tokenise → aliases → block → sc
 - Every `/api/*` path except `/api/health` requires `Authorization: Bearer <token>`. The cookie and query string never authorise API calls (CSRF). Deny-by-default: new routes are protected automatically. `/docs` and `/redoc` are disabled (they load a CDN); `/api/openapi.json` needs the token.
 - `Host` must be `127.0.0.1:<port>` or `localhost:<port>`. `Origin`, when present, must be that origin. `Sec-Fetch-Site` must be `same-origin` or `none`.
 - Headers on every response: CSP, `nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, COOP/CORP `same-origin`, `Permissions-Policy`, `Cache-Control: no-store`. uvicorn runs with `proxy_headers=False`, no `Server` banner and no access log (the entry URL carries the token).
-- **CSP interim (until P20).** `script-src 'self' 'unsafe-hashes' <sha256 of each inline handler in index.html>`, computed at startup. There is no `'unsafe-inline'` for scripts, so injected markup cannot run script while the existing `onclick=` handlers keep working. `style-src` still allows `'unsafe-inline'` for the 161 inline `style=` attributes. P20 removes both.
+- **CSP (P20).** `script-src 'self'; style-src 'self'`, with no `'unsafe-inline'` and no hashes.
+  - The UI has no inline handlers: controls carry `data-action` / `data-tab` and one delegated listener
+    dispatches them.
+  - Static styles sit in `data-style` and are applied once through the CSSOM (allowed by CSP, same precedence).
+  - `create_app` refuses a page that contains an inline handler, style attribute, inline script or `<style>`.
+  - Request bodies are capped at 8 MiB (the streamed upload keeps its own limit) and `page` ≤ 10⁸.
+  - See [`p20-security-acceptance.md`](p20-security-acceptance.md).
 
 ## 14. Offline / air-gapped strategy (R1)
 

@@ -3,7 +3,7 @@ import re
 import pytest
 
 from ledgerspy.api.app import TOKEN_META
-from ledgerspy.api.security import SESSION_COOKIE, inline_handler_hashes
+from ledgerspy.api.security import SESSION_COOKIE, inline_handler_hashes, inline_markup
 from ledgerspy.cases import audit
 from ledgerspy.cases.db import SCHEMA_VERSION, connect
 from ledgerspy.paths import FRONTEND_DIR
@@ -186,10 +186,10 @@ def test_csp_is_strict_for_scripts(client):
     assert (
         csp["object-src"] == "'none'" and csp["frame-ancestors"] == "'none'" and csp["base-uri"] == "'none'"
     )
+    # P20: no inline handler, style attribute, inline script or <style> is left, so nothing inline is allowed
+    assert csp["script-src"] == "'self'" and csp["style-src"] == "'self'"
     page = (FRONTEND_DIR / "index.html").read_text(encoding="utf-8")
-    hashes = inline_handler_hashes(page)
-    assert len(hashes) >= 10  # the remaining inline onclick= handlers (tabs, chat, about), allowed one by one
-    assert all(h in csp["script-src"] for h in hashes)
+    assert inline_handler_hashes(page) == [] and inline_markup(page) == []
 
 
 def test_inline_handler_hash_is_computed_on_the_decoded_attribute():

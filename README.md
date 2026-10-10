@@ -166,6 +166,15 @@ This repository is being rebuilt from a hackathon prototype into a working syste
   - JSON, escaped HTML and Markdown artefacts, versioned and hash-checked. PDF / DOCX are not built.
 
   See [`docs/reporting.md`](docs/reporting.md) and [`docs/p16-acceptance.md`](docs/p16-acceptance.md).
+- **P20 security hardening:**
+  - Strict CSP (no inline script, handler or style).
+  - Bounded request bodies and pagination.
+  - Safe evidence file names.
+  - A trigger-integrity check and an external anchor for the audit log.
+  - Explicit errors for malformed XLSX archives.
+  - A written threat model, including what is *not* protected (a local administrator, memory caps).
+
+  See [`docs/p20-security-acceptance.md`](docs/p20-security-acceptance.md).
 - The original notebooks are in `archive/` for reference. Their evaluation had data leakage and must not be quoted.
 
 See [`docs/requirements.md`](docs/requirements.md) for the requirement-by-requirement status.
@@ -254,6 +263,7 @@ python tests/frontend/integrity_panel_check.py  # optional: P4 dashboard against
 | [`docs/p15-acceptance.md`](docs/p15-acceptance.md) | P15 acceptance: lifecycle, scope and security tests, correction invalidation, P9 isolation, pagination, UI |
 | [`docs/reporting.md`](docs/reporting.md) | P16 reporting: report types, claims and traceability, aggregation rules, memo, stale data, formats, storage, API, limitations |
 | [`docs/p16-acceptance.md`](docs/p16-acceptance.md) | P16 acceptance: traceability, totals, stale / unconfirmed data, memo cross-check, versioning, artefact safety, P9 isolation |
+| [`docs/p20-security-acceptance.md`](docs/p20-security-acceptance.md) | P20 threat model, controls, fixes, audit-trail guarantees and limits, remaining risks |
 | [`docs/synthetic-scenario-matrix.md`](docs/synthetic-scenario-matrix.md) | Feature → scenario → fields → records → detector phase |
 | [`docs/cleanup-log.md`](docs/cleanup-log.md) | What was moved, archived or deleted in the cleanup, and why |
 | [`docs/audits/phase-1-current-state-audit.md`](docs/audits/phase-1-current-state-audit.md) | Detailed audit of the prototype |

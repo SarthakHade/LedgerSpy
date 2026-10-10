@@ -6,6 +6,8 @@ Markdown control characters, so a hostile note or file name stays text in any vi
 function of the content and the artefact envelope.
 """
 
+import base64
+import hashlib
 import html
 import json
 import re
@@ -13,7 +15,6 @@ from typing import Any
 
 from ledgerspy.reports import model
 
-CSP = "default-src 'none'; style-src 'unsafe-inline'; img-src 'none'; base-uri 'none'; form-action 'none'"
 STYLE = """
 body{font-family:Georgia,'Times New Roman',serif;max-width:1000px;margin:24px auto;padding:0 16px;color:#111}
 h1{font-size:1.5rem}h2{font-size:1.2rem;border-bottom:1px solid #999;margin-top:28px}h3{font-size:1rem}
@@ -25,6 +26,13 @@ th,td{border:1px solid #bbb;padding:4px 6px;vertical-align:top;text-align:left}t
 .origin-automated{color:#1e3a8a}.origin-analyst{color:#065f46}.origin-computed{color:#444}
 .mono{font-family:monospace;font-size:.75rem;word-break:break-all}
 """
+
+# P20: only this stylesheet may apply (by hash); no script, network, images, forms or base URL.
+CSP = (
+    "default-src 'none'; style-src 'sha256-"
+    + base64.b64encode(hashlib.sha256(STYLE.encode("utf-8")).digest()).decode("ascii")
+    + "'; img-src 'none'; base-uri 'none'; form-action 'none'"
+)
 
 
 def h(value: Any) -> str:

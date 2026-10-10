@@ -5,6 +5,7 @@ from typing import Annotated, Any, Literal
 from fastapi import APIRouter, Query, Request
 from pydantic import BaseModel, ConfigDict, Field
 
+from ledgerspy.api.limits import Page
 from ledgerspy.api.routes.cases import Db
 from ledgerspy.api.routes.datasets import DatasetId, _rejected
 from ledgerspy.errors import LedgerSpyError
@@ -73,7 +74,7 @@ def integrity_issues(
     run_id: Annotated[str | None, Query(pattern=r"^Q-[0-9A-HJKMNP-TV-Z]{26}$")] = None,
     check: Annotated[str | None, Query(max_length=40)] = None,
     severity: Annotated[Literal["info", "warning", "error", "critical"] | None, Query()] = None,
-    page: Annotated[int, Query(ge=1)] = 1,
+    page: Page = 1,
     size: Annotated[int, Query(ge=1, le=500)] = 100,
 ) -> Any:
     try:

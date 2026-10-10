@@ -82,6 +82,7 @@ def ingest_upload(
                 "scanned statements come in P14b).",
                 {"supported": list(SUPPORTED_KINDS)},
             )
+        evidence.check_original_filename(filename)
         fmt = detect_format(staged.path, filename, allow_pdf=kind == "bank_statement")
         dataset_id = new_dataset_id()
         pdf_result = None

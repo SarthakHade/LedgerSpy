@@ -6,6 +6,8 @@
   The token is random per launch and is never accepted from a cookie for API calls, so a browser cannot
   attach it automatically to a forged request.
 * Security headers on every response, including errors.
+* P20: a strict CSP (`script-src 'self'`, `style-src 'self'`: no inline script, handler or style attribute is
+  allowed; the page refuses to be served if it contains one), and a bound on request bodies.
 """
 
 import base64
@@ -18,17 +20,24 @@ from starlette.datastructures import Headers, MutableHeaders
 from starlette.responses import JSONResponse
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
+from ledgerspy.api.limits import MAX_BODY_BYTES
+
 PUBLIC_API_PATHS = frozenset({"/api/health"})
 SESSION_COOKIE = "ledgerspy_session"
 
 _INLINE_HANDLER = re.compile(r"""\son[a-z]+\s*=\s*(?:"([^"]*)"|'([^']*)')""", re.IGNORECASE)
+_INLINE_STYLE = re.compile(r"""\sstyle\s*=""", re.IGNORECASE)
+_INLINE_SCRIPT = re.compile(r"<script(?![^>]*\ssrc=)[^>]*>", re.IGNORECASE)
+_STYLE_ELEMENT = re.compile(r"<style[\s>]", re.IGNORECASE)
+# The file upload streams to disk under its own limit (ingest.max_file_bytes); every other body is
+# bounded here.
+_STREAMED_UPLOAD = re.compile(r"^/api/cases/[^/]+/files$")
 
 
 def inline_handler_hashes(page: str) -> list[str]:
     """CSP hashes of the page's inline event-handler attributes (as the browser sees them, entity-decoded).
 
-    The existing UI still uses inline `onclick=` handlers (removal is P20). Allowing exactly these handlers
-    via 'unsafe-hashes' keeps `script-src` free of 'unsafe-inline', so injected markup cannot run script.
+    Kept for diagnostics and tests: P20 removed every handler from the UI and the CSP allows none.
     """
     hashes = set()
     for match in _INLINE_HANDLER.finditer(page):
@@ -38,14 +47,29 @@ def inline_handler_hashes(page: str) -> list[str]:
     return sorted(hashes)
 
 
-def build_csp(page: str) -> str:
-    script_src = " ".join(["'self'", "'unsafe-hashes'", *inline_handler_hashes(page)])
+def inline_markup(page: str) -> list[str]:
+    """What a strict CSP would block: inline handlers, style attributes, inline scripts, <style> elements."""
+    found = []
+    if _INLINE_HANDLER.search(page):
+        found.append("inline event handler")
+    if _INLINE_STYLE.search(page):
+        found.append("style attribute")
+    if _INLINE_SCRIPT.search(page):
+        found.append("inline <script>")
+    if _STYLE_ELEMENT.search(page):
+        found.append("<style> element")
+    return found
+
+
+def build_csp(page: str | None = None) -> str:
+    """The page's CSP. P20: strict for scripts and styles; a page with inline markup is refused."""
+    if page is not None and (bad := inline_markup(page)):
+        raise ValueError(f"frontend/index.html contains {', '.join(bad)}; the strict CSP would block it")
     return "; ".join(
         [
             "default-src 'self'",
-            f"script-src {script_src}",
-            # 161 inline style="" attributes remain in the existing UI (P20 moves them to CSS).
-            "style-src 'self' 'unsafe-inline'",
+            "script-src 'self'",
+            "style-src 'self'",
             "img-src 'self'",
             "font-src 'self'",
             "connect-src 'self'",
@@ -98,6 +122,12 @@ class LocalSecurityMiddleware:
             scheme, _, credential = headers.get("authorization", "").partition(" ")
             if scheme.lower() != "bearer" or not token_matches(credential.strip(), self.token):
                 return 401, "session token required"
+        declared = headers.get("content-length")
+        if declared is not None and not _STREAMED_UPLOAD.match(path):
+            if not declared.isdigit():
+                return 400, "invalid Content-Length"
+            if int(declared) > MAX_BODY_BYTES:
+                return 413, f"request body larger than {MAX_BODY_BYTES} bytes"
         return None
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
@@ -122,4 +152,32 @@ class LocalSecurityMiddleware:
                 scope, receive, send_with_headers
             )
             return
-        await self.app(scope, receive, send_with_headers)
+        if _STREAMED_UPLOAD.match(scope["path"]) or "content-length" in Headers(scope=scope):
+            # the upload enforces its own limit; a declared length was checked above (the server holds the
+            # client to it)
+            await self.app(scope, receive, send_with_headers)
+            return
+        # No declared length (chunked): read the body here, up to the limit, then hand it on unchanged.
+        body, more = bytearray(), True
+        while more:
+            message = await receive()
+            if message["type"] != "http.request":
+                await self.app(scope, receive, send_with_headers)  # disconnect: let the app see it
+                return
+            body += message.get("body", b"")
+            more = message.get("more_body", False)
+            if len(body) > MAX_BODY_BYTES:
+                await JSONResponse(
+                    {"detail": f"request body larger than {MAX_BODY_BYTES} bytes"}, status_code=413
+                )(scope, receive, send_with_headers)
+                return
+        replayed = False
+
+        async def replay() -> Message:
+            nonlocal replayed
+            if not replayed:
+                replayed = True
+                return {"type": "http.request", "body": bytes(body), "more_body": False}
+            return await receive()
+
+        await self.app(scope, replay, send_with_headers)

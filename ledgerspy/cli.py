@@ -54,7 +54,7 @@ def cmd_serve(args: argparse.Namespace) -> int:
 
 def cmd_audit_verify(args: argparse.Namespace) -> int:
     from ledgerspy.cases import audit
-    from ledgerspy.cases.db import DatabaseError, connect, db_path_for
+    from ledgerspy.cases.db import DatabaseError, check_triggers, connect, db_path_for
 
     db_path = Path(args.db) if args.db else db_path_for(_load(args, {}).settings)
     try:
@@ -64,13 +64,23 @@ def cmd_audit_verify(args: argparse.Namespace) -> int:
         return 2
     try:
         result = audit.verify(conn)
+        triggers = check_triggers(conn)
     except sqlite3.Error as exc:
         print(f"FAIL: {db_path}: cannot read audit log: {exc}")
         return 1
     finally:
         conn.close()
+    if not triggers["ok"]:  # P20: a dropped / altered / extra trigger anywhere in the schema
+        print(
+            f"FAIL: {db_path}: triggers differ from the migrations: missing {triggers['missing']}, "
+            f"altered {triggers['altered']}, unexpected {triggers['unexpected']}"
+        )
+        return 1
     if result.ok:
-        print(f"OK: {db_path}: {result.message}; head {result.head_hash}")
+        print(
+            f"OK: {db_path}: {result.message}; {triggers['expected']} triggers intact; head seq "
+            f"{result.entries} hash {result.head_hash}"
+        )
         return 0
     print(f"FAIL: {db_path}: {result.message}")
     return 1

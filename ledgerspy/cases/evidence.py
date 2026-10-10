@@ -20,6 +20,26 @@ from ledgerspy.hashing import utc_now_iso
 from ledgerspy.ingest.errors import IngestError
 
 _CHUNK = 1024 * 1024
+# P20: characters refused in an original file name. It is display metadata (never a path), but it appears in
+# the UI, the audit log and reports: control characters, line breaks and bidi direction / isolate controls
+# could make it display as a different name ("invoice\u202excs.exe"). Path separators and dots are kept: the
+# name is never used as a path (P3), so "..\\x.csv" is harmless text. Other Unicode (including joiners used
+# by Indic scripts) is kept.
+_BIDI = set("\u061c\u200e\u200f\u202a\u202b\u202c\u202d\u202e\u2066\u2067\u2068\u2069")
+_LINE_BREAKS = set("\u2028\u2029")
+
+
+def check_original_filename(name: str) -> str:
+    """Return the name unchanged if it is safe to record and display, else raise `invalid_filename`."""
+    bad = [c for c in name if ord(c) < 0x20 or 0x7F <= ord(c) <= 0x9F or c in _BIDI or c in _LINE_BREAKS]
+    if not name.strip() or len(name) > 255 or bad:
+        raise IngestError(
+            "invalid_filename",
+            "The file name contains control, line-break or text-direction characters (or is empty or longer "
+            "than 255 characters); rename the file and upload it again.",
+            {"characters": sorted({f"U+{ord(c):04X}" for c in bad})},
+        )
+    return name
 
 
 @dataclass(frozen=True)

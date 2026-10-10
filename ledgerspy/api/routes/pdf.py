@@ -14,6 +14,7 @@ from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import Response
 from pydantic import BaseModel, ConfigDict, Field
 
+from ledgerspy.api.limits import Page
 from ledgerspy.api.routes.cases import Db
 from ledgerspy.api.routes.datasets import DatasetId, _rejected
 from ledgerspy.cases.db import connect
@@ -77,7 +78,7 @@ def pdf_items(
     kind: Kind | None = None,
     review: ReviewFilter | None = None,
     pdf_page: Annotated[int | None, Query(ge=1, le=100_000)] = None,
-    page: Annotated[int, Query(ge=1)] = 1,
+    page: Page = 1,
     size: Annotated[int, Query(ge=1, le=500)] = 100,
 ) -> Any:
     try:

@@ -13,6 +13,7 @@ from fastapi import Path as PathParam
 from fastapi.responses import Response
 from pydantic import BaseModel, ConfigDict, Field
 
+from ledgerspy.api.limits import Page
 from ledgerspy.api.routes.cases import Db
 from ledgerspy.api.routes.datasets import _rejected
 from ledgerspy.errors import LedgerSpyError
@@ -103,7 +104,7 @@ def list_reports(
     db: Db,
     case_id: Annotated[str | None, Query(pattern=r"^C-[0-9A-HJKMNP-TV-Z]{26}$")] = None,
     report_type: ReportType | None = None,
-    page: Annotated[int, Query(ge=1)] = 1,
+    page: Page = 1,
     size: Annotated[int, Query(ge=1, le=500)] = 50,
 ) -> Any:
     return store.list_page(db, case_id, report_type, page, size)

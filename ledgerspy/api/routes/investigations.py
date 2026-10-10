@@ -11,9 +11,11 @@ from fastapi import APIRouter, Query, Request
 from fastapi import Path as PathParam
 from pydantic import BaseModel, ConfigDict, Field
 
+from ledgerspy.api.limits import Page
 from ledgerspy.api.routes.cases import Db
 from ledgerspy.api.routes.datasets import _rejected
 from ledgerspy.cases import audit
+from ledgerspy.cases.db import check_triggers
 from ledgerspy.errors import LedgerSpyError
 from ledgerspy.investigations import model, service
 
@@ -21,7 +23,6 @@ router = APIRouter()
 
 InvId = Annotated[str, PathParam(pattern=r"^IV-[0-9A-HJKMNP-TV-Z]{26}$")]
 LinkId = Annotated[str, PathParam(pattern=r"^LK-[0-9A-HJKMNP-TV-Z]{26}$")]
-Page = Annotated[int, Query(ge=1)]
 Size = Annotated[int, Query(ge=1, le=500)]
 CASE = r"^C-[0-9A-HJKMNP-TV-Z]{26}$"
 LINK = r"^LK-[0-9A-HJKMNP-TV-Z]{26}$"
@@ -264,16 +265,43 @@ def manifest(inv_id: InvId, request: Request, db: Db) -> Any:
 
 
 @router.get("/api/audit/verify")
-def audit_verify(db: Db) -> Any:
-    """Recompute the hash chain (see docs/investigations.md §Audit for what this does and does not prove)."""
+def audit_verify(
+    db: Db,
+    anchor_seq: Annotated[int | None, Query(ge=1, le=2**62)] = None,
+    anchor_hash: Annotated[str | None, Query(pattern=r"^[0-9a-f]{64}$")] = None,
+) -> Any:
+    """Recompute the hash chain, compare every trigger with the migrations (P20) and, optionally, check an
+    anchor (a `seq` + `hash` recorded outside the database earlier). See docs/p20-security-acceptance.md."""
+    if (anchor_seq is None) != (anchor_hash is None):
+        return _rejected(LedgerSpyError("invalid_anchor", "give both anchor_seq and anchor_hash, or neither"))
     r = audit.verify(db)
+    triggers = check_triggers(db)
+    anchor = None
+    if anchor_seq is not None:
+        row = db.execute("SELECT hash FROM audit_log WHERE seq = ?", (anchor_seq,)).fetchone()
+        anchor = {
+            "seq": anchor_seq,
+            "matches": row is not None and row[0] == anchor_hash,
+            "reason": None
+            if row is not None and row[0] == anchor_hash
+            else "the anchored entry is missing (the log was truncated below it)"
+            if row is None
+            else "the anchored entry's hash differs (the chain was rewritten up to it)",
+        }
+    ok = r.ok and triggers["ok"] and (anchor is None or anchor["matches"])
     return {
-        "ok": r.ok,
+        "ok": ok,
+        "chain_ok": r.ok,
         "entries": r.entries,
+        "head_seq": r.entries if r.ok else None,
         "head_hash": r.head_hash,
         "message": r.message,
         "failed_seq": r.failed_seq,
-        "limitation": "detects edited, inserted, reordered or deleted entries and missing triggers; it "
-        "cannot detect truncation of the newest entries or a rewrite of the whole chain by someone who "
-        "controls the database file — record the head hash outside the database to detect those.",
+        "triggers": triggers,
+        "anchor": anchor,
+        "limitation": "detects edited, inserted, reordered or deleted entries, and missing, altered or extra "
+        "triggers on any table; it cannot detect truncation of the newest entries or a rewrite of the whole "
+        "chain by someone who controls the database file, nor an edit made while a trigger was dropped and "
+        "restored exactly — record head_seq and head_hash outside the database and pass them back as an "
+        "anchor to detect truncation or rewriting up to that point.",
     }

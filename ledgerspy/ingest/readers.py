@@ -19,6 +19,7 @@ import io
 import re
 import warnings
 import zipfile
+import zlib
 from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass, field
@@ -294,6 +295,29 @@ _DTD = re.compile(rb"<!(DOCTYPE|ENTITY)", re.IGNORECASE)
 
 
 def _inspect_xlsx_zip(path: Path, cfg: IngestConfig) -> None:
+    """Structural checks before openpyxl sees the file. P20: any failure of the zip layer on a malformed
+    archive (CRC errors, truncated or unsupported compression, encrypted parts, bad headers) is an explicit
+    `xlsx_invalid`, never an unhandled exception (found by the P20 mutation fuzz: an OSError from a bad
+    entry)."""
+    try:
+        _inspect_zip_parts(path, cfg)
+    except IngestError:
+        raise
+    except (
+        zipfile.BadZipFile,
+        zlib.error,
+        OSError,
+        EOFError,
+        NotImplementedError,
+        RuntimeError,
+        ValueError,
+    ) as exc:
+        raise IngestError(
+            "xlsx_invalid", f"The .xlsx archive is damaged or unsupported: {type(exc).__name__}."
+        ) from exc
+
+
+def _inspect_zip_parts(path: Path, cfg: IngestConfig) -> None:
     x = cfg.xlsx
     try:
         zf = zipfile.ZipFile(path)

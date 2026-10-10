@@ -166,14 +166,15 @@ The activity view shows the events with their audit sequence numbers and hashes.
 events and corrections are protected by append-only SQLite triggers. Only an investigation's own status, texts
 and priority change, and each change is an event.
 
-**What `GET /api/audit/verify` proves.** It recomputes the hash chain and checks the audit log's own two
-append-only triggers.
-- **Detects:** an edited, inserted, reordered or deleted entry, or a missing or altered audit-log trigger.
+**What `GET /api/audit/verify` proves.** It recomputes the hash chain and (since P20) compares every trigger
+in the database with the set the migrations create.
+- **Detects:** an edited, inserted, reordered or deleted entry; a missing, altered or extra trigger on any table.
 - **Does not detect:**
   - truncation of the newest entries;
-  - a dropped or altered trigger on a P15 table (links, notes, decisions, events, corrections);
+  - an edit made while a trigger was dropped and then restored exactly;
   - a rewrite of the whole chain or the tables by someone who controls the database file and the code.
-- **Hardening:** recording the head hash outside the database (e.g. in a report) detects those as well.
+- **Hardening:** record `head_seq` and `head_hash` outside the database and pass them back as `anchor_seq` /
+  `anchor_hash`: truncation or a rewrite up to that point is then detected (P20).
 - **Not tamper-proof:** the log is tamper-evident against edits through the database alone, not against an
   administrator who can rewrite the file.
 
@@ -213,5 +214,5 @@ Nothing in P15 deletes anything:
 - **Snapshots are small summaries.** Full reproduction relies on the deterministic engines and the evidence;
   `changed` / `stale` / `missing` are reported when that is no longer possible.
 - **No fine-grained access control.** Authorization is the session token: anyone with it has full access.
-- **Trigger coverage of `verify`.** Only the audit log's triggers are checked; the P15 append-only triggers are
-  enforced by SQLite but not re-checked by `verify`.
+- **Trigger coverage of `verify`.** Since P20 every trigger is checked against the migrations (see
+  [`p20-security-acceptance.md`](p20-security-acceptance.md) §4 for what remains undetectable).

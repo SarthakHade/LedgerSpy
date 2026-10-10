@@ -183,7 +183,7 @@ def main() -> int:
                 timeout=120000,
             )
             for tab in ["tab-ov", "tab-di", "tab-fi", "tab-bsr", "tab-tr", "tab-an", "tab-re", "tab-ex"]:
-                page.click(f'button.tab-btn[onclick*="{tab}"]')
+                page.click(f'button.tab-btn[data-tab="{tab}"]')
                 page.wait_for_timeout(100)
             page.click("#tx-body tr.main-row >> nth=0")
             page.wait_for_function(
@@ -339,7 +339,7 @@ def main() -> int:
             page.click("#ai-mascot")
 
             # ---------------- A10 (P13): relationship graph from the graph API ----------------
-            page.click('button.tab-btn[onclick*="tab-re"]')
+            page.click('button.tab-btn[data-tab="tab-re"]')
             page.wait_for_selector("#re-graph-svg", state="attached", timeout=120000)
             page.wait_for_function("() => document.querySelectorAll('#re-graph-cycles tbody tr').length > 0")
             viz = page.evaluate(f"() => LS_API.get('/api/datasets/{syn_id}/graph/visualization')")
@@ -383,7 +383,7 @@ def main() -> int:
                 bds["mapping_suggestion"]["proposed_mapping"])
             setup = api(base, token, "GET",
                         f"/api/reconciliation/setup?ledger_dataset_id={syn_id}&bank_dataset_id={bds['dataset_id']}")
-            page.click('button.tab-btn[onclick*="tab-bsr"]')
+            page.click('button.tab-btn[data-tab="tab-bsr"]')
             page.evaluate(f"() => document.dispatchEvent(new CustomEvent('ls:dataset', {{ detail: {{ datasetId: '{syn_id}' }} }}))")
             page.wait_for_selector("#bsr-run", timeout=120000)
             code = {"…6964": "LVE", "…2401": "LVC"}
@@ -468,7 +468,7 @@ def main() -> int:
                 json.dumps(after["review"]["by_state"]),
             )
             # ---------------- A13 (P15): investigation workflow from a reconciliation finding ----------------
-            page.click('button.tab-btn[onclick*="tab-bsr"]')
+            page.click('button.tab-btn[data-tab="tab-bsr"]')
             page.click("#bsr-results tbody tr.main-row >> nth=0")
             page.wait_for_selector("#bsr-detail >> text=Open investigation from this finding", timeout=60000)
             page.click("#bsr-detail >> text=Open investigation from this finding")
@@ -523,7 +523,7 @@ def main() -> int:
                 json.dumps({"status": state["status"], "events": acts, "offered": offered}),
             )
             # ---------------- A14 (P16): reports from the reports API ----------------
-            page.click('button.tab-btn[onclick*="tab-rep"]')
+            page.click('button.tab-btn[data-tab="tab-rep"]')
             page.wait_for_selector("#rep-type", timeout=60000)
             page.select_option("#rep-case", case_id)
             page.wait_for_selector(f"#rep-inv-{ivid}", timeout=60000)
@@ -590,7 +590,7 @@ def main() -> int:
             )
             heights = {}
             for tab in ["tab-ov", "tab-di", "tab-fi", "tab-bsr", "tab-tr", "tab-an", "tab-re", "tab-ex", "tab-rep"]:
-                page.click(f'button.tab-btn[onclick*="{tab}"]')
+                page.click(f'button.tab-btn[data-tab="{tab}"]')
                 page.wait_for_timeout(120)
                 heights[tab] = page.evaluate(
                     f"() => document.getElementById('{tab}').getBoundingClientRect().height"
@@ -614,7 +614,7 @@ def main() -> int:
                 json.dumps(flow | {"heights": heights}),
             )
             if shots:
-                page.click('button.tab-btn[onclick*="tab-ov"]')
+                page.click('button.tab-btn[data-tab="tab-ov"]')
                 page.screenshot(path=str(shots / "02-hero.png"))
                 page.locator("#insights").screenshot(path=str(shots / "04-insights.png"))
 

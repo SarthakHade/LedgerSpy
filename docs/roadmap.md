@@ -296,7 +296,7 @@ See [`cleanup-log.md`](cleanup-log.md).
   - No zero-knowledge claims.
 - **Acceptance.** Hidden when no benchmark file is present.
 
-### P20 — Security hardening
+### P20 — Security hardening ✔ (done; see [`p20-security-acceptance.md`](p20-security-acceptance.md))
 - **Objective.**
   - Remove inline handlers and enable strict CSP.
   - Write a threat model doc.
@@ -306,6 +306,19 @@ See [`cleanup-log.md`](cleanup-log.md).
   - Review the token and Origin checks.
 - **Dependencies.** P2–P16 (hardening pass; basics exist from P1–P3).
 - **Acceptance.** CSP has no `unsafe-inline`; the malicious fixture suite passes; the threat model is documented.
+- **As built.**
+  - **CSP:** `script-src 'self'; style-src 'self'` with no exceptions. The 22 inline handlers became delegated
+    `data-action` / `data-tab` controls and the 145 inline styles are applied through the CSSOM. The server
+    refuses to start if the page contains inline markup. Report HTML allows only its own hashed stylesheet.
+  - **Fixes found by the audit:** unbounded `page` → HTTP 500; no request-body limit; spoofable file names
+    (bidi / control characters); `audit verify` blind to dropped triggers on non-audit tables (now a full
+    trigger-integrity check plus an external anchor for truncation); unhandled zip-layer exceptions on
+    malformed XLSX (found by a new seeded mutation fuzz).
+  - **Threat model** and an honest table of what the audit trail can and cannot detect.
+  - **Not done:** `pip-audit` (needs network; left to the P21 build machine); memory caps for the PDF / OCR
+    worker; coverage-guided fuzzing. Protection against a local administrator is detection-only and
+    partial. Formula-injection-safe exports: no CSV export exists yet.
+  - See [`p20-security-acceptance.md`](p20-security-acceptance.md).
 
 ### P21 — Offline packaging
 - **Objective.**

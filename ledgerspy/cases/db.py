@@ -18,6 +18,7 @@ Migrations run with foreign-key enforcement switched off for the connection (the
 for rebuilding a referenced table) and `PRAGMA foreign_key_check` must be empty before the batch commits.
 """
 
+import functools
 import sqlite3
 from collections.abc import Iterator
 from contextlib import contextmanager
@@ -674,6 +675,37 @@ def transaction(conn: sqlite3.Connection) -> Iterator[sqlite3.Connection]:
         conn.execute("ROLLBACK")
         raise
     conn.execute("COMMIT")
+
+
+@functools.lru_cache(maxsize=1)
+def expected_triggers() -> dict[str, str]:
+    """Every trigger the migrations leave behind, with its exact SQL (replayed on an in-memory database)."""
+    mem = sqlite3.connect(":memory:")
+    try:
+        for _version, _desc, statements in MIGRATIONS:
+            for statement in statements:
+                mem.execute(statement)
+        return dict(mem.execute("SELECT name, sql FROM sqlite_master WHERE type = 'trigger' ORDER BY name"))
+    finally:
+        mem.close()
+
+
+def check_triggers(conn: sqlite3.Connection) -> dict:
+    """P20: compare the database's triggers with the ones its migrations create. A dropped or altered
+    append-only / immutability trigger (or an extra one) is reported. This detects a weakened schema; it
+    cannot detect an edit made while a trigger was dropped and then restored exactly."""
+    found = dict(conn.execute("SELECT name, sql FROM sqlite_master WHERE type = 'trigger'"))
+    expected = expected_triggers()
+    missing = sorted(set(expected) - set(found))
+    altered = sorted(n for n in set(expected) & set(found) if expected[n] != found[n])
+    unexpected = sorted(set(found) - set(expected))
+    return {
+        "ok": not (missing or altered or unexpected),
+        "expected": len(expected),
+        "missing": missing,
+        "altered": altered,
+        "unexpected": unexpected,
+    }
 
 
 def current_version(conn: sqlite3.Connection) -> int:
