@@ -1,5 +1,5 @@
 {
-  "about": "Acceptance inventory P0-P22 (machine-readable; P22, updated by the pre-P23 gap audit). It REFERENCES the roadmap and the phase acceptance records; it does not restate their results. 'evidence' lists where a phase is checked (tests/backend files, frontend checks, tools/verify.py checks). 'roadmap_gaps' lists roadmap acceptance items that the referenced record itself states as not met, deviated or untested; 'gap_sections' point to those statements. Validated by tests/backend/test_verify_p22.py (every path, heading and test file must exist).",
+  "about": "Acceptance inventory P0-P23 (machine-readable; P22, updated by the pre-P23 gap audit and P23). It REFERENCES the roadmap and the phase acceptance records; it does not restate their results. 'evidence' lists where a phase is checked (tests/backend files, frontend checks, tools/verify.py checks). 'roadmap_gaps' lists roadmap acceptance items that the referenced record itself states as not met, deviated or untested; 'gap_sections' point to those statements. Validated by tests/backend/test_verify_p22.py (every path, heading and test file must exist).",
   "roadmap": "docs/roadmap.md",
   "verification_command": "python tools/verify.py",
   "gap_audit": "docs/pre-p23-gap-audit.md",
@@ -141,6 +141,12 @@
       "acceptance_docs": ["docs/p22-acceptance.md", "docs/verification.md"], "gap_sections": ["docs/p22-acceptance.md#4. Coverage and acceptance gaps (honest list)", "docs/p22-acceptance.md#6. Limitations"],
       "evidence": {"tests": ["tests/backend/test_verify_p22.py"], "checks": ["backend", "package"]},
       "roadmap_gaps": ["'Coverage targets': coverage is not measured (no coverage tool installed).", "'Performance tests (100k and 1M rows)': 1M rows not tested.", "'Detector metrics compared with recorded baselines': partly (P8 baseline; P7 / P12-P14 exact expectations; P9 recall has no recorded target)."]
+    },
+    {
+      "id": "P23", "heading": "### P23 — Documentation", "status": "done",
+      "acceptance_docs": ["docs/p23-acceptance.md", "docs/user-guide.md", "docs/operations.md", "docs/security.md", "docs/configuration.md", "docs/developer-guide.md"], "gap_sections": ["docs/p23-acceptance.md#5. Remaining documentation gaps"],
+      "evidence": {"tests": ["tests/backend/test_docs_p23.py"], "checks": ["backend"]},
+      "roadmap_gaps": ["'A new developer can install offline and run the demo case from the docs alone' was checked by review and automated consistency tests, not by an independent new developer on a network-disabled machine (P24)."]
     }
   ]
 }

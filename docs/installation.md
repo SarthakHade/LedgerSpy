@@ -4,8 +4,23 @@
 - **A folder application.** It contains the LedgerSpy source, its UI, the default configuration, the synthetic
   demo data, and a **wheelhouse** with every Python dependency as a pinned, hash-checked wheel.
 - **Not a standalone executable.** It needs a locally installed Python.
-- **No downloads after setup.** Nothing is downloaded during installation or at run time. Once installed, every
-  feature works without network access (verified: see [`p21-acceptance.md`](p21-acceptance.md)).
+- **No downloads after setup.** Nothing is downloaded during installation or at run time.
+- **Offline operation as tested.** On the development machine, every feature ran with no non-loopback connection
+  attempt, under a process-level network guard ([`p21-acceptance.md`](p21-acceptance.md)).
+- **Not yet tested:** a fresh install and run on the target laptop with networking physically disabled. That
+  step remains to be done.
+
+**What is and is not in the bundle.**
+
+| Bundled | Not bundled (install separately, from offline media) |
+|---|---|
+| The `ledgerspy` application, the UI (`frontend\`), `config\default.yaml` | **Python 3.12** (64-bit CPython from python.org) |
+| The documentation (`docs\`, `README.md`, this guide as `INSTALL.md`) | **Tesseract 5** with `eng` data (optional, scanned PDFs only) |
+| The synthetic demo company `data\synthetic\reference\` (no ground truth) | A browser |
+| `wheelhouse\` (every locked dependency wheel) and `requirements.lock` | The release verification tools and tests (`tools\`, `tests\`): they are in the source repository only |
+| `install.cmd`, `ledgerspy.cmd`, `doctor.cmd`, `BUILD-INFO.json`, `MANIFEST.sha256` | Any client data or workspace (never packaged) |
+
+The bundle is built and verified for **Windows x64 only**. Other operating systems are **unverified**.
 
 ## 1. Supported platform and prerequisites
 
@@ -22,8 +37,8 @@
 1. Install Python 3.12 (64-bit) with the python.org installer. Keep the "py launcher" option ticked.
 2. Unzip `ledgerspy-<version>-win_amd64-py312-offline.zip` to a folder you can write to, e.g.
    `C:\LedgerSpy\ledgerspy-0.2.0`.
-3. Optional but recommended: check the bundle against `MANIFEST.sha256`, e.g. in PowerShell
-   `Get-FileHash -Algorithm SHA256 wheelhouse\*`.
+3. Recommended: check the zip's SHA-256 against the value published with the release, and every unzipped file
+   against `MANIFEST.sha256`. The PowerShell commands are in [`operations.md`](operations.md) §10.
 4. Double-click **`install.cmd`**, or run it in a terminal. It:
    - finds 64-bit Python 3.12 (`py -3.12`, else `python`) and refuses any other version;
    - creates `.venv\` inside the application folder (reused if it already exists);
@@ -32,6 +47,12 @@
    - runs `ledgerspy doctor`, which reports what is ready. It never changes your data.
 
 Installation never creates, resets or overwrites a workspace.
+
+**Repeat installation** (same version, e.g. after an interrupted install or a damaged `.venv`):
+- Run `install.cmd` again. It reuses `.venv\` and installs any missing locked package from the wheelhouse,
+  with the same hash checks.
+- If `doctor` still reports `FAIL dependencies`, delete `.venv\` (only that folder) and run `install.cmd` again.
+- The workspace is not touched.
 
 ## 3. Run
 
@@ -121,7 +142,7 @@ version refuses a database upgraded by a newer one.
   missing or altered evidence file.
 - **Anchor:** record the `head seq` and `hash` printed by `audit verify` somewhere outside the workstation.
   Passing them back later (`/api/audit/verify?anchor_seq=…&anchor_hash=…`) detects truncation or a rewrite of
-  the log up to that point (P20 §4).
+  the log up to that point (P20 §4). The exact procedure and its limits: [`operations.md`](operations.md) §6.
 - **Restore:** stop LedgerSpy, replace the workspace folder with the backup copy, start, run `doctor.cmd`.
 
 ## 8. Building the bundle (connected build machine)

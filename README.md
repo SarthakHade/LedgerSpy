@@ -1,16 +1,76 @@
 # LedgerSpy
 
-An offline forensic audit tool for company ledgers. LedgerSpy is meant to run on an auditor's laptop with
-networking disabled. It checks data integrity, profiles digit frequencies (Benford), resolves look-alike vendors,
-detects anomalies without labelled data, maps relationships between employees, vendors and transactions,
-reconciles the ledger against bank statements, explains every risk score, and drafts an evidence-referenced
+An offline forensic audit tool for company ledgers. LedgerSpy runs on an auditor's Windows laptop and needs no
+network. It imports a client's ledger and bank statements, then:
+- checks data integrity;
+- profiles digit frequencies (Benford);
+- resolves look-alike vendors;
+- detects anomalies without labelled data;
+- maps relationships between employees, vendors and transactions;
+- reconciles the ledger against bank statements (including PDF and scanned statements with local OCR);
+- explains every review-risk score.
+
+It also supports the investigation of what it flags and produces evidence-referenced reports and a **draft**
 audit memo.
 
 The original problem statement is in [`docs/problem-statement.md`](docs/problem-statement.md).
 
-## Current status (honest)
+## What it does: indicators, not conclusions
 
-This repository is being rebuilt from a hackathon prototype into a working system. **Today:**
+Everything LedgerSpy computes is an **automated indicator that requires review**:
+- scores, tiers, rule hits, anomalies, Benford deviations, look-alike entities;
+- graph cycles, ghost-vendor leads, reconciliation exceptions.
+
+None of it is an audit conclusion or a finding of fraud. The review-risk score (0–100) is a **review priority,
+not a probability**. Only an analyst's recorded decisions, notes and conclusions are assessments, and reports
+label every claim as *automated*, *analyst* or *computed*.
+
+**Supported workflow** (all in the browser UI served on 127.0.0.1, unless noted):
+1. Import a ledger; confirm the column mapping.
+2. Check data quality; accept logged, reversible fixes.
+3. Run the analysis: rules, Benford, anomaly detection, risk fusion with exact contribution breakdowns.
+4. Review entities: the similarity matrix and the relationship graph. Vendor / employee master data is imported
+   by command line.
+5. Reconcile bank statements; review PDF / OCR lines.
+6. Open investigations: link evidence, record decisions and notes, conclude.
+7. Generate reports.
+
+| Formats | Supported |
+|---|---|
+| Ledger import | CSV, XLSX (cached values; formulas and macros never run), up to 100 MiB / 1,000,000 rows |
+| Bank statement import | CSV, XLSX, PDF (text via PDFium; scanned pages via a locally installed Tesseract 5) |
+| Master data import | CSV, XLSX (command line) |
+| Reports | JSON, self-contained HTML, Markdown. **No native PDF or DOCX** (the HTML can be printed to PDF by the browser, unhashed) |
+
+**Main current limitations:**
+- Audit memos are always **drafts**; there is no approval or sign-off workflow.
+- Single local user; no roles.
+- Reconciliation exceptions and graph signals do not feed the risk score.
+- PDF parsing recognises header-anchored column tables only; real bank layouts are untested.
+- No memory cap on the OCR worker.
+- Windows x64 with Python 3.12 is the only verified platform; the bundle is not a standalone executable.
+- A fresh install on a target laptop with networking physically disabled has not been tested yet.
+
+The full list is in [`docs/security.md`](docs/security.md) §5–6 and [`docs/pre-p23-gap-audit.md`](docs/pre-p23-gap-audit.md).
+
+## Start here
+
+| You want to | Read |
+|---|---|
+| Install, upgrade, back up | [`docs/installation.md`](docs/installation.md) |
+| Use LedgerSpy, step by step | [`docs/user-guide.md`](docs/user-guide.md) |
+| Operate and troubleshoot (doctor, conflicts, logs, recovery, audit anchors, package hashes) | [`docs/operations.md`](docs/operations.md) |
+| Understand the security model and limits | [`docs/security.md`](docs/security.md) |
+| Configure a case (calendar, approval limits, thresholds) | [`docs/configuration.md`](docs/configuration.md) |
+| Change the code | [`docs/developer-guide.md`](docs/developer-guide.md) |
+| Verify a release (source repository) | [`docs/verification.md`](docs/verification.md) |
+| Look up a method (detectors, scores, matching, OCR, reports) | The methodology documents in the [documentation index](#documentation) |
+
+## Development history (what each phase added)
+
+LedgerSpy was rebuilt from a hackathon prototype in phases. Each phase's acceptance record holds its evidence; the
+summary below is kept as the record of how the current system came to be. Statements such as "later phases add
+it" describe the state at that phase.
 
 - `frontend/` is the UI, served by `ledgerspy serve`. Since **P9** it **renders the backend's results only**: the
   in-browser heuristic scorer of the prototype is deleted, and every score, tier, count, chart and explanation comes
@@ -194,6 +254,8 @@ This repository is being rebuilt from a hackathon prototype into a working syste
   - a corrected master-data import command.
 
   See [`docs/pre-p23-gap-audit.md`](docs/pre-p23-gap-audit.md).
+- **P23 documentation:** the user guide, operations guide and security summary, and this overview, checked
+  against the code by `tests/backend/test_docs_p23.py`. See [`docs/p23-acceptance.md`](docs/p23-acceptance.md).
 - The original notebooks are in `archive/` for reference. Their evaluation had data leakage and must not be quoted.
 
 See [`docs/requirements.md`](docs/requirements.md) for the requirement-by-requirement status.
@@ -206,7 +268,7 @@ ledgerspy/     Python package: config/, canonical/, cases/ (SQLite, audit log, e
                reconciliation/, pdfstatements/, investigations/, reports/, api/, cli.py
 config/        default.yaml — every configurable value (validated, SHA-256 hashed)
 frontend/      UI (index.html, css/, js/) — served by `ledgerspy serve`; renders API results only
-tests/         backend/ (pytest, P2) · frontend/harness.js (Node) + browser_check.py (optional, Playwright)
+tests/         backend/ (pytest) · frontend/ (harness.js for Node; browser and P4-panel checks for Playwright)
 data/raw/      paysim_sample_10k.csv — sample of the public PaySim simulation (see data/README.md)
 data/synthetic/reference/  SYNTHETIC_* inputs + ground_truth/ + manifest (seed 42, generated by `ledgerspy synth`)
 docs/          problem statement, requirements, architecture, data strategy, roadmap, cleanup log, audits
@@ -217,7 +279,8 @@ Target layout (from phase P2 on) is described in [`docs/architecture.md`](docs/a
 
 ## Setup and running
 
-Requires Python ≥ 3.11 (Node ≥ 18 only for the frontend harness).
+Development: `pyproject.toml` allows Python ≥ 3.11; **3.12 is the tested and packaged version**. Node ≥ 18 is
+needed only for the frontend harness.
 
 **Target laptop (offline):** install from the P21 bundle instead: `install.cmd`, then `ledgerspy.cmd`. See [`docs/installation.md`](docs/installation.md). The commands below are for development.
 
@@ -242,7 +305,7 @@ The workspace (`workspace/ledgerspy.db`) holds client data and is git-ignored.
 Release verification (every check, one command): `python tools/verify.py`; see [`docs/verification.md`](docs/verification.md).
 
 ```bash
-.venv/Scripts/python -m pytest                  # P2 backend suite; outbound network is blocked
+.venv/Scripts/python -m pytest                  # backend suite; outbound network is blocked
 .venv/Scripts/ruff check . && .venv/Scripts/ruff format --check .
 node tests/frontend/harness.js                  # frontend checks without a browser (no dependencies)
 python tests/frontend/browser_check.py          # optional: the UI against a live `ledgerspy serve` (playwright + Chromium)
@@ -253,6 +316,11 @@ python tests/frontend/integrity_panel_check.py  # optional: P4 dashboard against
 
 | Document | Purpose |
 |---|---|
+| [`docs/user-guide.md`](docs/user-guide.md) | **User guide**: the auditor workflow from start to report, how to read scores and statuses, evidence handling |
+| [`docs/operations.md`](docs/operations.md) | **Operations**: doctor, start / stop, conflicts, logs, backup / restore, migrations, audit anchor, recovery, release verification, package hashes |
+| [`docs/security.md`](docs/security.md) | **Security notes**: threat model summary, controls vs limits, deferred items |
+| [`docs/configuration.md`](docs/configuration.md) | **Configuration reference**: how the file is loaded and hashed, case-specific settings, sections |
+| [`docs/developer-guide.md`](docs/developer-guide.md) | **Developer guide**: setup, layout, enforced rules, tests, building a release |
 | [`docs/problem-statement.md`](docs/problem-statement.md) | Original PS (transcribed + image) |
 | [`docs/requirements.md`](docs/requirements.md) | Final requirements, PS → current-system matrix, misleading-claims register |
 | [`docs/architecture.md`](docs/architecture.md) | Target architecture, responsibilities, API, data model, ML strategy, forensic module designs, security, offline |
@@ -292,8 +360,9 @@ python tests/frontend/integrity_panel_check.py  # optional: P4 dashboard against
 | [`docs/p21-acceptance.md`](docs/p21-acceptance.md) | P21 acceptance: lock and bundle, offline check evidence, startup safety, migrations, limits |
 | [`docs/verification.md`](docs/verification.md) | P22 release verification: the single command, checks, results, package validation, troubleshooting |
 | [`docs/p22-acceptance.md`](docs/p22-acceptance.md) | P22 acceptance: consolidated run, workflow tests, coverage and acceptance gaps |
+| [`docs/p23-acceptance.md`](docs/p23-acceptance.md) | P23 acceptance: documentation set, consistency checks, verification, remaining documentation gaps |
 | [`docs/pre-p23-gap-audit.md`](docs/pre-p23-gap-audit.md) | Pre-P23 completeness audit: every roadmap requirement's status, the gaps fixed, deferred and environment-only items, P23 readiness |
-| [`docs/acceptance-inventory.json`](docs/acceptance-inventory.json) | P0–P21 acceptance inventory (references, evidence, gaps), validated by a test |
+| [`docs/acceptance-inventory.json`](docs/acceptance-inventory.json) | P0–P23 acceptance inventory (references, evidence, gaps), validated by a test |
 | [`docs/synthetic-scenario-matrix.md`](docs/synthetic-scenario-matrix.md) | Feature → scenario → fields → records → detector phase |
 | [`docs/cleanup-log.md`](docs/cleanup-log.md) | What was moved, archived or deleted in the cleanup, and why |
 | [`docs/audits/phase-1-current-state-audit.md`](docs/audits/phase-1-current-state-audit.md) | Detailed audit of the prototype |

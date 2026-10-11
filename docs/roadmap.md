@@ -364,9 +364,26 @@ See [`cleanup-log.md`](cleanup-log.md).
     file for every detector (P8 has recorded baselines; P9 recall has no target).
   - See [`p22-acceptance.md`](p22-acceptance.md).
 
-### P23 — Documentation
+### P23 — Documentation ✔ (done; see [`p23-acceptance.md`](p23-acceptance.md))
 - **Objective.** User guide (auditor workflow), methodology (each detector, its assumptions and limits), model cards, config reference, developer guide, and data provenance.
 - **Acceptance.** A new developer can install offline and run the demo case from the docs alone.
+- **As built.**
+  - **New guides:**
+    - [`user-guide.md`](user-guide.md): the auditor workflow and how to read every score and status;
+    - [`operations.md`](operations.md): doctor, conflicts, logs, backup / restore, migrations, the audit anchor,
+      recovery, verification, package hashes;
+    - [`security.md`](security.md): threat model summary, controls vs limits, deferred items;
+    - [`configuration.md`](configuration.md): the config reference;
+    - [`developer-guide.md`](developer-guide.md).
+  - **Updated:** the README is now a product overview with the phase history kept; the installation guide
+    covers what is bundled, repeat installs and package verification.
+  - **Unchanged:** the methodology documents and model cards (P6–P16) and data provenance (`data-strategy.md`,
+    `data/README.md`) are referenced as they are.
+  - **Checked against the code:** `tests/backend/test_docs_p23.py` checks links, CLI commands and options,
+    endpoints, paths, UI labels and report formats.
+  - **Not done:** nobody other than the developer has followed the documents to install offline, so the
+    acceptance criterion is checked by review and by those tests, not by an independent new developer. The
+    network-disabled target-laptop run remains P24.
 
 ### P24 — Final end-to-end validation
 - **Objective.** On a network-disabled laptop, run the synthetic company and a real public ledger end to end.

@@ -20,7 +20,7 @@ later.
 |---|---|---|---|
 | `ruff-lint` | yes | `ruff check .` | exit code + Ruff's summary |
 | `ruff-format` | yes | `ruff format --check .` | exit code + Ruff's summary |
-| `backend` | yes | `pytest tests/backend` (≈ 1,250 tests) | **JUnit XML** written by pytest during this run: total / passed / failed / errors / skipped, with the skip reasons |
+| `backend` | yes | `pytest tests/backend` (the whole suite; its current count is in the run's report) | **JUnit XML** written by pytest during this run: total / passed / failed / errors / skipped, with the skip reasons |
 | `node-harness` | yes | `node tests/frontend/harness.js` | its JSON report (`tests/frontend/out/harness-results.json`), accepted only if written during this run |
 | `browser` | yes | `tests/frontend/browser_check.py` (Playwright, headless Chromium) | its JSON report, same freshness rule |
 | `p4-panel` | yes | `tests/frontend/integrity_panel_check.py` | its JSON report, same freshness rule |
