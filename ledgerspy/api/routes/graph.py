@@ -14,7 +14,7 @@ from fastapi import Path as PathParam
 from ledgerspy.api.limits import Page
 from ledgerspy.api.routes.cases import Db
 from ledgerspy.api.routes.datasets import DatasetId, _rejected
-from ledgerspy.errors import LedgerSpyError
+from ledgerspy.errors import LedgerSpyError, require
 from ledgerspy.graph import model, service
 
 router = APIRouter()
@@ -47,7 +47,7 @@ CycleStatus = Literal["review", "ordered_low_retention", "insufficient_data", "n
 Size = Annotated[int, Query(ge=1, le=5000)]
 From = Annotated[date | None, Query(alias="from")]
 To = Annotated[date | None, Query(alias="to")]
-assert set(EdgeType.__args__) == set(model.EDGE_TYPES)  # noqa: S101 — the API vocabulary is the model's
+require(set(EdgeType.__args__) == set(model.EDGE_TYPES), "the API edge vocabulary differs from the model's")
 
 
 def _limits(request: Request):

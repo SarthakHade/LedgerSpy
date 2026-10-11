@@ -63,9 +63,26 @@ Installation never creates, resets or overwrites a workspace.
 ## 4. Demo data
 
 `data\synthetic\reference\` contains the synthetic company (no real data). Import `SYNTHETIC_ledger.csv` and
-`SYNTHETIC_bank_statement.csv` from the UI to try every feature. The master files (`SYNTHETIC_*_master.csv`)
-are imported with `.venv\Scripts\python -m ledgerspy entities import-master …`
-(`… --help` lists the options). The evaluation ground truth is deliberately not shipped.
+`SYNTHETIC_bank_statement.csv` from the UI to try every feature. The evaluation ground truth is deliberately not
+shipped.
+
+**Master data (vendors, employees, customers, group companies).** Master files such as
+`SYNTHETIC_*_master.csv` are imported from a command prompt in the LedgerSpy folder.
+- **Which case.** Use the case the UI shows: in the Relationships tab, the *Entity Similarity Matrix* card names
+  it ("… for case C-…").
+- **Which workspace.** Name the workspace that `ledgerspy.cmd` serves. Without `--workspace` the command uses
+  `.\workspace` in the current folder, which is not the UI's workspace, so the case is not found.
+- **The server can keep running.**
+
+```bat
+.venv\Scripts\python -m ledgerspy entities import-master --workspace "%LOCALAPPDATA%\LedgerSpy\workspace" --case-id C-… --file data\synthetic\reference\SYNTHETIC_vendor_master.csv --entity-type vendor --use-suggested
+```
+
+- `--entity-type` is `vendor`, `employee`, `customer` or `group_company`.
+- `--use-suggested` accepts the suggested column mapping explicitly. Without it the command prints the suggestion
+  and imports nothing; give the mapping with repeated `--map field=column` instead.
+- If you set your own `LEDGERSPY_WORKSPACE`, pass that folder instead.
+- `… entities import-master --help` lists every option. Open the Relationships tab again to see the result.
 
 ## 5. OCR (scanned PDF statements)
 

@@ -366,3 +366,11 @@ tr.expanded .exp-icon{transform:rotate(90deg)}
 .bsr-stats{display:flex;flex-wrap:wrap;gap:10px;margin:10px 0}
 .bsr-stat{background:var(--bg3);border-radius:10px;padding:10px 12px;min-width:120px}
 .bsr-stat-n{font-family:var(--mono);font-size:1.1rem;font-weight:700;margin-top:6px;color:var(--txt)}
+
+/* P12 entity similarity matrix (js/similarity-ui.js) */
+.sim-matrix th,.sim-matrix td{padding:6px 8px;font-size:0.72rem;white-space:nowrap}
+.sim-matrix .sim-name{text-align:left;max-width:260px;overflow:hidden;text-overflow:ellipsis}
+.sim-cell{text-align:center;font-family:var(--mono);min-width:44px}
+.sim-cell[data-pair-id]{cursor:pointer}
+.sim-self{color:var(--txt3)}
+.sim-none{background:transparent}

@@ -17,6 +17,8 @@ API, then drives the real page in headless Chromium:
   A13 (P15) an investigation opened from a finding: link, note (rendered as text), transition, decision via API
   A14 (P16) reports: a case-report preview equals the API's content, a stored draft memo is versioned and
       downloads as escaped HTML with its recorded SHA-256
+  A15 (pre-P23) the entity similarity matrix and pair evidence equal the resolution API; master files imported
+      with the documented CLI command into the running server's workspace
 
 Requires: playwright + Chromium (no download at runtime).
 Usage (from repo root):  python tests/frontend/browser_check.py [--screenshots DIR]
@@ -610,6 +612,97 @@ def main() -> int:
                 and "&lt;img src=x" in dl["text"]
                 and "default-src 'none'" in dl["text"],
                 json.dumps({"versions": [m["version"] for m in memos], "sha_ok": dl["sha"] == latest["artifacts"]["html"]["sha256"]}),
+            )
+            # ---------------- A15 (pre-P23): entity similarity matrix from the resolution API ----------------
+            page.click('button.tab-btn[data-tab="tab-re"]')
+            page.evaluate(f"() => document.dispatchEvent(new CustomEvent('ls:dataset', {{ detail: {{ datasetId: '{syn_id}' }} }}))")
+            page.wait_for_selector("#sim-master-hint", timeout=120000)
+            hint = page.text_content("#sim-master-hint")
+            # The documented master import (installation guide §4): the CLI with the server's workspace and the
+            # case ID that the UI shows. The server keeps running.
+            from ledgerspy.resolution.validation import P5_FILES
+
+            imports = []
+            for etype, (fname, mapping) in P5_FILES.items():
+                cmd = [sys.executable, "-m", "ledgerspy", "entities", "import-master", "--workspace", str(ws),
+                       "--case-id", case_id, "--file", str(SYNTHETIC.parent / fname), "--entity-type", etype]
+                for field, column in mapping.items():
+                    cmd += ["--map", f"{field}={column}"]
+                imports.append(subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True, timeout=300).returncode)  # noqa: S603
+            page.evaluate(f"() => document.dispatchEvent(new CustomEvent('ls:dataset', {{ detail: {{ datasetId: '{syn_id}' }} }}))")
+            page.wait_for_function(
+                "() => /Master data imported/.test((document.getElementById('sim-master-hint') || {}).textContent || '')"
+                " && document.getElementById('sim-matrix-table')",
+                timeout=120000,
+            )
+            res = page.evaluate(f"() => LS_API.get('/api/datasets/{syn_id}/resolution')")
+            pairs = page.evaluate(f"() => LS_API.get('/api/datasets/{syn_id}/resolution/pairs?page=1&size=50')")
+            sim = page.evaluate(
+                """() => ({
+                rows: document.querySelectorAll('#re-sim-pairs tbody tr.main-row').length,
+                cells: [...document.querySelectorAll('#sim-matrix-table td[data-pair-id]')].map(c => [c.dataset.pairId, c.textContent]),
+                axis: document.querySelectorAll('#sim-matrix-table tbody tr').length,
+                summary: document.getElementById('re-sim-summary').textContent,
+            })"""
+            )
+            by_id = {x["pair_id"]: x for x in pairs["items"]}
+            cells_ok = bool(sim["cells"]) and all(
+                pid in by_id and txt == f"{by_id[pid]['name_similarity'] * 100:.0f}%" for pid, txt in sim["cells"]
+            )
+            check(
+                "A15",
+                "Similarity matrix and pair list equal the resolution API (cells = name similarity of API pairs; "
+                "masters imported with the documented CLI command and the case ID shown in the UI)",
+                imports == [0] * len(P5_FILES)
+                and case_id in hint
+                and res["stats"]["records_by_source"].get("master", 0) > 0
+                and sim["rows"] == len(pairs["items"])
+                and cells_ok
+                and 0 < sim["axis"] <= 16
+                and res["resolution_sha256"][:12] in sim["summary"],
+                json.dumps({"imports": imports, "rows": sim["rows"], "api_items": len(pairs["items"]),
+                            "cells": len(sim["cells"]), "total": pairs["total"]}),
+            )
+            target = next((x for x in pairs["items"] if x["status"] == "conflicting_identity"), pairs["items"][0])
+            if any(pid == target["pair_id"] for pid, _ in sim["cells"]):
+                page.click(f'#sim-matrix-table td[data-pair-id="{target["pair_id"]}"]')
+            else:
+                page.click(f"#re-sim-pairs tbody tr.main-row >> nth={pairs['items'].index(target)}")
+            page.wait_for_function(
+                f"() => (document.getElementById('sim-detail-title') || {{}}).textContent === 'Pair {target['pair_id']}'"
+            )
+            detail = page.text_content("#re-sim-detail")
+            full = page.evaluate(f"() => LS_API.get('/api/datasets/{syn_id}/resolution/pairs/{target['pair_id']}')")
+            check(
+                "A15",
+                "A selected pair shows the API's status, explanation, evidence, conflicts and shared payment patterns",
+                full["explanation"] in detail
+                and full["rule"] in detail
+                and all(e in detail for e in full["evidence"])
+                and all(c in detail for c in full["conflicts"])
+                and all(b["label"] in detail for b in full["supporting_behaviour"])
+                and all(r["name"] in detail for r in full["records"]),
+                target["pair_id"] + " " + target["status"],
+            )
+            page.select_option("#sim-status", "conflicting_identity")
+            page.click("#sim-apply")
+            conf = page.evaluate(
+                f"() => LS_API.get('/api/datasets/{syn_id}/resolution/pairs?status=conflicting_identity&size=50')"
+            )
+            page.wait_for_function(
+                "n => { const b = [...document.querySelectorAll('#re-sim-pairs tbody tr.main-row td:first-child')]"
+                ".map(td => td.textContent); return b.length === n && b.every(x => x === 'CONFLICTING IDENTITY'); }",
+                arg=len(conf["items"]),
+            )
+            badges = page.evaluate(
+                "() => [...document.querySelectorAll('#re-sim-pairs tbody tr.main-row td:first-child')].map(td => td.textContent)"
+            )
+            check(
+                "A15",
+                "The status filter lists exactly the API's pairs of that status",
+                conf["total"] > 0 and len(badges) == len(conf["items"]) and all(b == "CONFLICTING IDENTITY" for b in badges)
+                and f"{conf['total']:,} pairs" in page.text_content("#sim-page-label"),
+                f"{len(badges)} rows, API total {conf['total']}",
             )
             heights = {}
             for tab in ["tab-ov", "tab-di", "tab-fi", "tab-bsr", "tab-tr", "tab-an", "tab-re", "tab-ex", "tab-rep"]:

@@ -12,7 +12,7 @@ import re
 from typing import Any
 
 from ledgerspy.config import EffectiveConfig
-from ledgerspy.errors import LedgerSpyError
+from ledgerspy.errors import LedgerSpyError, require
 from ledgerspy.hashing import canonical_json, sha256_hex
 from ledgerspy.investigations.model import LINK_TYPES
 
@@ -420,7 +420,7 @@ _RESOLVERS = {
     "pdf_page": _pdf_page,
     "pdf_item": _pdf_item,
 }
-assert set(_RESOLVERS) == set(LINK_TYPES)  # noqa: S101 — every link type has a resolver
+require(set(_RESOLVERS) == set(LINK_TYPES), "a link type has no resolver")
 
 
 def check(conn, cfg: EffectiveConfig, case_id: str, link: dict[str, Any]) -> tuple[dict[str, Any], Any]:

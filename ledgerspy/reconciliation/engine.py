@@ -32,6 +32,7 @@ from datetime import date, timedelta
 from typing import Any
 
 from ledgerspy.config.schema import ReconciliationConfig
+from ledgerspy.errors import require
 from ledgerspy.hashing import canonical_json, sha256_hex
 from ledgerspy.reconciliation.records import RRow, account_label, alnum
 
@@ -242,7 +243,8 @@ class _State:
 
     def take(self, rows: list[RRow]) -> None:
         for r in rows:
-            assert self.free(r), r.txn_id  # noqa: S101 — every row lands in exactly one result
+            # every row lands in exactly one result (explicit, so it also holds under python -O)
+            require(self.free(r), "a row was assigned to two results", side=r.side, txn_id=r.txn_id)
             self.done.add((r.side, r.txn_id))
 
     def block_rows(self):
@@ -800,7 +802,13 @@ def summarize(results: list[dict[str, Any]], ledger: list[RRow], bank: list[RRow
                 amounts[side][cur][res["status"]] += a
     totals = {"ledger": len(ledger), "bank": len(bank)}
     for side in ("ledger", "bank"):
-        assert sum(rows_by_status[side].values()) == totals[side]  # noqa: S101 — every row exactly once
+        require(  # every row exactly once (explicit, so it also holds under python -O)
+            sum(rows_by_status[side].values()) == totals[side],
+            "reconciliation results do not cover every row exactly once",
+            side=side,
+            counted=sum(rows_by_status[side].values()),
+            rows=totals[side],
+        )
 
     def pick(side: str, statuses: tuple[str, ...]) -> dict[str, int]:
         return {

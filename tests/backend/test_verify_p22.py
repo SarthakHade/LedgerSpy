@@ -392,7 +392,8 @@ def test_the_acceptance_inventory_references_only_things_that_exist():
     inv = json.loads((REPO / "docs" / "acceptance-inventory.json").read_text(encoding="utf-8"))
     roadmap = (REPO / inv["roadmap"]).read_text(encoding="utf-8")
     ids = [p["id"] for p in inv["phases"]]
-    assert ids == [f"P{i}" for i in range(22)]  # every phase up to P21, in order
+    assert ids == [f"P{i}" for i in range(23)]  # every phase up to P22, in order
+    assert (REPO / inv["gap_audit"]).is_file()
     for p in inv["phases"]:
         line = next((ln for ln in roadmap.splitlines() if ln.startswith(p["heading"])), None)
         assert line is not None, p["heading"]
@@ -411,6 +412,8 @@ def test_the_acceptance_inventory_references_only_things_that_exist():
             assert heading in headings, ref
         for t in p["evidence"]["tests"]:
             assert (REPO / t).is_file(), t
+        for note in p.get("closed_before_p23", []):  # recorded as text, and no longer listed as open
+            assert note and isinstance(note, str) and note not in p["roadmap_gaps"], p["id"]
         known = {
             "backend",
             "node-harness",
@@ -423,9 +426,5 @@ def test_the_acceptance_inventory_references_only_things_that_exist():
         }
         assert set(p["evidence"]["checks"]) <= known, p["id"]
     covered = {t for p in inv["phases"] for t in p["evidence"]["tests"]}
-    unmapped = (
-        {f"tests/backend/{f.name}" for f in (REPO / "tests" / "backend").glob("test_*.py")}
-        - covered
-        - {"tests/backend/test_verify_p22.py"}
-    )
+    unmapped = {f"tests/backend/{f.name}" for f in (REPO / "tests" / "backend").glob("test_*.py")} - covered
     assert unmapped == set(), unmapped  # every backend test file is attributed to a phase

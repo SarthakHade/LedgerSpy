@@ -19,7 +19,7 @@ from typing import Any
 from ledgerspy.cases import evidence, store
 from ledgerspy.cases.db import SCHEMA_VERSION
 from ledgerspy.config.loader import EffectiveConfig
-from ledgerspy.errors import LedgerSpyError
+from ledgerspy.errors import LedgerSpyError, require
 from ledgerspy.hashing import canonical_json, sha256_hex
 from ledgerspy.investigations import refs
 from ledgerspy.investigations import service as inv_service
@@ -615,7 +615,10 @@ def linked_values(
         }
         for (ds, cur), t in sorted(totals.items())
     ]
-    assert sum(t["transactions"] for t in total_list) + unavailable == len(rows)  # noqa: S101
+    require(  # each linked transaction is counted exactly once (explicit, so it also holds under python -O)
+        sum(t["transactions"] for t in total_list) + unavailable == len(rows),
+        "report totals do not count every linked transaction exactly once",
+    )
     return {
         "transactions": rows,
         "distinct_transactions": len(rows),

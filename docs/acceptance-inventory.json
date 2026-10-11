@@ -1,7 +1,8 @@
 {
-  "about": "P22 acceptance inventory through P21 (machine-readable). It REFERENCES the roadmap and the phase acceptance records; it does not restate their results. 'evidence' lists where a phase is checked (tests/backend files, frontend checks, tools/verify.py checks). 'roadmap_gaps' lists roadmap acceptance items that the referenced record itself states as not met, deviated or untested; 'gap_sections' point to those statements. Validated by tests/backend/test_verify_p22.py (every path, heading and test file must exist).",
+  "about": "Acceptance inventory P0-P22 (machine-readable; P22, updated by the pre-P23 gap audit). It REFERENCES the roadmap and the phase acceptance records; it does not restate their results. 'evidence' lists where a phase is checked (tests/backend files, frontend checks, tools/verify.py checks). 'roadmap_gaps' lists roadmap acceptance items that the referenced record itself states as not met, deviated or untested; 'gap_sections' point to those statements. Validated by tests/backend/test_verify_p22.py (every path, heading and test file must exist).",
   "roadmap": "docs/roadmap.md",
   "verification_command": "python tools/verify.py",
+  "gap_audit": "docs/pre-p23-gap-audit.md",
   "phases": [
     {
       "id": "P0", "heading": "### P0 — Repository cleanup", "status": "done",
@@ -78,8 +79,9 @@
     {
       "id": "P12", "heading": "### P12 — Entity resolution", "status": "done",
       "acceptance_docs": ["docs/p12-acceptance.md", "docs/entity-resolution.md"], "gap_sections": ["docs/p12-acceptance.md#Deviations and decisions"],
-      "evidence": {"tests": ["tests/backend/test_resolution_datasets.py", "tests/backend/test_resolution_units.py"], "checks": ["backend"]},
-      "roadmap_gaps": ["No separate similarity-matrix screen in the UI; the evidence is in the API and the counterparty table (roadmap P12 'As built')."]
+      "evidence": {"tests": ["tests/backend/test_resolution_datasets.py", "tests/backend/test_resolution_units.py", "tests/backend/test_pre_p23_gaps.py"], "checks": ["backend", "browser"]},
+      "roadmap_gaps": [],
+      "closed_before_p23": ["The similarity-matrix UI ('the matrix UI shows per-feature evidence and shared payment patterns') was missing until the pre-P23 gap closure: Relationships tab, frontend/js/similarity-ui.js, browser check A15."]
     },
     {
       "id": "P13", "heading": "### P13 — Graph and relationship analysis", "status": "done",
@@ -91,7 +93,8 @@
       "id": "P14", "heading": "### P14 — Bank statement reconciliation", "status": "done",
       "acceptance_docs": ["docs/p14-acceptance.md", "docs/p14b-acceptance.md", "docs/reconciliation.md", "docs/pdf-extraction.md"], "gap_sections": ["docs/p14-acceptance.md#Deviations and decisions", "docs/p14b-acceptance.md#Not implemented / deferred (stated, not claimed)"],
       "evidence": {"tests": ["tests/backend/test_recon_datasets.py", "tests/backend/test_recon_units.py", "tests/backend/test_pdf_datasets.py", "tests/backend/test_pdf_units.py"], "checks": ["backend", "browser"], "optional_prerequisites": "OCR tests need a local Tesseract; without it they are SKIPPED and tools/verify.py lists the skips."},
-      "roadmap_gaps": ["'Exceptions feed the risk engine' is deliberately not done (P9 unchanged)."]
+      "roadmap_gaps": ["'Exceptions feed the risk engine' is deliberately not done (P9 unchanged)."],
+      "closed_before_p23": ["The 'every row in exactly one result' invariants were assert statements, skipped under python -O (p14-acceptance.md known limitation); they are explicit checks now (tests/backend/test_pre_p23_gaps.py)."]
     },
     {
       "id": "P15", "heading": "### P15 — Investigation workflow, case and evidence management", "status": "done",
@@ -102,7 +105,7 @@
     {
       "id": "P16", "heading": "### P16 — Reporting and local audit memo assistant", "status": "done",
       "acceptance_docs": ["docs/p16-acceptance.md", "docs/reporting.md"], "gap_sections": ["docs/p16-acceptance.md#Deviations from the roadmap entry", "docs/p16-acceptance.md#Limitations"],
-      "evidence": {"tests": ["tests/backend/test_reports.py"], "checks": ["backend", "browser"]},
+      "evidence": {"tests": ["tests/backend/test_reports.py", "tests/backend/test_pre_p23_gaps.py"], "checks": ["backend", "browser"]},
       "roadmap_gaps": ["No PDF output (ReportLab not installed); 'the PDF opens and its hash is stored' is not met."]
     },
     {
@@ -124,13 +127,20 @@
       "id": "P20", "heading": "### P20 — Security hardening", "status": "done",
       "acceptance_docs": ["docs/p20-security-acceptance.md"], "gap_sections": ["docs/p20-security-acceptance.md#5. Not enforced / remaining risks"],
       "evidence": {"tests": ["tests/backend/test_security_p20.py", "tests/backend/test_api_security.py"], "checks": ["backend", "browser"]},
-      "roadmap_gaps": ["pip-audit was not run (needs network)."]
+      "roadmap_gaps": ["pip-audit was not run (needs network).", "'Formula-injection-safe exports': not applicable yet, no CSV / spreadsheet export exists."]
     },
     {
       "id": "P21", "heading": "### P21 — Offline packaging", "status": "done",
       "acceptance_docs": ["docs/p21-acceptance.md", "docs/installation.md"], "gap_sections": ["docs/p21-acceptance.md#7. Remaining limitations"],
-      "evidence": {"tests": ["tests/backend/test_packaging_p21.py"], "checks": ["package", "offline-bundle"]},
-      "roadmap_gaps": ["'Verified manually' on a machine with the network physically disabled is still the user's step; the automated check isolates the installation's processes, not the machine.", "No PyInstaller executable; the interpreter is not bundled."]
+      "evidence": {"tests": ["tests/backend/test_packaging_p21.py", "tests/backend/test_pre_p23_gaps.py"], "checks": ["package", "offline-bundle"]},
+      "roadmap_gaps": ["'Verified manually' on a machine with the network physically disabled is still the user's step; the automated check isolates the installation's processes, not the machine.", "No PyInstaller executable; the interpreter is not bundled."],
+      "closed_before_p23": ["installation.md documented the master-data import without --workspace, which from the bundle folder targets the workspace folder of the current directory instead of the workspace ledgerspy.cmd serves (case not found). Fixed, with the case ID shown in the UI (tests/backend/test_pre_p23_gaps.py, browser check A15)."]
+    },
+    {
+      "id": "P22", "heading": "### P22 — Test consolidation", "status": "done",
+      "acceptance_docs": ["docs/p22-acceptance.md", "docs/verification.md"], "gap_sections": ["docs/p22-acceptance.md#4. Coverage and acceptance gaps (honest list)", "docs/p22-acceptance.md#6. Limitations"],
+      "evidence": {"tests": ["tests/backend/test_verify_p22.py"], "checks": ["backend", "package"]},
+      "roadmap_gaps": ["'Coverage targets': coverage is not measured (no coverage tool installed).", "'Performance tests (100k and 1M rows)': 1M rows not tested.", "'Detector metrics compared with recorded baselines': partly (P8 baseline; P7 / P12-P14 exact expectations; P9 recall has no recorded target)."]
     }
   ]
 }

@@ -218,7 +218,23 @@ version, master records and configuration), never persisted.
 - linked records;
 - merged ledger names.
 
-No score or percentage is computed in the browser.
+**Similarity matrix (pre-P23 gap closure, `frontend/js/similarity-ui.js`).** The Relationships tab's *Entity
+Similarity Matrix* card shows the candidate pairs of `GET …/resolution/pairs`. It loads when the tab is opened.
+- **Matrix.** Rows and columns are the records of the current page of pairs, at most 16 per axis; every pair is
+  also in the table. A cell is the pair's API name similarity, coloured by its P12 status. A blank cell means the
+  two records were not compared (blocking) or the pair is outside the view; it never means a similarity of zero.
+- **Filters.** By status and by name, with paging.
+- **Pair detail** (`…/pairs/{id}`):
+  - status, rule and suggested action;
+  - the evidence score, labelled as identity evidence, not a fraud probability;
+  - the name-similarity components, identifiers and address;
+  - evidence and conflicts;
+  - the shared payment patterns (supporting behaviour) and the records.
+- **Case ID.** The card names the case, which the CLI master import needs (installation guide §4).
+
+The card is read-only. Analyst confirm / reject is recorded through an investigation (P15). "Per-pair risk" is
+the P12 review status and evidence score; no fused pair risk score exists. No score or percentage is computed in
+the browser.
 
 ## 9. Validation (P5)
 

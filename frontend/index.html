@@ -447,6 +447,15 @@
           <div data-style="font-size:2rem;font-weight:700;color:var(--cyan)" id="rel-stat-withhigh">—</div>
         </div>
       </div>
+      <!-- P12 entity similarity matrix (pre-P23 gap closure). Filled by js/similarity-ui.js from /api/datasets/{id}/resolution only. -->
+      <div class="t-card" id="re-sim-card" data-style="margin-bottom:24px">
+        <h3>Entity Similarity Matrix <span>P12 candidate pairs · identity evidence for review, not proof</span></h3>
+        <div id="re-sim-summary"><div class="na-inline">Run the analysis to load entity resolution.</div></div>
+        <div id="re-sim-controls" class="di-toolbar" data-style="margin-top:8px"></div>
+        <div id="re-sim-matrix" data-style="margin-top:8px"></div>
+        <div id="re-sim-pairs" data-style="margin-top:16px"></div>
+        <div id="re-sim-detail" data-style="margin-top:16px"><div class="na-inline">Select a matrix cell or a pair.</div></div>
+      </div>
       <div class="t-card">
         <h3>Counterparty Risk <span>review order</span></h3>
         <div id="re-entities"><div class="na-inline">Run the analysis to list counterparties.</div></div>
@@ -634,6 +643,7 @@
 <script src="js/ui-core.js"></script>
 <script src="js/risk-ui.js"></script>
 <script src="js/graph-ui.js"></script>
+<script src="js/similarity-ui.js"></script>
 <script src="js/recon-ui.js"></script>
 <script src="js/investigations-ui.js"></script>
 <script src="js/reports-ui.js"></script>

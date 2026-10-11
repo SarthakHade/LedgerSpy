@@ -15,3 +15,16 @@ class LedgerSpyError(Exception):
 
     def to_dict(self) -> dict[str, Any]:
         return {"code": self.code, "message": self.message, "details": self.details}
+
+
+class InvariantError(LedgerSpyError):
+    """An internal consistency check failed (e.g. a row counted twice in a total). Raised explicitly, not by
+    `assert`, so it also holds under `python -O`: the operation is refused rather than return wrong totals."""
+
+    def __init__(self, message: str, details: dict[str, Any] | None = None):
+        super().__init__("internal_invariant_failed", message, details, http_status=500)
+
+
+def require(condition: bool, message: str, **details: Any) -> None:
+    if not condition:
+        raise InvariantError(message, details or None)

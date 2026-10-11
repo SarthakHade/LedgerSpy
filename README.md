@@ -187,6 +187,13 @@ This repository is being rebuilt from a hackathon prototype into a working syste
 - **P22 release verification:** `python tools/verify.py` runs every required check (Ruff, backend suite, Node
   harness, browser and P4 panel checks, bundle validation) with honest exit codes and a machine-readable record.
   See [`docs/verification.md`](docs/verification.md) and [`docs/p22-acceptance.md`](docs/p22-acceptance.md).
+- **Pre-P23 gap audit:** every roadmap requirement P0–P22 classified against the code and tests, with the gaps
+  fixed before documentation:
+  - the entity similarity matrix in the UI;
+  - forensic invariants that no longer depend on `assert`;
+  - a corrected master-data import command.
+
+  See [`docs/pre-p23-gap-audit.md`](docs/pre-p23-gap-audit.md).
 - The original notebooks are in `archive/` for reference. Their evaluation had data leakage and must not be quoted.
 
 See [`docs/requirements.md`](docs/requirements.md) for the requirement-by-requirement status.
@@ -285,6 +292,7 @@ python tests/frontend/integrity_panel_check.py  # optional: P4 dashboard against
 | [`docs/p21-acceptance.md`](docs/p21-acceptance.md) | P21 acceptance: lock and bundle, offline check evidence, startup safety, migrations, limits |
 | [`docs/verification.md`](docs/verification.md) | P22 release verification: the single command, checks, results, package validation, troubleshooting |
 | [`docs/p22-acceptance.md`](docs/p22-acceptance.md) | P22 acceptance: consolidated run, workflow tests, coverage and acceptance gaps |
+| [`docs/pre-p23-gap-audit.md`](docs/pre-p23-gap-audit.md) | Pre-P23 completeness audit: every roadmap requirement's status, the gaps fixed, deferred and environment-only items, P23 readiness |
 | [`docs/acceptance-inventory.json`](docs/acceptance-inventory.json) | P0–P21 acceptance inventory (references, evidence, gaps), validated by a test |
 | [`docs/synthetic-scenario-matrix.md`](docs/synthetic-scenario-matrix.md) | Feature → scenario → fields → records → detector phase |
 | [`docs/cleanup-log.md`](docs/cleanup-log.md) | What was moved, archived or deleted in the cleanup, and why |

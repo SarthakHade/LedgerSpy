@@ -182,7 +182,9 @@ See [`cleanup-log.md`](cleanup-log.md).
     similarity evidence.
   - Look-alike and shared-attribute scenarios surface as `conflicting_identity` / `shared_attribute`, never merged.
   - Analyst confirm / reject is recorded as a P15 decision (`entity_link_accepted` / `rejected`), never a merge. The UI shows identity in the counterparty table
-    (no separate matrix screen).
+    (no separate matrix screen at P12).
+  - **Pre-P23 gap closure:** the similarity matrix (pairs × per-feature evidence × shared payment patterns) was
+    added to the Relationships tab, read-only from the resolution API. See [`pre-p23-gap-audit.md`](pre-p23-gap-audit.md).
   - See the deviations in [`p12-acceptance.md`](p12-acceptance.md).
 
 ### P13 — Graph and relationship analysis (R9) ✔ (done; see [`p13-acceptance.md`](p13-acceptance.md) and [`relationship-graph.md`](relationship-graph.md))
