@@ -320,13 +320,30 @@ See [`cleanup-log.md`](cleanup-log.md).
     partial. Formula-injection-safe exports: no CSV export exists yet.
   - See [`p20-security-acceptance.md`](p20-security-acceptance.md).
 
-### P21 — Offline packaging
+### P21 — Offline packaging ✔ (done; see [`p21-acceptance.md`](p21-acceptance.md), [`installation.md`](installation.md))
 - **Objective.**
   - Vendored fonts and JS.
   - Pinned, hashed wheelhouse and an offline install script.
   - Tesseract offline install notes.
   - Optional PyInstaller build.
 - **Acceptance.** Fresh install on a machine with the network disabled; the full demo case runs; zero non-loopback connections (verified by test and manually).
+- **As built.**
+  - **Bundle:** a reproducible folder-style zip for Windows x64 / CPython 3.12. It contains the application,
+    the UI, the config, the docs, the synthetic demo data (no ground truth) and a wheelhouse of the 19 locked
+    wheels. `requirements.lock` holds the complete closure with a SHA-256 per wheel. `install.cmd` installs
+    with `--no-index --require-hashes`; `ledgerspy.cmd` runs with a workspace in `%LOCALAPPDATA%`.
+  - **Runtime safety:** `ledgerspy doctor` (changes nothing); one server per workspace (OS file lock); a port
+    check; one-line startup errors; graceful Ctrl+C / Ctrl+Break stop with exit code 0; a read-only database
+    backup before every schema upgrade.
+  - **Offline evidence:** `packaging/offline_check.py` installs the bundle and drives every feature through
+    the API and the UI. Every Python process runs under a network guard that refuses and logs non-loopback
+    DNS / connect, and `netstat` samples the installation's processes, Tesseract included. Result: 0 attempts,
+    0 connections. The machine's network adapter was **not** disabled (that would change system settings);
+    see the acceptance record.
+  - **Not done:** vendored fonts / JS (none needed: the UI loads no external asset); the Python interpreter
+    and Tesseract are prerequisites, not bundled; PyInstaller executable; non-Windows bundles; memory caps for
+    the PDF / OCR worker.
+  - See [`p21-acceptance.md`](p21-acceptance.md).
 
 ### P22 — Test consolidation
 - **Objective.** Coverage targets, the scenario-benchmark regression suite in CI-like local runs, Playwright E2E smoke (upload → run → finding → report), and performance tests (100k and 1M rows).

@@ -1,8 +1,9 @@
-"""Command line: `ledgerspy serve`, `audit verify`, `evidence verify`, `synth`, `evaluate` (P10),
-`model` (P11) and `entities` (P12)."""
+"""Command line: `ledgerspy serve`, `doctor` (P21), `audit verify`, `evidence verify`, `synth`,
+`evaluate` (P10), `model` (P11) and `entities` (P12)."""
 
 import argparse
 import secrets
+import signal
 import sqlite3
 import sys
 import threading
@@ -24,21 +25,53 @@ def _load(args: argparse.Namespace, overrides: dict[str, Any]) -> Any:
 def cmd_serve(args: argparse.Namespace) -> int:
     from ledgerspy.api.app import build_server, create_app
     from ledgerspy.cases.audit import local_actor
-    from ledgerspy.cases.db import db_path_for, init_db
+    from ledgerspy.cases.db import DatabaseError, db_path_for, init_db
+    from ledgerspy.runtime import WorkspaceLock, WorkspaceLocked, port_available
 
     config = _load(args, {"server": {"port": args.port}} if args.port else {})
     db_path = db_path_for(config.settings)
-    schema_version = init_db(db_path, local_actor())
-    token = secrets.token_urlsafe(32)
-    server = build_server(create_app(config, db_path, token), config)
+    host, port = config.settings.server.host, config.settings.server.port
+    # P21: refuse clearly instead of failing half-way: one server per workspace, a free port, a readable and
+    # upgradable database (backed up before any migration), and a UI that satisfies the strict CSP.
+    lock = WorkspaceLock(db_path.parent)
+    try:
+        lock.acquire()
+    except WorkspaceLocked as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return 3
+    try:
+        if not port_available(host, port):
+            print(
+                f"ERROR: {host}:{port} is already in use (another LedgerSpy or another program); stop it or "
+                "choose another port with --port",
+                file=sys.stderr,
+            )
+            return 3
+        try:
+            schema_version = init_db(db_path, local_actor())
+            token = secrets.token_urlsafe(32)
+            server = build_server(create_app(config, db_path, token), config)
+        except (DatabaseError, sqlite3.Error) as exc:
+            print(f"ERROR: database {db_path}: {exc}", file=sys.stderr)
+            return 2
+        except (OSError, ValueError) as exc:  # missing / altered UI files, refused bind address
+            print(f"ERROR: cannot start: {exc}", file=sys.stderr)
+            return 2
+        return _run_server(server, config, db_path, schema_version, token, args.no_browser)
+    finally:
+        lock.release()
 
+
+def _run_server(
+    server: Any, config: Any, db_path: Path, schema_version: int, token: str, no_browser: bool
+) -> int:
     url = f"http://{config.settings.server.host}:{config.settings.server.port}/?token={token}"
     print(f"LedgerSpy {__version__} | schema v{schema_version} | database {db_path.resolve()}")
     print(f"Config {config.source} sha256 {config.sha256}")
     print(f"Open: {url}")
     print("Bound to loopback only. Press Ctrl+C to stop.", flush=True)
 
-    if not args.no_browser:
+    if not no_browser:
 
         def open_when_ready() -> None:
             for _ in range(100):
@@ -48,8 +81,42 @@ def cmd_serve(args: argparse.Namespace) -> int:
                 time.sleep(0.1)
 
         threading.Thread(target=open_when_ready, daemon=True).start()
-    server.run()
-    return 0 if server.started else 1
+    # P21: uvicorn shuts down gracefully on Ctrl+C / Ctrl+Break / SIGTERM, then re-raises the signal against
+    # the previous handler. With the default handler that kills the process (Ctrl+Break: exit code 3, before
+    # the workspace lock is released here). These handlers only note the request, so `serve` returns normally.
+    stops: list[int] = []
+    previous = {}
+    for name in ("SIGINT", "SIGTERM", "SIGBREAK"):
+        sig = getattr(signal, name, None)
+        if sig is not None:
+            previous[sig] = signal.signal(sig, lambda s, _f: stops.append(s))
+    try:
+        server.run()
+    finally:
+        for sig, handler in previous.items():
+            signal.signal(sig, handler)
+    if server.started:
+        print("LedgerSpy stopped cleanly." if stops else "LedgerSpy stopped.", flush=True)
+        return 0
+    return 1
+
+
+def cmd_doctor(args: argparse.Namespace) -> int:
+    """P21: diagnose an installation. Exit 0 = ready (warnings allowed, e.g. no OCR), 1 = a check failed."""
+    import json
+
+    from ledgerspy.runtime import doctor
+
+    checks = doctor(args.config, args.workspace, args.port)
+    if args.json:
+        print(json.dumps([c.__dict__ for c in checks], indent=2))
+    else:
+        for c in checks:
+            print(f"{c.status.upper():4}  {c.name}: {c.detail}")
+    failed = [c for c in checks if c.status == "fail"]
+    if not args.json:
+        print("RESULT: " + ("NOT READY — fix the FAIL lines above" if failed else "ready"))
+    return 1 if failed else 0
 
 
 def cmd_audit_verify(args: argparse.Namespace) -> int:
@@ -400,6 +467,12 @@ def build_parser() -> argparse.ArgumentParser:
     serve.add_argument("--port", type=int, help="port (overrides server.port)")
     serve.add_argument("--no-browser", action="store_true", help="do not open a browser")
     serve.set_defaults(func=cmd_serve)
+
+    doctor = commands.add_parser("doctor", help="check this installation (changes nothing)")
+    common(doctor)
+    doctor.add_argument("--port", type=int, help="port to check (overrides server.port)")
+    doctor.add_argument("--json", action="store_true", help="machine-readable output")
+    doctor.set_defaults(func=cmd_doctor)
 
     audit_cmd = commands.add_parser("audit", help="audit-log tools")
     audit_sub = audit_cmd.add_subparsers(dest="audit_command", required=True)

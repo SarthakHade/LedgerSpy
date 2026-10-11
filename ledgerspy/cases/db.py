@@ -718,6 +718,27 @@ def current_version(conn: sqlite3.Connection) -> int:
     return row[0] or 0
 
 
+def backup_before_migration(conn: sqlite3.Connection, path: Path, version: int) -> Path:
+    """P21: a consistent, read-only copy of an existing database before it is upgraded, in
+    `<workspace>/backups/`. The migration itself is transactional (a failure rolls back); the copy also covers
+    an upgrade that later turns out to be unwanted. Backups are never deleted by LedgerSpy."""
+    import os
+    import stat
+    from datetime import UTC, datetime
+
+    folder = path.parent / "backups"
+    folder.mkdir(parents=True, exist_ok=True)
+    stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%S%fZ")
+    target = folder / f"{path.stem}-v{version}-before-v{SCHEMA_VERSION}-{stamp}.db"
+    out = sqlite3.connect(target)
+    try:
+        conn.backup(out)
+    finally:
+        out.close()
+    os.chmod(target, stat.S_IREAD)
+    return target
+
+
 def init_db(path: Path | str, actor: str) -> int:
     """Create or upgrade the database to SCHEMA_VERSION. Idempotent. Returns the schema version."""
     path = Path(path)
@@ -728,6 +749,9 @@ def init_db(path: Path | str, actor: str) -> int:
     # batch commits.
     conn.execute("PRAGMA foreign_keys = OFF")
     try:
+        before = current_version(conn)
+        if 0 < before < SCHEMA_VERSION:
+            backup_before_migration(conn, path, before)
         with transaction(conn):
             version = current_version(conn)
             if version > SCHEMA_VERSION:

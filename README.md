@@ -175,6 +175,15 @@ This repository is being rebuilt from a hackathon prototype into a working syste
   - A written threat model, including what is *not* protected (a local administrator, memory caps).
 
   See [`docs/p20-security-acceptance.md`](docs/p20-security-acceptance.md).
+- **P21 offline packaging:**
+  - A reproducible Windows x64 / Python 3.12 bundle with a hash-locked wheelhouse.
+  - `install.cmd` installs with no index access; `ledgerspy.cmd` runs with a workspace outside the
+    application folder.
+  - `ledgerspy doctor` diagnoses an installation.
+  - One server per workspace; database backup before upgrades.
+  - A network-guarded offline check of every feature.
+
+  See [`docs/installation.md`](docs/installation.md) and [`docs/p21-acceptance.md`](docs/p21-acceptance.md).
 - The original notebooks are in `archive/` for reference. Their evaluation had data leakage and must not be quoted.
 
 See [`docs/requirements.md`](docs/requirements.md) for the requirement-by-requirement status.
@@ -200,10 +209,13 @@ Target layout (from phase P2 on) is described in [`docs/architecture.md`](docs/a
 
 Requires Python ≥ 3.11 (Node ≥ 18 only for the frontend harness).
 
+**Target laptop (offline):** install from the P21 bundle instead: `install.cmd`, then `ledgerspy.cmd`. See [`docs/installation.md`](docs/installation.md). The commands below are for development.
+
 ```bash
 py -3.12 -m venv .venv                          # or: python3.12 -m venv .venv
 .venv/Scripts/python -m pip install -e ".[dev]" # .venv/bin/... on macOS/Linux
 .venv/Scripts/ledgerspy serve                   # opens http://127.0.0.1:8765/?token=… (loopback only)
+.venv/Scripts/ledgerspy doctor                  # P21: check the installation (changes nothing)
 .venv/Scripts/ledgerspy audit verify            # verify the workspace audit-log hash chain
 .venv/Scripts/ledgerspy evidence verify         # re-hash every evidence file against the database
 .venv/Scripts/ledgerspy synth --out out/synth --seed 42   # generate a synthetic company (offline, deterministic)
@@ -264,6 +276,8 @@ python tests/frontend/integrity_panel_check.py  # optional: P4 dashboard against
 | [`docs/reporting.md`](docs/reporting.md) | P16 reporting: report types, claims and traceability, aggregation rules, memo, stale data, formats, storage, API, limitations |
 | [`docs/p16-acceptance.md`](docs/p16-acceptance.md) | P16 acceptance: traceability, totals, stale / unconfirmed data, memo cross-check, versioning, artefact safety, P9 isolation |
 | [`docs/p20-security-acceptance.md`](docs/p20-security-acceptance.md) | P20 threat model, controls, fixes, audit-trail guarantees and limits, remaining risks |
+| [`docs/installation.md`](docs/installation.md) | P21 offline installation: prerequisites, install, run, OCR, upgrade, backup / recovery, building the bundle, troubleshooting |
+| [`docs/p21-acceptance.md`](docs/p21-acceptance.md) | P21 acceptance: lock and bundle, offline check evidence, startup safety, migrations, limits |
 | [`docs/synthetic-scenario-matrix.md`](docs/synthetic-scenario-matrix.md) | Feature → scenario → fields → records → detector phase |
 | [`docs/cleanup-log.md`](docs/cleanup-log.md) | What was moved, archived or deleted in the cleanup, and why |
 | [`docs/audits/phase-1-current-state-audit.md`](docs/audits/phase-1-current-state-audit.md) | Detailed audit of the prototype |

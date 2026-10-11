@@ -2,3 +2,5 @@
 tests/backend/fixtures/** -text
 # The synthetic reference is hashed byte for byte (manifest, determinism tests): never normalise it.
 data/synthetic/** -text
+# Windows batch files need CRLF line endings.
+*.cmd text eol=crlf

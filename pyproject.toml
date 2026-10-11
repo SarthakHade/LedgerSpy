@@ -60,3 +60,5 @@ ignore = ["S101"]  # assert is fine in tests and for internal invariants
 "tests/**" = ["S104", "S105", "S106", "S108", "S311", "S603", "S607", "S608"]
 "tests/backend/fixtures/**" = ["E501"]  # verbatim CSV rows
 "ledgerspy/synth/**" = ["S311"]  # seeded, reproducible test data, not cryptography
+# build / verification tools: they only start fixed programs (git, powershell, netstat, cmd, the bundle)
+"packaging/**" = ["S603", "S607"]
