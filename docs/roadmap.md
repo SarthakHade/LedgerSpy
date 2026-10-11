@@ -345,9 +345,22 @@ See [`cleanup-log.md`](cleanup-log.md).
     the PDF / OCR worker.
   - See [`p21-acceptance.md`](p21-acceptance.md).
 
-### P22 — Test consolidation
+### P22 — Test consolidation ✔ (done; see [`p22-acceptance.md`](p22-acceptance.md), [`verification.md`](verification.md))
 - **Objective.** Coverage targets, the scenario-benchmark regression suite in CI-like local runs, Playwright E2E smoke (upload → run → finding → report), and performance tests (100k and 1M rows).
 - **Acceptance.** One command runs the full suite; detector metrics are compared with recorded baselines.
+- **As built.**
+  - **One command:** `tools/verify.py` runs Ruff (lint and format), the backend suite, the Node harness, the
+    browser and P4 panel checks and the release-bundle validation (required), plus the offline bundle check
+    (optional). Counts come from JUnit XML and the checks' JSON reports; `run.json` carries a completion marker.
+    Exit 0 / 1 / 2 = passed / failed / incomplete-or-interrupted. `--detach` survives a closed session.
+  - **Package validation:** manifest and hashes, a content scan, provenance of every file against its source
+    commit, and a byte-for-byte rebuild for a bundle of the clean `HEAD`. Earlier bundles are preserved.
+  - **Isolation:** the UI checks now delete their temporary workspaces.
+  - **Inventory:** [`acceptance-inventory.json`](acceptance-inventory.json) lists P0–P21 evidence and gaps by
+    reference.
+  - **Not done:** coverage measurement (no tool installed), 1M-row performance tests, and a single baseline
+    file for every detector (P8 has recorded baselines; P9 recall has no target).
+  - See [`p22-acceptance.md`](p22-acceptance.md).
 
 ### P23 — Documentation
 - **Objective.** User guide (auditor workflow), methodology (each detector, its assumptions and limits), model cards, config reference, developer guide, and data provenance.

@@ -184,6 +184,9 @@ This repository is being rebuilt from a hackathon prototype into a working syste
   - A network-guarded offline check of every feature.
 
   See [`docs/installation.md`](docs/installation.md) and [`docs/p21-acceptance.md`](docs/p21-acceptance.md).
+- **P22 release verification:** `python tools/verify.py` runs every required check (Ruff, backend suite, Node
+  harness, browser and P4 panel checks, bundle validation) with honest exit codes and a machine-readable record.
+  See [`docs/verification.md`](docs/verification.md) and [`docs/p22-acceptance.md`](docs/p22-acceptance.md).
 - The original notebooks are in `archive/` for reference. Their evaluation had data leakage and must not be quoted.
 
 See [`docs/requirements.md`](docs/requirements.md) for the requirement-by-requirement status.
@@ -228,6 +231,8 @@ py -3.12 -m venv .venv                          # or: python3.12 -m venv .venv
 The workspace (`workspace/ledgerspy.db`) holds client data and is git-ignored.
 
 ## Running the tests
+
+Release verification (every check, one command): `python tools/verify.py`; see [`docs/verification.md`](docs/verification.md).
 
 ```bash
 .venv/Scripts/python -m pytest                  # P2 backend suite; outbound network is blocked
@@ -278,6 +283,9 @@ python tests/frontend/integrity_panel_check.py  # optional: P4 dashboard against
 | [`docs/p20-security-acceptance.md`](docs/p20-security-acceptance.md) | P20 threat model, controls, fixes, audit-trail guarantees and limits, remaining risks |
 | [`docs/installation.md`](docs/installation.md) | P21 offline installation: prerequisites, install, run, OCR, upgrade, backup / recovery, building the bundle, troubleshooting |
 | [`docs/p21-acceptance.md`](docs/p21-acceptance.md) | P21 acceptance: lock and bundle, offline check evidence, startup safety, migrations, limits |
+| [`docs/verification.md`](docs/verification.md) | P22 release verification: the single command, checks, results, package validation, troubleshooting |
+| [`docs/p22-acceptance.md`](docs/p22-acceptance.md) | P22 acceptance: consolidated run, workflow tests, coverage and acceptance gaps |
+| [`docs/acceptance-inventory.json`](docs/acceptance-inventory.json) | P0–P21 acceptance inventory (references, evidence, gaps), validated by a test |
 | [`docs/synthetic-scenario-matrix.md`](docs/synthetic-scenario-matrix.md) | Feature → scenario → fields → records → detector phase |
 | [`docs/cleanup-log.md`](docs/cleanup-log.md) | What was moved, archived or deleted in the cleanup, and why |
 | [`docs/audits/phase-1-current-state-audit.md`](docs/audits/phase-1-current-state-audit.md) | Detailed audit of the prototype |

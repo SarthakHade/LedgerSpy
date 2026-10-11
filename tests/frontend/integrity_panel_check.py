@@ -56,9 +56,32 @@ def api(base: str, token: str, method: str, path: str, body: bytes | dict | None
         return json.loads(r.read())
 
 
+def remove_workspace(folder: Path) -> None:
+    """Delete this run's temporary workspace (P22). Evidence files are read-only by design, so clear the
+    flag first; only the mkdtemp folder created by this run is touched."""
+    import os
+    import shutil
+    import stat
+
+    import time
+
+    def retry(func, path, _exc):
+        os.chmod(path, stat.S_IWRITE)
+        func(path)
+
+    hook = {"onexc": retry} if sys.version_info >= (3, 12) else {"onerror": retry}
+    for _ in range(10):  # the stopped server may still hold the database for a moment on Windows
+        try:
+            shutil.rmtree(folder, **hook)
+            return
+        except OSError:
+            time.sleep(0.5)
+    print(f"WARNING: could not remove the temporary workspace {folder}", file=sys.stderr)
+
+
 def main() -> int:
     port = free_port()
-    ws = Path(tempfile.mkdtemp()) / "ws"
+    ws = Path(tempfile.mkdtemp(prefix="ledgerspy-panel-")) / "ws"  # removed at the end (P22)
     proc = subprocess.Popen(
         [sys.executable, "-u", "-m", "ledgerspy", "serve", "--no-browser", "--port", str(port), "--workspace", str(ws)],
         cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
@@ -161,6 +184,7 @@ def main() -> int:
     finally:
         proc.terminate()
         proc.wait(timeout=10)
+        remove_workspace(ws.parent)
 
     failed = sum(not r["ok"] for r in results)
     print(f"\n{len(results) - failed} passed, {failed} failed")

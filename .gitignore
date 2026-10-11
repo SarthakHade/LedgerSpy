@@ -12,6 +12,7 @@ models/**/*.onnx
 # (anchored to repo root so the future ledgerspy/reports/ package is NOT ignored)
 /reports/
 /wheelhouse/
+/verify-results/
 dist/
 build/
 *.egg-info/

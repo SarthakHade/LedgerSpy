@@ -62,3 +62,4 @@ ignore = ["S101"]  # assert is fine in tests and for internal invariants
 "ledgerspy/synth/**" = ["S311"]  # seeded, reproducible test data, not cryptography
 # build / verification tools: they only start fixed programs (git, powershell, netstat, cmd, the bundle)
 "packaging/**" = ["S603", "S607"]
+"tools/**" = ["S603", "S607"]  # the verification orchestrator starts the project's own checks

@@ -96,13 +96,36 @@ def analyse(page, dataset_id: str) -> None:
     )
 
 
+def remove_workspace(folder: Path) -> None:
+    """Delete this run's temporary workspace (P22). Evidence files are read-only by design, so clear the
+    flag first; only the mkdtemp folder created by this run is touched."""
+    import os
+    import shutil
+    import stat
+
+    import time
+
+    def retry(func, path, _exc):
+        os.chmod(path, stat.S_IWRITE)
+        func(path)
+
+    hook = {"onexc": retry} if sys.version_info >= (3, 12) else {"onerror": retry}
+    for _ in range(10):  # the stopped server may still hold the database for a moment on Windows
+        try:
+            shutil.rmtree(folder, **hook)
+            return
+        except OSError:
+            time.sleep(0.5)
+    print(f"WARNING: could not remove the temporary workspace {folder}", file=sys.stderr)
+
+
 def main() -> int:
     shots = None
     if "--screenshots" in sys.argv:
         shots = Path(sys.argv[sys.argv.index("--screenshots") + 1])
         shots.mkdir(parents=True, exist_ok=True)
     port = free_port()
-    ws = Path(tempfile.mkdtemp()) / "ws"
+    ws = Path(tempfile.mkdtemp(prefix="ledgerspy-browser-")) / "ws"  # removed at the end (P22)
     proc = subprocess.Popen(
         [
             sys.executable,
@@ -634,6 +657,7 @@ def main() -> int:
             proc.wait(timeout=10)
         except subprocess.TimeoutExpired:
             proc.kill()
+        remove_workspace(ws.parent)
 
     check(
         "A9",

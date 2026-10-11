@@ -1,0 +1,136 @@
+{
+  "about": "P22 acceptance inventory through P21 (machine-readable). It REFERENCES the roadmap and the phase acceptance records; it does not restate their results. 'evidence' lists where a phase is checked (tests/backend files, frontend checks, tools/verify.py checks). 'roadmap_gaps' lists roadmap acceptance items that the referenced record itself states as not met, deviated or untested; 'gap_sections' point to those statements. Validated by tests/backend/test_verify_p22.py (every path, heading and test file must exist).",
+  "roadmap": "docs/roadmap.md",
+  "verification_command": "python tools/verify.py",
+  "phases": [
+    {
+      "id": "P0", "heading": "### P0 — Repository cleanup", "status": "done",
+      "acceptance_docs": ["docs/cleanup-log.md"], "gap_sections": [],
+      "evidence": {"tests": [], "checks": []},
+      "roadmap_gaps": []
+    },
+    {
+      "id": "P1", "heading": "### P1 — Truthful baseline (existing UI)", "status": "done",
+      "acceptance_docs": ["docs/p1-acceptance.md"], "gap_sections": ["docs/p1-acceptance.md#Not in P1 (deliberately)"],
+      "evidence": {"tests": ["tests/backend/test_frontend_static.py"], "checks": ["node-harness", "browser"]},
+      "roadmap_gaps": []
+    },
+    {
+      "id": "P2", "heading": "### P2 — Architecture foundation", "status": "done",
+      "acceptance_docs": ["docs/p2-acceptance.md"], "gap_sections": ["docs/p2-acceptance.md#Decisions that differ from or add to `architecture.md`"],
+      "evidence": {"tests": ["tests/backend/test_api_security.py", "tests/backend/test_db_audit.py", "tests/backend/test_config.py", "tests/backend/test_server_binding.py", "tests/backend/test_network_guard.py", "tests/backend/test_ids.py", "tests/backend/test_cli.py"], "checks": ["backend"]},
+      "roadmap_gaps": []
+    },
+    {
+      "id": "P3", "heading": "### P3 — Data ingestion and evidence", "status": "done",
+      "acceptance_docs": ["docs/p3-acceptance.md"], "gap_sections": ["docs/p3-acceptance.md#Deviations from `architecture.md` / `roadmap.md` (all recorded in `architecture.md`)"],
+      "evidence": {"tests": ["tests/backend/test_ingest_api.py", "tests/backend/test_ingest_csv.py", "tests/backend/test_ingest_xlsx.py", "tests/backend/test_ingest_evidence.py", "tests/backend/test_ingest_mapping.py", "tests/backend/test_ingest_paysim.py"], "checks": ["backend"]},
+      "roadmap_gaps": []
+    },
+    {
+      "id": "P4", "heading": "### P4 — Validation, cleaning and the Data Integrity Dashboard", "status": "done",
+      "acceptance_docs": ["docs/p4-acceptance.md"], "gap_sections": ["docs/p4-acceptance.md#Deviations from `architecture.md` / `roadmap.md` (recorded in `architecture.md`)"],
+      "evidence": {"tests": ["tests/backend/test_quality_api.py", "tests/backend/test_quality_checks.py", "tests/backend/test_quality_paysim.py", "tests/backend/test_quality_readiness.py", "tests/backend/test_normalize.py"], "checks": ["backend", "p4-panel"]},
+      "roadmap_gaps": []
+    },
+    {
+      "id": "P5", "heading": "### P5 — Synthetic scenario data", "status": "done",
+      "acceptance_docs": ["docs/p5-acceptance.md", "docs/synthetic-scenario-matrix.md"], "gap_sections": ["docs/p5-acceptance.md#Deviations and known limitations"],
+      "evidence": {"tests": ["tests/backend/test_synth_dataset.py", "tests/backend/test_synth_generation.py", "tests/backend/test_synth_pipeline.py", "tests/backend/test_synth_scenarios.py", "tests/backend/test_synth_variants.py"], "checks": ["backend"]},
+      "roadmap_gaps": ["No UI banner that separates synthetic datasets (stated as not built)."]
+    },
+    {
+      "id": "P6", "heading": "### P6 — Feature engineering (single registry)", "status": "done",
+      "acceptance_docs": ["docs/p6-acceptance.md", "docs/feature-registry.md"], "gap_sections": ["docs/p6-acceptance.md#Deviations from architecture.md / roadmap.md"],
+      "evidence": {"tests": ["tests/backend/test_features_datasets.py", "tests/backend/test_features_pit.py", "tests/backend/test_features_registry.py", "tests/backend/test_features_units.py"], "checks": ["backend"]},
+      "roadmap_gaps": ["'No constant features': constant features are reported, not removed (deviation 1)."]
+    },
+    {
+      "id": "P7", "heading": "### P7 — Forensic rules and Benford", "status": "done",
+      "acceptance_docs": ["docs/p7-acceptance.md"], "gap_sections": ["docs/p7-acceptance.md#Deviations from architecture.md / roadmap.md"],
+      "evidence": {"tests": ["tests/backend/test_forensics_benford.py", "tests/backend/test_forensics_datasets.py", "tests/backend/test_forensics_rules.py"], "checks": ["backend"]},
+      "roadmap_gaps": ["The round-amount vendor is detected by a rule, not by the Benford subgroup analysis (deviation 4: too few rows for Benford)."]
+    },
+    {
+      "id": "P8", "heading": "### P8 — Anomaly detection", "status": "done",
+      "acceptance_docs": ["docs/p8-acceptance.md", "docs/anomaly-model-card.md"], "gap_sections": ["docs/p8-acceptance.md#Deviations from architecture.md and roadmap.md"],
+      "evidence": {"tests": ["tests/backend/test_anomaly_datasets.py", "tests/backend/test_anomaly_iforest.py", "tests/backend/test_anomaly_robust.py"], "checks": ["backend"], "baselines": "tests/backend/test_anomaly_datasets.py compares detector results with the baseline recorded in docs/p8-acceptance.md; the 100k-row timing guard is test_100k_synthetic_rows_complete_in_development_time"},
+      "roadmap_gaps": []
+    },
+    {
+      "id": "P9", "heading": "### P9 — Risk engine v1, Explainability v1, and UI wired to the API", "status": "done",
+      "acceptance_docs": ["docs/p9-acceptance.md", "docs/risk-engine.md"], "gap_sections": ["docs/p9-acceptance.md#Deviations from architecture.md / roadmap.md"],
+      "evidence": {"tests": ["tests/backend/test_risk_datasets.py", "tests/backend/test_risk_explain.py", "tests/backend/test_risk_fusion.py"], "checks": ["backend", "browser", "node-harness"]},
+      "roadmap_gaps": ["'Scenario recall at or above the target recorded in the plan': no recall target is recorded; recall is reported as a diagnostic only (docs/p9-acceptance.md), with no pass / fail test."]
+    },
+    {
+      "id": "P10", "heading": "### P10 — Supervised training and evaluation", "status": "done",
+      "acceptance_docs": ["docs/p10-acceptance.md", "docs/supervised-model-card.md"], "gap_sections": ["docs/p10-acceptance.md#Deviations and decisions"],
+      "evidence": {"tests": ["tests/backend/test_supervised_datasets.py", "tests/backend/test_supervised_units.py"], "checks": ["backend"]},
+      "roadmap_gaps": []
+    },
+    {
+      "id": "P11", "heading": "### P11 — Model persistence and inference", "status": "done",
+      "acceptance_docs": ["docs/p11-acceptance.md", "docs/model-lifecycle.md"], "gap_sections": ["docs/p11-acceptance.md#Deviations and decisions"],
+      "evidence": {"tests": ["tests/backend/test_model_artifact.py", "tests/backend/test_model_datasets.py", "tests/backend/test_models.py"], "checks": ["backend"]},
+      "roadmap_gaps": ["No SHAP sub-breakdown in the UI and no fusion into P9 (deviation 1: no production-eligible model)."]
+    },
+    {
+      "id": "P12", "heading": "### P12 — Entity resolution", "status": "done",
+      "acceptance_docs": ["docs/p12-acceptance.md", "docs/entity-resolution.md"], "gap_sections": ["docs/p12-acceptance.md#Deviations and decisions"],
+      "evidence": {"tests": ["tests/backend/test_resolution_datasets.py", "tests/backend/test_resolution_units.py"], "checks": ["backend"]},
+      "roadmap_gaps": ["No separate similarity-matrix screen in the UI; the evidence is in the API and the counterparty table (roadmap P12 'As built')."]
+    },
+    {
+      "id": "P13", "heading": "### P13 — Graph and relationship analysis", "status": "done",
+      "acceptance_docs": ["docs/p13-acceptance.md", "docs/relationship-graph.md"], "gap_sections": ["docs/p13-acceptance.md#Deviations and decisions"],
+      "evidence": {"tests": ["tests/backend/test_graph_datasets.py", "tests/backend/test_graph_units.py"], "checks": ["backend", "browser"]},
+      "roadmap_gaps": []
+    },
+    {
+      "id": "P14", "heading": "### P14 — Bank statement reconciliation", "status": "done",
+      "acceptance_docs": ["docs/p14-acceptance.md", "docs/p14b-acceptance.md", "docs/reconciliation.md", "docs/pdf-extraction.md"], "gap_sections": ["docs/p14-acceptance.md#Deviations and decisions", "docs/p14b-acceptance.md#Not implemented / deferred (stated, not claimed)"],
+      "evidence": {"tests": ["tests/backend/test_recon_datasets.py", "tests/backend/test_recon_units.py", "tests/backend/test_pdf_datasets.py", "tests/backend/test_pdf_units.py"], "checks": ["backend", "browser"], "optional_prerequisites": "OCR tests need a local Tesseract; without it they are SKIPPED and tools/verify.py lists the skips."},
+      "roadmap_gaps": ["'Exceptions feed the risk engine' is deliberately not done (P9 unchanged)."]
+    },
+    {
+      "id": "P15", "heading": "### P15 — Investigation workflow, case and evidence management", "status": "done",
+      "acceptance_docs": ["docs/p15-acceptance.md", "docs/investigations.md"], "gap_sections": ["docs/p15-acceptance.md#Limitations"],
+      "evidence": {"tests": ["tests/backend/test_investigations.py"], "checks": ["backend", "browser"]},
+      "roadmap_gaps": ["No run comparison."]
+    },
+    {
+      "id": "P16", "heading": "### P16 — Reporting and local audit memo assistant", "status": "done",
+      "acceptance_docs": ["docs/p16-acceptance.md", "docs/reporting.md"], "gap_sections": ["docs/p16-acceptance.md#Deviations from the roadmap entry", "docs/p16-acceptance.md#Limitations"],
+      "evidence": {"tests": ["tests/backend/test_reports.py"], "checks": ["backend", "browser"]},
+      "roadmap_gaps": ["No PDF output (ReportLab not installed); 'the PDF opens and its hash is stored' is not met."]
+    },
+    {
+      "id": "P17", "heading": "### P17 — Investigation assistant", "status": "not_built_optional",
+      "acceptance_docs": [], "gap_sections": [], "evidence": {"tests": [], "checks": []},
+      "roadmap_gaps": ["Optional phase not built."]
+    },
+    {
+      "id": "P18", "heading": "### P18 — Monte Carlo cash-flow analysis", "status": "not_built_data_gated",
+      "acceptance_docs": [], "gap_sections": [], "evidence": {"tests": [], "checks": []},
+      "roadmap_gaps": ["Data-gated phase not built."]
+    },
+    {
+      "id": "P19", "heading": "### P19 — Benchmarking", "status": "not_built_data_gated",
+      "acceptance_docs": [], "gap_sections": [], "evidence": {"tests": [], "checks": []},
+      "roadmap_gaps": ["Data-gated phase not built."]
+    },
+    {
+      "id": "P20", "heading": "### P20 — Security hardening", "status": "done",
+      "acceptance_docs": ["docs/p20-security-acceptance.md"], "gap_sections": ["docs/p20-security-acceptance.md#5. Not enforced / remaining risks"],
+      "evidence": {"tests": ["tests/backend/test_security_p20.py", "tests/backend/test_api_security.py"], "checks": ["backend", "browser"]},
+      "roadmap_gaps": ["pip-audit was not run (needs network)."]
+    },
+    {
+      "id": "P21", "heading": "### P21 — Offline packaging", "status": "done",
+      "acceptance_docs": ["docs/p21-acceptance.md", "docs/installation.md"], "gap_sections": ["docs/p21-acceptance.md#7. Remaining limitations"],
+      "evidence": {"tests": ["tests/backend/test_packaging_p21.py"], "checks": ["package", "offline-bundle"]},
+      "roadmap_gaps": ["'Verified manually' on a machine with the network physically disabled is still the user's step; the automated check isolates the installation's processes, not the machine.", "No PyInstaller executable; the interpreter is not bundled."]
+    }
+  ]
+}

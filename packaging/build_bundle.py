@@ -130,6 +130,20 @@ def scan(files: dict[str, bytes]) -> None:
         raise BuildError("refusing to build:\n  " + "\n  ".join(problems))
 
 
+def preserve_previous(target: Path, new: Path) -> Path | None:
+    """P22: never overwrite a different earlier artefact. It is renamed `<name>.<sha256[:12]>.zip` (kept
+    beside the new one); an identical one is simply replaced by the same bytes."""
+    if not target.exists():
+        return None
+    old = target.read_bytes()
+    if old == new.read_bytes():
+        return None
+    kept = target.with_name(f"{target.stem}.{hashlib.sha256(old).hexdigest()[:12]}.zip")
+    if not kept.exists():
+        target.replace(kept)
+    return kept
+
+
 def build(wheelhouse: Path | None, out: Path) -> tuple[Path, dict]:
     files = collect(wheelhouse)
     scan(files)
@@ -157,6 +171,7 @@ def build(wheelhouse: Path | None, out: Path) -> tuple[Path, dict]:
             zi.compress_type = zipfile.ZIP_DEFLATED
             zi.external_attr = 0o644 << 16
             z.writestr(zi, files[rel])
+    preserve_previous(target, tmp)
     tmp.replace(target)
     return target, info
 
