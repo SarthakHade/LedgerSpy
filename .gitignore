@@ -48,3 +48,6 @@ desktop.ini
 # --- Secrets ---
 .env
 *.key
+
+# Local extracted release used for offline acceptance testing
+/ledgerspy-offline-test/
