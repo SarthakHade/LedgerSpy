@@ -123,7 +123,28 @@ machine (P21).
 | Skipped OCR tests in the summary | Install Tesseract (P21 guide §5) to cover them; otherwise they remain an uncovered platform gap |
 | A run shows `interrupted` | The orchestrator or a check was killed: rerun, preferably with `--detach` |
 
-## 7. Limitations
+## 7. End-to-end acceptance of a release bundle (P24)
+
+`tools/e2e_acceptance.py` is a release step, separate from `verify.py`. It installs a bundle by the documented
+procedure in an empty folder, then runs the documented workflow against the **packaged** application:
+- import, master data (by the documented command), data quality and analysis;
+- entities and graph, reconciliation, PDF / OCR review and correction;
+- investigation, the four report types, integrity checks and invalid inputs;
+- a restart with reproduced results, and a public ledger.
+
+```bat
+.venv\Scripts\python tools\e2e_acceptance.py --bundle dist\<bundle>.zip --work <empty folder>
+```
+
+**How it checks.**
+- **Expected values** are derived from the fixture files, or from the P5 ground truth, which is evaluation-only.
+- **Network:** every installed Python process runs under the network guard, and the installation's processes
+  are sampled with `netstat`.
+- **Output:** `<work>\e2e-results.json` lists each check as PASS, FAIL or NOT TESTED.
+- **Not tested here:** the disconnected-machine run is always NOT TESTED; it is the user's manual step.
+- **Exit codes:** 0 if no check failed, 1 otherwise.
+
+## 8. Limitations
 
 - **Windows-first.** The offline check and the bundle target Windows x64. The orchestrator itself, Ruff, the
   backend suite and the Playwright checks are portable but are verified here only on Windows 11.

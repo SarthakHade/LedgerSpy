@@ -191,6 +191,13 @@ under a SQLite authorizer that denies any read of `labels` and any write outside
 a source scan forbids those names in `ledgerspy/reports/`. Datasets flagged synthetic at import are labelled
 "flagged synthetic" in the memo's data sources.
 
+**When nothing is declared** (generic ledgers and bank statements do not declare their origin; only the PaySim
+adapter does):
+- **JSON:** the dataset's `synthetic` field is `null`.
+- **HTML:** the scope table shows "not declared".
+
+Before P24 such datasets were reported as `false` / "no", an assertion the system cannot make.
+
 ## 9. Limitations
 
 - **Approval:** none. Memos stay drafts; there is no reviewer sign-off workflow.

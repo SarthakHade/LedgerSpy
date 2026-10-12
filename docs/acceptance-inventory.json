@@ -19,13 +19,13 @@
     {
       "id": "P2", "heading": "### P2 — Architecture foundation", "status": "done",
       "acceptance_docs": ["docs/p2-acceptance.md"], "gap_sections": ["docs/p2-acceptance.md#Decisions that differ from or add to `architecture.md`"],
-      "evidence": {"tests": ["tests/backend/test_api_security.py", "tests/backend/test_db_audit.py", "tests/backend/test_config.py", "tests/backend/test_server_binding.py", "tests/backend/test_network_guard.py", "tests/backend/test_ids.py", "tests/backend/test_cli.py"], "checks": ["backend"]},
+      "evidence": {"tests": ["tests/backend/test_api_security.py", "tests/backend/test_db_audit.py", "tests/backend/test_config.py", "tests/backend/test_server_binding.py", "tests/backend/test_network_guard.py", "tests/backend/test_ids.py", "tests/backend/test_cli.py", "tests/backend/test_p24_fixes.py"], "checks": ["backend"]},
       "roadmap_gaps": []
     },
     {
       "id": "P3", "heading": "### P3 — Data ingestion and evidence", "status": "done",
       "acceptance_docs": ["docs/p3-acceptance.md"], "gap_sections": ["docs/p3-acceptance.md#Deviations from `architecture.md` / `roadmap.md` (all recorded in `architecture.md`)"],
-      "evidence": {"tests": ["tests/backend/test_ingest_api.py", "tests/backend/test_ingest_csv.py", "tests/backend/test_ingest_xlsx.py", "tests/backend/test_ingest_evidence.py", "tests/backend/test_ingest_mapping.py", "tests/backend/test_ingest_paysim.py"], "checks": ["backend"]},
+      "evidence": {"tests": ["tests/backend/test_ingest_api.py", "tests/backend/test_ingest_csv.py", "tests/backend/test_ingest_xlsx.py", "tests/backend/test_ingest_evidence.py", "tests/backend/test_ingest_mapping.py", "tests/backend/test_ingest_paysim.py", "tests/backend/test_p24_fixes.py"], "checks": ["backend"]},
       "roadmap_gaps": []
     },
     {

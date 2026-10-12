@@ -162,12 +162,20 @@ def store(
         return row[0], False
     stored_name = staged.sha256 + ext.lower()
     target = target_dir / stored_name
-    if target.exists():  # a file without a DB row: never trust or overwrite it
-        raise IngestError(
-            "evidence_conflict", f"An unregistered file already occupies {stored_name}.", http_status=409
-        )
-    os.replace(staged.path, target)
-    _make_read_only(target)
+    recovered = False
+    if target.exists():  # a file without a DB row
+        if file_sha256(target) != staged.sha256:  # different bytes: never trust or overwrite them
+            raise IngestError(
+                "evidence_conflict", f"An unregistered file already occupies {stored_name}.", http_status=409
+            )
+        # P24: the same bytes, left by an import whose commit failed or whose process was killed after the
+        # move. The name is the content hash and the content matches, so the file is registered as it is.
+        staged.path.unlink(missing_ok=True)
+        _make_read_only(target)
+        recovered = True
+    else:
+        os.replace(staged.path, target)
+        _make_read_only(target)
     if file_sha256(target) != staged.sha256:  # pragma: no cover — defensive: the move must not alter bytes
         raise IngestError("evidence_write_failed", "The stored evidence copy does not match the upload hash.")
     conn.execute(
@@ -179,7 +187,8 @@ def store(
         actor,
         "evidence.stored",
         f"evidence:{staged.sha256}",
-        {"sha256": staged.sha256, "size_bytes": staged.size_bytes, "stored_name": stored_name},
+        {"sha256": staged.sha256, "size_bytes": staged.size_bytes, "stored_name": stored_name}
+        | ({"recovered_unregistered_file": True} if recovered else {}),
     )
     return stored_name, True
 

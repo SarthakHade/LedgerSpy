@@ -27,6 +27,10 @@ from pathlib import Path
 from ledgerspy.cases import audit
 from ledgerspy.config import LedgerSpyConfig
 
+# P24: how long a connection waits for another connection's lock (e.g. the CLI importing master data while the
+# server reads for the graph) before SQLite reports "database is locked". SQLite's default is 5 s.
+BUSY_TIMEOUT_SECONDS = 30.0
+
 
 class DatabaseError(RuntimeError):
     pass
@@ -644,7 +648,9 @@ def db_path_for(settings: LedgerSpyConfig) -> Path:
     return Path(settings.workspace.path) / settings.workspace.db_filename
 
 
-def connect(path: Path | str, *, read_only: bool = False) -> sqlite3.Connection:
+def connect(
+    path: Path | str, *, read_only: bool = False, timeout: float = BUSY_TIMEOUT_SECONDS
+) -> sqlite3.Connection:
     """Open the database in autocommit mode; callers group writes with `transaction()`.
 
     check_same_thread=False: the API opens a connection per request in a FastAPI dependency, whose setup,
@@ -656,10 +662,14 @@ def connect(path: Path | str, *, read_only: bool = False) -> sqlite3.Connection:
         if not path.is_file():
             raise DatabaseError(f"database not found: {path}")
         conn = sqlite3.connect(
-            f"{path.resolve().as_uri()}?mode=ro", uri=True, isolation_level=None, check_same_thread=False
+            f"{path.resolve().as_uri()}?mode=ro",
+            uri=True,
+            isolation_level=None,
+            check_same_thread=False,
+            timeout=timeout,
         )
     else:
-        conn = sqlite3.connect(path, isolation_level=None, check_same_thread=False)
+        conn = sqlite3.connect(path, isolation_level=None, check_same_thread=False, timeout=timeout)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     return conn
@@ -674,7 +684,14 @@ def transaction(conn: sqlite3.Connection) -> Iterator[sqlite3.Connection]:
     except BaseException:
         conn.execute("ROLLBACK")
         raise
-    conn.execute("COMMIT")
+    try:
+        conn.execute("COMMIT")
+    except BaseException:
+        # P24: a refused COMMIT (e.g. "database is locked") leaves the transaction OPEN; without this the
+        # connection would keep, and later read, writes that are never committed.
+        if conn.in_transaction:
+            conn.execute("ROLLBACK")
+        raise
 
 
 @functools.lru_cache(maxsize=1)

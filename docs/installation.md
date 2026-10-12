@@ -93,7 +93,9 @@ shipped.
   it ("… for case C-…").
 - **Which workspace.** Name the workspace that `ledgerspy.cmd` serves. Without `--workspace` the command uses
   `.\workspace` in the current folder, which is not the UI's workspace, so the case is not found.
-- **The server can keep running.**
+- **The server can keep running.** If the server holds the database busy, the command waits up to 30 seconds.
+  If it is still busy after that, the command stops with "the workspace database stayed busy … rolled back".
+  Nothing is changed, and you can run it again.
 
 ```bat
 .venv\Scripts\python -m ledgerspy entities import-master --workspace "%LOCALAPPDATA%\LedgerSpy\workspace" --case-id C-… --file data\synthetic\reference\SYNTHETIC_vendor_master.csv --entity-type vendor --use-suggested

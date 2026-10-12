@@ -65,7 +65,8 @@ class _Ctx:
             if r is None:
                 raise _err("dataset_not_found", "dataset not found", 404)
             d = dict(r)
-            d["synthetic"] = bool(d["synthetic"])
+            # P24: NULL = the source declared nothing; never report that as "not synthetic"
+            d["synthetic"] = None if d["synthetic"] is None else bool(d["synthetic"])
             d["evidence_verification"] = self.evidence_state(d["evidence_sha256"])
             self._datasets[dataset_id] = d
         return self._datasets[dataset_id]

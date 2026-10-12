@@ -761,6 +761,24 @@ def test_report_api_flow_validation_and_downloads(api, env, case):
     assert x.status_code == 422 and x.json()["error"]["code"] == "invalid_parameters"
 
 
+def test_undeclared_synthetic_status_is_reported_as_unknown_not_false(env, case):
+    """P24 defect: a dataset whose source declares nothing (generic ledger: `synthetic` NULL) was reported as
+    `synthetic: false` (HTML "no"), a claim the system cannot make. JSON keeps null; HTML says "not declared".
+    (The Markdown rendering does not list the dataset scope.)"""
+    content = preview(env, "case_investigation", investigation_ids=[case["i"]])
+    row = (
+        env["h"].conn.execute("SELECT synthetic FROM datasets WHERE dataset_id = ?", (env["led"],)).fetchone()
+    )
+    assert row[0] is None  # the generic-ledger adapter declares nothing
+    led = next(d for d in content["scope"]["datasets"] if d["dataset_id"] == env["led"])
+    assert led["synthetic"] is None
+    env_ = {"report_id": "RP-T", "version": 1, "generated_at": "2026-01-01T00:00:00Z", "generated_by": "t"}
+    html = render.to_html(content, env_)
+    row = next(r for r in html.split("<tr>") if f"<td>{env['led']}</td>" in r)
+    cells = re.findall(r"<td>(.*?)</td>", row)
+    assert cells[5] == "not declared"  # the "Synthetic" column; was "no"
+
+
 # ------------------------------------------------------------------------------------------- golden template
 
 GOLDEN = REPO / "tests" / "backend" / "fixtures" / "reports"

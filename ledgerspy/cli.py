@@ -590,6 +590,16 @@ def main(argv: list[str] | None = None) -> int:
     except ConfigError as exc:
         print(f"ERROR: configuration: {exc}", file=sys.stderr)
         return 2
+    except sqlite3.OperationalError as exc:
+        if "locked" not in str(exc) and "busy" not in str(exc):
+            raise
+        # P24: an explicit refusal instead of a traceback; the transaction was rolled back
+        print(
+            "ERROR: the workspace database stayed busy (LedgerSpy is reading or writing it); the operation "
+            "was rolled back. Run the command again.",
+            file=sys.stderr,
+        )
+        return 1
 
 
 if __name__ == "__main__":

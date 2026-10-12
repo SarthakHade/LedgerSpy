@@ -192,7 +192,7 @@ def _case(doc: _Html, c: dict[str, Any], level: int = 2) -> None:
                 d["kind"],
                 d["format"],
                 d["row_count"],
-                d["synthetic"],
+                "not declared" if d["synthetic"] is None else d["synthetic"],
                 d["evidence_sha256"],
                 d["evidence_verification"],
             ]
