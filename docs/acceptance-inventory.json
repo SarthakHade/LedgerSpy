@@ -1,5 +1,5 @@
 {
-  "about": "Acceptance inventory P0-P23 (machine-readable; P22, updated by the pre-P23 gap audit and P23). It REFERENCES the roadmap and the phase acceptance records; it does not restate their results. 'evidence' lists where a phase is checked (tests/backend files, frontend checks, tools/verify.py checks). 'roadmap_gaps' lists roadmap acceptance items that the referenced record itself states as not met, deviated or untested; 'gap_sections' point to those statements. Validated by tests/backend/test_verify_p22.py (every path, heading and test file must exist).",
+  "about": "Acceptance inventory P0-P24 (machine-readable; P22, updated by the pre-P23 gap audit, P23 and P24). It REFERENCES the roadmap and the phase acceptance records; it does not restate their results. 'evidence' lists where a phase is checked (tests/backend files, frontend checks, tools/verify.py checks). 'roadmap_gaps' lists roadmap acceptance items that the referenced record itself states as not met, deviated or untested; 'gap_sections' point to those statements. Validated by tests/backend/test_verify_p22.py (every path, heading and test file must exist).",
   "roadmap": "docs/roadmap.md",
   "verification_command": "python tools/verify.py",
   "gap_audit": "docs/pre-p23-gap-audit.md",
@@ -147,6 +147,12 @@
       "acceptance_docs": ["docs/p23-acceptance.md", "docs/user-guide.md", "docs/operations.md", "docs/security.md", "docs/configuration.md", "docs/developer-guide.md"], "gap_sections": ["docs/p23-acceptance.md#5. Remaining documentation gaps"],
       "evidence": {"tests": ["tests/backend/test_docs_p23.py"], "checks": ["backend"]},
       "roadmap_gaps": ["'A new developer can install offline and run the demo case from the docs alone' was checked by review and automated consistency tests, not by an independent new developer on a network-disabled machine (P24)."]
+    },
+    {
+      "id": "P24", "heading": "### P24 — Final end-to-end validation", "status": "partially_verified",
+      "acceptance_docs": ["docs/p24-acceptance.md"], "gap_sections": ["docs/p24-acceptance.md#8. Outstanding issues, classified", "docs/p24-acceptance.md#9. Manual checks still required from the user"],
+      "evidence": {"tests": ["tests/backend/test_p24_fixes.py", "tests/backend/test_reports.py"], "checks": ["backend", "browser", "package", "offline-bundle"]},
+      "roadmap_gaps": ["'On a network-disabled laptop': not performed (the user's manual step); the application-level network guard and netstat showed no attempt.", "'memo/PDF': no PDF output exists (JSON / HTML / Markdown).", "pip-audit and real bank-statement layouts not verified."]
     }
   ]
 }

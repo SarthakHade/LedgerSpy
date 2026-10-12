@@ -392,7 +392,7 @@ def test_the_acceptance_inventory_references_only_things_that_exist():
     inv = json.loads((REPO / "docs" / "acceptance-inventory.json").read_text(encoding="utf-8"))
     roadmap = (REPO / inv["roadmap"]).read_text(encoding="utf-8")
     ids = [p["id"] for p in inv["phases"]]
-    assert ids == [f"P{i}" for i in range(24)]  # every phase up to P23, in order
+    assert ids == [f"P{i}" for i in range(25)]  # every phase up to P24, in order
     assert (REPO / inv["gap_audit"]).is_file()
     for p in inv["phases"]:
         line = next((ln for ln in roadmap.splitlines() if ln.startswith(p["heading"])), None)

@@ -385,11 +385,23 @@ See [`cleanup-log.md`](cleanup-log.md).
     acceptance criterion is checked by review and by those tests, not by an independent new developer. The
     network-disabled target-laptop run remains P24.
 
-### P24 — Final end-to-end validation
+### P24 — Final end-to-end validation — partially verified (see [`p24-acceptance.md`](p24-acceptance.md); decision: CONDITIONAL GO)
 - **Objective.** On a network-disabled laptop, run the synthetic company and a real public ledger end to end.
   - Integrity → analysis → investigation → confirmed findings → memo/PDF.
   - Verify the audit log and reproduce the run from its manifest.
 - **Acceptance.** All PS MUST requirements are demonstrably met with real computation; every displayed number is traceable; the reproduced run is identical.
+- **As built.**
+  - **End to end on the installed release bundle:** `tools/e2e_acceptance.py` ran the synthetic company and the
+    public PaySim sample through import, master data, integrity, analysis, entities and graph, reconciliation,
+    PDF / OCR, investigation, the four report types, integrity and tamper checks, invalid inputs and a restart.
+    Expected values came from the fixture files; 30 / 30 automated checks passed, plus a manual check of the
+    packaged UI. The reproduced run was identical.
+  - **Release blockers found and fixed** (`fc19b21`, with regression tests):
+    - a refused COMMIT left an open transaction and an orphaned evidence file;
+    - reports stated "not synthetic" for undeclared data.
+  - **Not verified (environment):** the run on a laptop with networking disabled (the application-level network
+    guard and netstat showed no attempt), `pip-audit`, and real bank-statement layouts. PDF report files do not
+    exist by design (JSON / HTML / Markdown). P24 is therefore recorded as partially verified, not done.
 
 ---
 

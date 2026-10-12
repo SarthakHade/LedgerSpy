@@ -256,6 +256,14 @@ it" describe the state at that phase.
   See [`docs/pre-p23-gap-audit.md`](docs/pre-p23-gap-audit.md).
 - **P23 documentation:** the user guide, operations guide and security summary, and this overview, checked
   against the code by `tests/backend/test_docs_p23.py`. See [`docs/p23-acceptance.md`](docs/p23-acceptance.md).
+- **P24 final end-to-end acceptance** (partially verified; decision **CONDITIONAL GO**):
+  - **Tested:** the installed release bundle, run through the whole documented workflow with values derived from
+    the source files (`tools/e2e_acceptance.py`).
+  - **Fixed:** two release blockers, a busy-database commit leaving an orphaned evidence file and reports
+    claiming "not synthetic".
+  - **Still to do:** the network-disabled target-laptop run and `pip-audit` remain your steps.
+
+  See [`docs/p24-acceptance.md`](docs/p24-acceptance.md).
 - The original notebooks are in `archive/` for reference. Their evaluation had data leakage and must not be quoted.
 
 See [`docs/requirements.md`](docs/requirements.md) for the requirement-by-requirement status.
@@ -361,8 +369,9 @@ python tests/frontend/integrity_panel_check.py  # optional: P4 dashboard against
 | [`docs/verification.md`](docs/verification.md) | P22 release verification: the single command, checks, results, package validation, troubleshooting |
 | [`docs/p22-acceptance.md`](docs/p22-acceptance.md) | P22 acceptance: consolidated run, workflow tests, coverage and acceptance gaps |
 | [`docs/p23-acceptance.md`](docs/p23-acceptance.md) | P23 acceptance: documentation set, consistency checks, verification, remaining documentation gaps |
+| [`docs/p24-acceptance.md`](docs/p24-acceptance.md) | P24 final acceptance: end-to-end matrix on the installed bundle, defects fixed, verification, package, outstanding issues, release decision |
 | [`docs/pre-p23-gap-audit.md`](docs/pre-p23-gap-audit.md) | Pre-P23 completeness audit: every roadmap requirement's status, the gaps fixed, deferred and environment-only items, P23 readiness |
-| [`docs/acceptance-inventory.json`](docs/acceptance-inventory.json) | P0–P23 acceptance inventory (references, evidence, gaps), validated by a test |
+| [`docs/acceptance-inventory.json`](docs/acceptance-inventory.json) | P0–P24 acceptance inventory (references, evidence, gaps), validated by a test |
 | [`docs/synthetic-scenario-matrix.md`](docs/synthetic-scenario-matrix.md) | Feature → scenario → fields → records → detector phase |
 | [`docs/cleanup-log.md`](docs/cleanup-log.md) | What was moved, archived or deleted in the cleanup, and why |
 | [`docs/audits/phase-1-current-state-audit.md`](docs/audits/phase-1-current-state-audit.md) | Detailed audit of the prototype |
