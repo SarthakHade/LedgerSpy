@@ -12,15 +12,15 @@ recomputed from those parameters when not cached and verified against the stored
 """
 
 import json
-import threading
 import time
-from collections import Counter, OrderedDict, defaultdict
+from collections import Counter, defaultdict
 from dataclasses import dataclass
 from datetime import date
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from ledgerspy.cache import NamespacedLRU, namespace
 from ledgerspy.cases import audit
 from ledgerspy.cases.db import transaction
 from ledgerspy.config.loader import EffectiveConfig
@@ -90,13 +90,12 @@ class Run:
     record: dict[str, Any] | None = None
 
 
-_CACHE: "OrderedDict[str, Run]" = OrderedDict()
-_LOCK = threading.Lock()
+# Per database (ledgerspy.cache): a run ID from another workspace is not found and never touches its entry.
+_CACHE = NamespacedLRU(1)  # the bound is passed on each insert (reconciliation.limits.max_runs_cached)
 
 
 def clear_cache() -> None:
-    with _LOCK:
-        _CACHE.clear()
+    _CACHE.clear()
 
 
 # ------------------------------------------------------------------------------------------- inputs
@@ -595,12 +594,8 @@ def _compute(conn, cfg: EffectiveConfig, req: RunRequest) -> Run:
     )
 
 
-def _cache(run: Run, cfg: EffectiveConfig) -> Run:
-    with _LOCK:
-        _CACHE[run.run_id] = run
-        _CACHE.move_to_end(run.run_id)
-        while len(_CACHE) > cfg.settings.reconciliation.limits.max_runs_cached:
-            _CACHE.popitem(last=False)
+def _cache(conn, run: Run, cfg: EffectiveConfig) -> Run:
+    _CACHE.put(namespace(conn), run.run_id, run, size=cfg.settings.reconciliation.limits.max_runs_cached)
     return run
 
 
@@ -655,12 +650,12 @@ def start(conn, cfg: EffectiveConfig, req: RunRequest, actor: str) -> Run:
             http_status=500,
         )
     run.record = {"created_by": rec["created_by"], "created_at": rec["created_at"]}
-    return _cache(run, cfg)
+    return _cache(conn, run, cfg)
 
 
 def get_run(conn, cfg: EffectiveConfig, run_id: str) -> Run:
-    with _LOCK:
-        cached = _CACHE.get(run_id)
+    ns = namespace(conn)
+    cached = _CACHE.get(ns, run_id)
     if cached is not None:
         # a cached run is served only while its inputs are unchanged (P15: e.g. no OCR correction since)
         rec = _record(conn, run_id)
@@ -668,8 +663,7 @@ def get_run(conn, cfg: EffectiveConfig, run_id: str) -> Run:
         for side in ("ledger", "bank"):
             ds = ident[side]["dataset_id"]
             if data_version(overlay_rows(conn, ds)) != ident[side]["data_version"]:
-                with _LOCK:
-                    _CACHE.pop(run_id, None)
+                _CACHE.pop(ns, run_id)
                 raise LedgerSpyError(
                     "inputs_changed",
                     f"the {side} dataset's normalised data changed after this run (P4 transformations, e.g. "
@@ -678,8 +672,6 @@ def get_run(conn, cfg: EffectiveConfig, run_id: str) -> Run:
                     http_status=409,
                 )
         if rec is not None:
-            with _LOCK:
-                _CACHE.move_to_end(run_id)
             return cached
     rec = _record(conn, run_id)
     if rec is None:
@@ -704,7 +696,7 @@ def get_run(conn, cfg: EffectiveConfig, run_id: str) -> Run:
             http_status=409,
         )
     run.record = {"created_by": rec["created_by"], "created_at": rec["created_at"]}
-    return _cache(run, cfg)
+    return _cache(conn, run, cfg)
 
 
 def list_runs(conn, ledger_id: str | None, bank_id: str | None) -> dict[str, Any]:

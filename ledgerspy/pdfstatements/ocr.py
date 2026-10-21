@@ -40,9 +40,17 @@ class OcrEngine:
         }
 
 
+WORKER_TEMP_ENV = "LEDGERSPY_PDF_WORKER_TEMP_DIR"  # = ledgerspy.storage_limits.WORKER_TEMP_ENV
+
+
 def _env() -> dict[str, str]:
     env = {k: v for k, v in os.environ.items() if k.upper() in ("PATH", "SYSTEMROOT", "TEMP", "TMP", "HOME")}
     env["OMP_THREAD_LIMIT"] = "1"
+    # Set only by a host's worker policy (the hosted demo): Tesseract and its children get that folder for
+    # every temporary file. Offline the variable is absent and nothing changes.
+    work = os.environ.get(WORKER_TEMP_ENV, "")
+    if work and os.path.isabs(work) and os.path.isdir(work):
+        env["TMPDIR"] = env["TEMP"] = env["TMP"] = work
     return env
 
 

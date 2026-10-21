@@ -14,6 +14,9 @@ from pathlib import Path
 
 
 def main() -> int:
+    from ledgerspy import storage_limits
+
+    storage_limits.apply_worker_file_limit()  # no-op unless the host set a limit (the hosted demo, Linux)
     req = json.loads(sys.stdin.read())
     from ledgerspy.pdfstatements import extract, ocr, pages
 

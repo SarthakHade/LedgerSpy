@@ -24,6 +24,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
 
+from ledgerspy import storage_limits
 from ledgerspy.cases import audit
 from ledgerspy.config import LedgerSpyConfig
 
@@ -672,6 +673,7 @@ def connect(
         conn = sqlite3.connect(path, isolation_level=None, check_same_thread=False, timeout=timeout)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
+    storage_limits.apply_db_limit(conn, path)  # no-op unless a host registered a limit (the hosted demo)
     return conn
 
 

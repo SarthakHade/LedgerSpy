@@ -15,12 +15,12 @@ Inputs are canonical data only: labels, `extra` columns and ground truth are nev
 import json
 import math
 import sqlite3
-import threading
-from collections import Counter, OrderedDict, defaultdict
+from collections import Counter, defaultdict
 from dataclasses import dataclass, field
 from typing import Any
 
 from ledgerspy.anomaly import service as anomaly_service
+from ledgerspy.cache import NamespacedLRU, namespace
 from ledgerspy.config.loader import ConfigError, EffectiveConfig
 from ledgerspy.config.schema import LedgerSpyConfig
 from ledgerspy.features import matrix
@@ -589,9 +589,8 @@ def _scatter(rows: list[dict[str, Any]], anomaly: dict[str, Any]) -> dict[str, A
 
 # ------------------------------------------------------------------------------------------------ cache + run
 
-_CACHE: "OrderedDict[str, RiskResult]" = OrderedDict()
 _CACHE_SIZE = 4
-_LOCK = threading.Lock()
+_CACHE = NamespacedLRU(_CACHE_SIZE)  # per database (ledgerspy.cache)
 
 
 def identity(conn: sqlite3.Connection, cfg: EffectiveConfig, dataset_id: str) -> dict[str, Any]:
@@ -629,25 +628,19 @@ def run_risk(conn: sqlite3.Connection, cfg: EffectiveConfig, dataset_id: str) ->
     """The dataset's risk result for its current state (cached by identity; read-only)."""
     ident = identity(conn, cfg, dataset_id)
     key = sha256_hex(canonical_json(ident))
-    with _LOCK:
-        hit = _CACHE.get(key)
-        if hit is not None:
-            _CACHE.move_to_end(key)
-            return hit
+    ns = namespace(conn)
+    hit = _CACHE.get(ns, key)
+    if hit is not None:
+        return hit
     res = compute(conn, cfg, dataset_id)
     res.identity = ident | {"cache_key": key}
     res.summary["identity"] = res.identity
-    with _LOCK:
-        _CACHE[key] = res
-        _CACHE.move_to_end(key)
-        while len(_CACHE) > _CACHE_SIZE:
-            _CACHE.popitem(last=False)
+    _CACHE.put(ns, key, res)
     return res
 
 
 def clear_cache() -> None:
-    with _LOCK:
-        _CACHE.clear()
+    _CACHE.clear()
 
 
 # ------------------------------------------------------------------------------------------------ views

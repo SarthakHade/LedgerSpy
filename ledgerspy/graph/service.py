@@ -7,13 +7,13 @@ it is not an input to any graph detector. Results are cached by identity (datase
 configuration, window).
 """
 
-import threading
 import time
-from collections import OrderedDict, defaultdict
+from collections import defaultdict
 from dataclasses import dataclass
 from datetime import date
 from typing import Any
 
+from ledgerspy.cache import NamespacedLRU, namespace
 from ledgerspy.config.loader import EffectiveConfig
 from ledgerspy.errors import LedgerSpyError
 from ledgerspy.features import service as feature_service
@@ -45,8 +45,7 @@ class GraphResult:
     timings: dict[str, float]
 
 
-_CACHE: "OrderedDict[str, GraphResult]" = OrderedDict()
-_LOCK = threading.Lock()
+_CACHE = NamespacedLRU(6)  # per database (ledgerspy.cache)
 
 
 def _p9_by_node(conn, cfg, dataset_id: str, res, g: model.Graph) -> dict[str, dict[str, Any]]:
@@ -93,10 +92,10 @@ def run(
         "window": [frm.isoformat() if frm else None, to.isoformat() if to else None],
     }
     key = sha256_hex(canonical_json(ident))
-    with _LOCK:
-        if key in _CACHE:
-            _CACHE.move_to_end(key)
-            return _CACHE[key]
+    ns = namespace(conn)
+    hit = _CACHE.get(ns, key)
+    if hit is not None:
+        return hit
     t0 = time.perf_counter()
     inp = feature_service.input_for(conn, cfg, view)
     res = resolution_of(inp)
@@ -131,16 +130,12 @@ def run(
             "p9_annotation": round(time.perf_counter() - t5, 4),
         },
     )
-    with _LOCK:
-        _CACHE[key] = out
-        while len(_CACHE) > 6:
-            _CACHE.popitem(last=False)
+    _CACHE.put(ns, key, out)
     return out
 
 
 def clear_cache() -> None:
-    with _LOCK:
-        _CACHE.clear()
+    _CACHE.clear()
 
 
 # ------------------------------------------------------------------------------------------ views

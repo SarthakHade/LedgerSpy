@@ -25,6 +25,7 @@ from pathlib import Path
 from typing import Any
 
 import ledgerspy
+from ledgerspy import storage_limits
 from ledgerspy.cases import audit, evidence
 from ledgerspy.cases.db import transaction
 from ledgerspy.config import EffectiveConfig
@@ -86,16 +87,20 @@ def _worker(payload: dict[str, Any], timeout: int) -> dict[str, Any]:
     root = str(Path(ledgerspy.__file__).resolve().parents[1])
     env["PYTHONPATH"] = root + (os.pathsep + env["PYTHONPATH"] if env.get("PYTHONPATH") else "")
     try:
-        r = subprocess.run(  # noqa: S603 — this interpreter, fixed module, request on stdin
-            [sys.executable, "-m", "ledgerspy.pdfstatements.worker"],
-            input=json.dumps(payload),
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            timeout=timeout,
-            env=env,
-            cwd=root,
-        )
+        if storage_limits.worker_temp_root() is not None:  # the hosted demo's policy (process tree, own temp)
+            cmd = [sys.executable, "-m", "ledgerspy.pdfstatements.worker"]
+            r = storage_limits.run_worker(cmd, json.dumps(payload), timeout, env, root)
+        else:  # offline: unchanged
+            r = subprocess.run(  # noqa: S603 — this interpreter, fixed module, request on stdin
+                [sys.executable, "-m", "ledgerspy.pdfstatements.worker"],
+                input=json.dumps(payload),
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                timeout=timeout,
+                env=env,
+                cwd=root,
+            )
     except subprocess.TimeoutExpired as exc:
         raise LedgerSpyError(
             "pdf_extraction_timeout",

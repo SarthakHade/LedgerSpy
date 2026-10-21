@@ -7,11 +7,11 @@ features configuration, resolution version). Nothing is written: canonical rows 
 modified.
 """
 
-import threading
-from collections import Counter, OrderedDict, defaultdict
+from collections import Counter, defaultdict
 from dataclasses import dataclass, field
 from typing import Any
 
+from ledgerspy.cache import NamespacedLRU, namespace
 from ledgerspy.config.loader import EffectiveConfig
 from ledgerspy.errors import LedgerSpyError
 from ledgerspy.features import service as feature_service
@@ -48,8 +48,7 @@ class ResolutionResult:
     phone_country_code: str = ""
 
 
-_CACHE: "OrderedDict[str, ResolutionResult]" = OrderedDict()
-_LOCK = threading.Lock()
+_CACHE = NamespacedLRU(4)  # per database (ledgerspy.cache)
 
 
 def run(conn, cfg: EffectiveConfig, dataset_id: str) -> ResolutionResult:
@@ -63,10 +62,10 @@ def run(conn, cfg: EffectiveConfig, dataset_id: str) -> ResolutionResult:
         "resolution_version": RESOLUTION_VERSION,
     }
     key = sha256_hex(canonical_json(ident))
-    with _LOCK:
-        if key in _CACHE:
-            _CACHE.move_to_end(key)
-            return _CACHE[key]
+    ns = namespace(conn)
+    hit = _CACHE.get(ns, key)
+    if hit is not None:
+        return hit
     inp = feature_service.input_for(conn, cfg, view)
     res = resolution_of(inp)
     variants: dict[str, Counter] = defaultdict(Counter)
@@ -89,16 +88,12 @@ def run(conn, cfg: EffectiveConfig, dataset_id: str) -> ResolutionResult:
         {k: sorted(v) for k, v in streams.items()},
         cfg.settings.features.resolution.normalization.phone_country_code,
     )
-    with _LOCK:
-        _CACHE[key] = out
-        while len(_CACHE) > 4:
-            _CACHE.popitem(last=False)
+    _CACHE.put(ns, key, out)
     return out
 
 
 def clear_cache() -> None:
-    with _LOCK:
-        _CACHE.clear()
+    _CACHE.clear()
 
 
 def _not_found(what: str, ident: str) -> LedgerSpyError:

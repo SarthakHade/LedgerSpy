@@ -14,6 +14,7 @@ import stat
 from pathlib import Path
 from typing import Any
 
+from ledgerspy import storage_limits
 from ledgerspy.canonical.ids import new_ulid
 from ledgerspy.cases import audit
 from ledgerspy.cases.db import transaction
@@ -108,6 +109,8 @@ def generate(
                 "config_sha256": content["config_sha256"],
             }
             files = _artifacts(content, env)
+            # no-op unless a host limits file output (the hosted demo); refused before anything is written
+            storage_limits.claim_output(workspace, sum(len(d) for d in files.values()), "report")
             recorded = {}
             for fmt, data in files.items():
                 path = folder / f"{report_id}.{fmt}"

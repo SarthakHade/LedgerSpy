@@ -20,14 +20,15 @@ database and the P9 risk result is never read or changed; a JSON record of the r
 """
 
 import json
+import os
 import re
 import sqlite3
-import threading
 import time
-from collections import OrderedDict
 from pathlib import Path
 from typing import Any
 
+from ledgerspy import storage_limits
+from ledgerspy.cache import NamespacedLRU, namespace_for_path
 from ledgerspy.config.loader import EffectiveConfig
 from ledgerspy.errors import LedgerSpyError
 from ledgerspy.features import service as feature_service
@@ -47,9 +48,8 @@ NOTE = (
     "from, and never changes, the P9 review-risk score."
 )
 
-_CACHE: "OrderedDict[str, dict[str, Any]]" = OrderedDict()
 _CACHE_SIZE = 4
-_LOCK = threading.Lock()
+_CACHE = NamespacedLRU(_CACHE_SIZE)  # per workspace folder (ledgerspy.cache)
 
 
 def _resolve(
@@ -256,11 +256,7 @@ def infer(
     }
     result = {"metadata": metadata, "rows": rows}
     _write(workspace, result)
-    with _LOCK:
-        _CACHE[inference_id] = result
-        _CACHE.move_to_end(inference_id)
-        while len(_CACHE) > _CACHE_SIZE:
-            _CACHE.popitem(last=False)
+    _CACHE.put(namespace_for_path(workspace), inference_id, result)
     return result
 
 
@@ -286,16 +282,20 @@ def _write(workspace: Path, result: dict[str, Any]) -> None:
     d = _dir(workspace)
     d.mkdir(parents=True, exist_ok=True)
     path = d / f"{result['metadata']['inference_id']}.json"
+    text = json.dumps(result, indent=1, ensure_ascii=False)
+    # no-op unless a host limits file output (the hosted demo); refused before anything is written. The size
+    # claimed is the size written: UTF-8, with text mode's newline translation (CRLF on Windows).
+    written = len(text.encode("utf-8")) + text.count("\n") * (len(os.linesep) - 1)
+    storage_limits.claim_output(workspace, written, "inference result")
     tmp = path.with_suffix(".tmp")
-    tmp.write_text(json.dumps(result, indent=1, ensure_ascii=False), encoding="utf-8")
+    tmp.write_text(text, encoding="utf-8")
     tmp.replace(path)
 
 
 def read_metadata(workspace: Path, inference_id: str) -> dict[str, Any]:
     if not INFERENCE_ID.fullmatch(inference_id or ""):
         raise LedgerSpyError("invalid_inference_id", "an inference ID is I- followed by 16 hex digits")
-    with _LOCK:
-        hit = _CACHE.get(inference_id)
+    hit = _CACHE.get(namespace_for_path(workspace), inference_id)
     if hit is not None:
         return hit["metadata"]
     path = _dir(workspace) / f"{inference_id}.json"
@@ -306,5 +306,4 @@ def read_metadata(workspace: Path, inference_id: str) -> dict[str, Any]:
 
 
 def clear_cache() -> None:
-    with _LOCK:
-        _CACHE.clear()
+    _CACHE.clear()

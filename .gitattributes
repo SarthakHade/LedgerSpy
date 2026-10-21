@@ -4,3 +4,9 @@ tests/backend/fixtures/** -text
 data/synthetic/** -text
 # Windows batch files need CRLF line endings.
 *.cmd text eol=crlf
+# These two modules are stored with CRLF line endings (their existing convention): a CR at the end of a line
+# is expected there, not trailing whitespace. Their content is not normalised.
+ledgerspy/cases/db.py whitespace=cr-at-eol
+ledgerspy/supervised/inference.py whitespace=cr-at-eol
+ledgerspy/cache.py whitespace=cr-at-eol
+tests/demo/conftest.py whitespace=cr-at-eol

@@ -1,0 +1,15 @@
+# Build context for deploy/demo/Dockerfile (the public demo image). Only what the image copies is needed;
+# everything else stays out of the context, especially local data, secrets and build output.
+**
+!pyproject.toml
+!config/default.yaml
+!ledgerspy/**
+!ledgerspy_demo/**
+!frontend/**
+!data/synthetic/reference/**
+!deploy/demo/requirements-linux.lock
+!tests/**
+**/__pycache__
+**/*.pyc
+**/.env
+**/*.ledgerspy.db
